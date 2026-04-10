@@ -1,0 +1,41 @@
+{
+    "skill_name": "dokploy",
+    "evals": [
+        {
+            "id": 1,
+            "prompt": "I have a Laravel API with Horizon and a worker process plus Postgres and Redis. The repo already has a docker-compose.yml for local dev, but I only want a sane Dokploy production setup on one VPS. Should I deploy this as an Application or Docker Compose, what build path should I use, and what Dokploy settings matter?",
+            "expected_output": "Recommends a production-oriented Dokploy setup with justified deployment mode, build path, and key Dokploy settings.",
+            "files": [],
+            "expectations": [
+                "The answer explicitly recommends Application or Docker Compose and explains why.",
+                "The answer recommends Dockerfile or prebuilt image flow over Nixpacks for this production-oriented Laravel setup.",
+                "The answer mentions runtime configuration such as ports, environment variables, persistence, workers, or health checks.",
+                "The answer includes at least one production rollout caveat such as CI/CD image builds, zero-downtime prerequisites, or host build pressure."
+            ]
+        },
+        {
+            "id": 2,
+            "prompt": "I want to host a React app built with Vite on Dokploy. It only outputs static files in dist and I want the simplest setup with a custom domain and HTTPS. Which Dokploy mode and build type should I pick, and what exact settings usually trip people up?",
+            "expected_output": "Chooses the simplest static Dokploy path and highlights the common misconfigurations for domains and static serving.",
+            "files": [],
+            "expectations": [
+                "The answer recommends Application with Static or an equivalent static-output path.",
+                "The answer states that static domains should target port 80.",
+                "The answer mentions the publish directory or dist output explicitly.",
+                "The answer warns about at least one common static deployment mistake such as wrong port, wrong publish directory, or env vars requiring redeploy."
+            ]
+        },
+        {
+            "id": 3,
+            "prompt": "Our Node API deploys on Dokploy but users get intermittent 502 errors during releases. We build on the same server in Dokploy right now. I want to know the likely cause and the better rollout strategy if we want safer deployments without freezing the box.",
+            "expected_output": "Diagnoses the likely 502 causes and recommends a safer Dokploy rollout strategy grounded in health checks and CI/CD practices.",
+            "files": [],
+            "expectations": [
+                "The answer identifies likely causes such as listener port mismatch, unhealthy app, or missing health checks during rollout.",
+                "The answer recommends moving builds off the Dokploy host to CI/CD or deploying prebuilt images.",
+                "The answer explains that safer zero-downtime behavior depends on a real health check or rollback-capable update strategy.",
+                "The answer provides a concrete next-step checklist instead of only high-level advice."
+            ]
+        }
+    ]
+}

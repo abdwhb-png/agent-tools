@@ -1,0 +1,53 @@
+{
+    "skill_name": "dokploy",
+    "evals": [
+        {
+            "id": 1,
+            "prompt": "We have one monorepo with apps/web (Next.js SSR marketing site), apps/api (Node API), and a queue worker. Local development uses docker-compose.yml with Postgres and Redis, but in Dokploy we want web and api to ship independently on different subdomains without redeploying the whole stack every time. Should this be one Docker Compose deployment or multiple Applications, and what Dokploy build paths/settings would you choose?",
+            "expected_output": "Chooses a deployment model for a monorepo with independent rollouts and explains the Dokploy settings that make that split work.",
+            "files": [],
+            "expectations": [
+                "The answer recommends multiple Dokploy Applications rather than one Docker Compose deployment, and explains that independent rollouts matter more than the local development compose file.",
+                "The answer mentions separate build paths such as explicit Dockerfile/context paths or separate image builds for the web and API services.",
+                "The answer explains how shared backing services should be handled without tying every release to one big app redeploy.",
+                "The answer includes at least one rollout caveat such as CI-built images, per-app domains, or avoiding host rebuild pressure across multiple services."
+            ]
+        },
+        {
+            "id": 2,
+            "prompt": "My Astro site looks mostly static, but we also rely on authenticated preview mode and a server-side OG image endpoint. I was about to use Dokploy Static because the marketing pages are pre-rendered. Is that actually safe, or should I deploy it another way?",
+            "expected_output": "Rejects an oversimplified static deployment when the workload still needs a real server runtime.",
+            "files": [],
+            "expectations": [
+                "The answer explicitly rejects Static as the correct Dokploy build type for this workload.",
+                "The answer recommends a server runtime path such as Dockerfile or Nixpacks and explains that preview or OG-image endpoints require it.",
+                "The answer mentions runtime concerns such as start command, listener port, or health checks rather than only a publish directory.",
+                "The answer explains when Static would become valid again, such as if the site were fully generated with no server-side features."
+            ]
+        },
+        {
+            "id": 3,
+            "prompt": "I deployed a small web app on Dokploy as Docker Compose only because the repo already had a compose file for local development. Now the env vars I add in Dokploy are not showing up inside the container, and user uploads disappear after redeploys. We really only have one web app plus a database. Should I stay on Compose or switch, and what exact Dokploy fixes matter either way?",
+            "expected_output": "Separates the 'local compose exists' signal from the actual deployment shape and diagnoses Dokploy-specific env and persistence traps.",
+            "files": [],
+            "expectations": [
+                "The answer explicitly says that the existence of a local docker-compose file alone is not a strong reason to stay on Dokploy Docker Compose.",
+                "The answer recommends Application for the web app unless the service topology itself is part of the production requirement, or it clearly justifies an alternative.",
+                "The answer explains that Dokploy-managed Compose variables are not auto-injected and require env_file or explicit ${VAR} wiring.",
+                "The answer prescribes a persistence fix such as ../files bind mounts or named volumes for uploads and other stateful data."
+            ]
+        },
+        {
+            "id": 4,
+            "prompt": "We are on a tiny Dokploy host and management keeps asking for 'zero downtime' releases for a single Node API replica. We can add a /health endpoint, but we do not want to move to Swarm yet. Is that claim realistic, and what rollout design would you recommend without pretending the platform can do magic?",
+            "expected_output": "Sets a realistic expectation for single-replica Dokploy rollouts and recommends the least misleading upgrade path.",
+            "files": [],
+            "expectations": [
+                "The answer clearly states that true zero-downtime claims are weak or unrealistic for a single replica, even if health checks improve the rollout.",
+                "The answer recommends a safer rollout pattern such as CI-built images, health checks, start-first behavior, or rollback-capable updates.",
+                "The answer does not jump straight to Swarm unless it explains that horizontal scaling is a separate explicit escalation.",
+                "The answer gives a realistic tradeoff statement rather than promising perfect zero downtime on the current setup."
+            ]
+        }
+    ]
+}
