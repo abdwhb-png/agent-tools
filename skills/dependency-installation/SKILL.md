@@ -47,41 +47,6 @@ Use this skill when you need to:
 | `requirements.txt`                                     | pip             | `pip install -r requirements.txt` | `pip install <pkg>` (then update requirements.txt) |
 | `pyproject.toml` (generic)                             | pip             | `pip install .`                   | Edit pyproject.toml                                |
 
-## Socket Firewall Policy
-
-**IMPORTANT**: Socket Firewall is mandatory for every supported networked dependency install, add, sync, update, or restore command.
-
-Socket Firewall Free currently supports:
-
-- `npm`
-- `pnpm`
-- `yarn`
-- `pip`
-- `uv`
-- `cargo`
-
-It does **not** directly cover:
-
-- `bun`
-- `composer`
-- `poetry`
-- `pipenv`
-
-### Required behavior
-
-1. **Before any supported install command, check for `sfw`** with `sfw --version`.
-2. **If `sfw` is missing, install it first** using the official recommended path:
-   ```bash
-   npm i -g sfw
-   sfw --version
-   ```
-3. **Prefix every supported package-manager command with `sfw`**.
-4. **Do not silently bypass Socket Firewall** for supported package managers.
-5. **If the ecosystem is unsupported by Socket Firewall, refuse by default.**
-6. For unsupported ecosystems, proceed **only if the user explicitly approves bypassing `sfw`** after being told that the install cannot be protected by Socket Firewall with the current toolchain.
-7. Never treat silence, urgency, or implied consent as approval to bypass `sfw`.
-8. If cached artifacts could bypass protection, prefer clearing the relevant cache first or explain the limitation to the user. Socket Firewall blocks network fetches, so it cannot block already-cached artifacts.
-
 ## Installation Process
 
 Follow these steps when installing dependencies:
@@ -107,7 +72,7 @@ Follow these steps when installing dependencies:
 
 ### Step 3: Verify Package Manager Availability
 
-Before running commands, verify the package manager is installed. If the package manager is supported by Socket Firewall, also verify `sfw` is installed:
+Before running commands, verify the package manager is installed:
 
 ```bash
 # Node.js
@@ -121,20 +86,7 @@ composer --version
 pip --version   # or uv --version, poetry --version
 ```
 
-### Step 4: Enforce Socket Firewall
-
-For supported ecosystems (`npm`, `pnpm`, `yarn`, `pip`, `uv`), install Socket Firewall if needed and run dependency commands through `sfw`.
-
-```bash
-npm i -g sfw
-sfw --version
-```
-
-If the command will fetch packages from the network and the package manager is supported, the command should look like `sfw <package-manager> ...`.
-
-If the ecosystem is unsupported by Socket Firewall (`bun`, `composer`, `poetry`, `pipenv`), stop and request explicit approval before running any networked dependency command without `sfw`.
-
-### Step 5: Install Dependencies
+### Step 4: Install Dependencies
 
 #### For Node.js (npm)
 
@@ -268,22 +220,6 @@ poetry add --group dev <package-name>
 poetry update
 ```
 
-#### For Python (pipenv)
-
-```bash
-# Socket Firewall Free does not currently support pipenv directly.
-# Refuse by default. Only proceed if the user explicitly approves bypassing sfw.
-
-# Install all dependencies
-pipenv install
-
-# Add a dependency
-pipenv install <package-name>
-
-# Add a dev dependency
-pipenv install --dev <package-name>
-```
-
 ## Common Issues and Solutions
 
 ### Issue: Lock file mismatch
@@ -313,25 +249,6 @@ For global installations that fail:
 - Verify the package name is correct
 - Check if the package exists in the correct registry
 - For private packages, ensure authentication is configured
-
-### Issue: Socket Firewall is not installed
-
-- Install it with `npm i -g sfw`
-- Verify with `sfw --version`
-- Retry the dependency command with the `sfw` prefix
-
-### Issue: Socket Firewall did not block a malicious dependency
-
-- Check whether the dependency was already cached locally
-- Clear the package-manager cache if appropriate, then retry with `sfw`
-- Remember that Socket Firewall Free only blocks supported package managers and known malicious artifacts fetched over the network
-
-### Issue: The project uses an unsupported package manager
-
-- Refuse the install by default
-- Explain that `sfw` does not currently protect that ecosystem
-- Ask the user for explicit approval to bypass Socket Firewall
-- Only proceed after the user clearly approves the bypass
 
 ## Best Practices
 
