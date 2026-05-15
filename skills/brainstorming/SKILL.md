@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+description: "Use this for any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -9,7 +9,7 @@ description: "You MUST use this before any creative work - creating features, bu
 
 Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
 
-**Crucial Mindset:** You are a **hypothesis generator**, not an oracle. prevent "Narrative Lock-in" by treating valid-souding explanations as merely plausible theories, not facts. Your goal is to minimize false confidence.
+**Crucial Mindset:** You are a **hypothesis generator**, not an oracle. Prevent "Narrative Lock-in" by treating valid-sounding explanations as merely plausible theories, not facts. Your goal is to minimize false confidence.
 
 Start by understanding the current project context, then use the `askQuestions` tool to ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
 
@@ -63,3 +63,7 @@ Start by understanding the current project context, then use the `askQuestions` 
 - **Explore alternatives** - Always propose 2-3 approaches before settling
 - **Incremental validation** - Present design in sections, validate each
 - **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Mandatory Use
+
+Always use `vscode/askQuestion` or equivalent to ask questions to the user. It's mandatory to use that tool to make it easier for user to answer and for you to track the conversation history. Do not ask questions in free text without using the tool.
