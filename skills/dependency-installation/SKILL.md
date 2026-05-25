@@ -1,6 +1,6 @@
 ---
 name: dependency-installation
-description: Guide for installing dependencies and packages in any project. Use this whenever asked to install, add, update, or manage dependencies across Node.js (npm, pnpm, yarn, bun), PHP (composer), or Python (pip, uv, poetry, pipenv) projects. This skill should be used by default for dependency changes because it enforces package-manager detection, version verification, and mandatory Socket Firewall (`sfw`) wrapping for supported ecosystems before networked installs.
+description: Guide for installing dependencies and packages in any project. Use this whenever asked to install, add, update, or manage dependencies across Node.js (npm, pnpm, yarn, bun), PHP (composer), or Python (pip, uv, poetry, pipenv) projects. This skill should be used by default for dependency changes because it enforces package-manager detection, version verification, mandatory Socket Firewall (`sfw`) wrapping for supported ecosystems, and compensating security controls for unsupported registries such as Composer.
 ---
 
 # Dependency Installation Skill
@@ -37,6 +37,8 @@ Use this skill when you need to:
 | ---------------------------------- | --------------- | ------------------ | ------------------------ |
 | `composer.lock` or `composer.json` | composer        | `composer install` | `composer require <pkg>` |
 
+If a PHP project has `composer.json` but no `composer.lock`, treat any `composer install` as a dependency-resolution event with update-like risk. Call that out explicitly before you proceed.
+
 ### Python Projects
 
 | Lock/Config File                                       | Package Manager | Install Command                   | Add Command                                        |
@@ -67,6 +69,8 @@ It does **not** directly cover:
 - `poetry`
 - `pipenv`
 
+Unsupported does **not** mean unrestricted. It means you must apply compensating controls because `sfw` cannot inspect that network traffic.
+
 ### Required behavior
 
 1. **Before any supported install command, check for `sfw`** with `sfw --version`.
@@ -77,10 +81,11 @@ It does **not** directly cover:
    ```
 3. **Prefix every supported package-manager command with `sfw`**.
 4. **Do not silently bypass Socket Firewall** for supported package managers.
-5. **If the ecosystem is unsupported by Socket Firewall, refuse by default.**
-6. For unsupported ecosystems, proceed **only if the user explicitly approves bypassing `sfw`** after being told that the install cannot be protected by Socket Firewall with the current toolchain.
+5. **If the ecosystem is unsupported by Socket Firewall, explain the coverage gap before any networked command.**
+6. For unsupported ecosystems, proceed **only if the user explicitly approves continuing without `sfw` coverage** after you describe the risk and the compensating controls you will apply.
 7. Never treat silence, urgency, or implied consent as approval to bypass `sfw`.
 8. If cached artifacts could bypass protection, prefer clearing the relevant cache first or explain the limitation to the user. Socket Firewall blocks network fetches, so it cannot block already-cached artifacts.
+9. For Composer specifically, approval alone is not enough. You must also follow the Composer supply-chain rules in this document.
 
 ## Installation Process
 
@@ -121,7 +126,7 @@ composer --version
 pip --version   # or uv --version, poetry --version
 ```
 
-### Step 4: Enforce Socket Firewall
+### Step 4: Enforce Socket Firewall or Compensating Controls
 
 For supported ecosystems (`npm`, `pnpm`, `yarn`, `pip`, `uv`), install Socket Firewall if needed and run dependency commands through `sfw`.
 
@@ -133,6 +138,17 @@ sfw --version
 If the command will fetch packages from the network and the package manager is supported, the command should look like `sfw <package-manager> ...`.
 
 If the ecosystem is unsupported by Socket Firewall (`bun`, `composer`, `poetry`, `pipenv`), stop and request explicit approval before running any networked dependency command without `sfw`.
+
+For Composer, apply these compensating controls before any networked command:
+
+1. Verify whether `composer.lock` exists and warn if it does not.
+2. Prefer `composer install` from a committed lock file over `composer update`.
+3. Run `composer audit` before changing dependencies when the command is available.
+4. Avoid broad `composer update` by default. Prefer targeted updates such as `composer update vendor/package`.
+5. When adding or upgrading a package, prefer an explicit version constraint and verify the exact package/vendor first.
+6. Ask whether the dependency is actually necessary and whether a local implementation would remove the supply-chain risk.
+7. Avoid running Composer as `root` unless the user explicitly requires it and understands the privilege risk.
+8. If there is an active ecosystem incident, advise checking current advisories or maintainer reports before updating.
 
 ### Step 5: Install Dependencies
 
@@ -188,7 +204,7 @@ sfw yarn global add <package-name>
 
 ```bash
 # Socket Firewall Free does not currently support bun directly.
-# Refuse by default. Only proceed if the user explicitly approves bypassing sfw.
+# Proceed only after explicit user approval because `sfw` cannot protect this ecosystem directly.
 
 # Install all dependencies
 bun install
@@ -204,20 +220,25 @@ bun add -d <package-name>
 
 ```bash
 # Socket Firewall Free does not currently support composer directly.
-# Refuse by default. Only proceed if the user explicitly approves bypassing sfw.
+# Proceed only after explicit user approval and after applying Composer compensating controls.
 
-# Install all dependencies
+# Install all dependencies from the committed lock file
 composer install
 
-# Add a production dependency
-composer require <package-name>
+# Add a production dependency with an explicit constraint when possible
+composer require <package-name>:<version>
 
 # Add a dev dependency
-composer require --dev <package-name>
+composer require --dev <package-name>:<version>
 
-# Update dependencies
-composer update
+# Audit known vulnerabilities before changing dependencies
+composer audit
+
+# Update only the package you intend to change
+composer update <package-name>
 ```
+
+Do not run an unscoped `composer update` unless the user explicitly asks for a full dependency refresh and accepts the broader supply-chain risk.
 
 #### For Python (pip)
 
@@ -253,7 +274,7 @@ uv run --python 3.11 python script.py
 
 ```bash
 # Socket Firewall Free does not currently support poetry directly.
-# Refuse by default. Only proceed if the user explicitly approves bypassing sfw.
+# Proceed only after explicit user approval because `sfw` cannot protect this ecosystem directly.
 
 # Install all dependencies
 poetry install
@@ -272,7 +293,7 @@ poetry update
 
 ```bash
 # Socket Firewall Free does not currently support pipenv directly.
-# Refuse by default. Only proceed if the user explicitly approves bypassing sfw.
+# Proceed only after explicit user approval because `sfw` cannot protect this ecosystem directly.
 
 # Install all dependencies
 pipenv install
@@ -328,10 +349,18 @@ For global installations that fail:
 
 ### Issue: The project uses an unsupported package manager
 
-- Refuse the install by default
 - Explain that `sfw` does not currently protect that ecosystem
-- Ask the user for explicit approval to bypass Socket Firewall
-- Only proceed after the user clearly approves the bypass
+- Ask the user for explicit approval to continue without Socket Firewall coverage
+- Apply ecosystem-specific compensating controls before proceeding
+- For Composer, require `composer.lock`, `composer audit`, and targeted updates where possible
+
+### Issue: Active supply-chain incident or suspicious package report
+
+- Avoid broad dependency refreshes until the incident is understood
+- Check current maintainer advisories, vulnerability feeds, or trusted ecosystem reports
+- For Composer, prefer `composer install` from a known-good `composer.lock`
+- If an affected package must change, update only that package and review the resulting lock-file diff carefully
+- If compromise is suspected, stop routine dependency work and move into incident response
 
 ## Best Practices
 
@@ -341,23 +370,30 @@ For global installations that fail:
 
 3. **Commit lock files**: Always commit lock files (`package-lock.json`, `pnpm-lock.yaml`, `composer.lock`, `uv.lock`, etc.) to version control.
 
-4. **Use exact versions in production**: Consider using exact version constraints for production dependencies.
+4. **For Composer, treat `composer.lock` as mandatory**: Deploy and share dependencies with `composer install` from a committed lock file. If no lock file exists, call out that the command will resolve fresh versions.
 
-5. **Clean install in CI**: Use clean install commands (`sfw npm ci`, `sfw pnpm install --frozen-lockfile`, `composer install --no-dev`) in CI/CD pipelines where supported.
+5. **Prefer targeted Composer updates**: Do not default to `composer update` for everything. Update only the package you intend to change, and pin or tighten version constraints when practical.
 
-6. **Unsupported ecosystems require explicit risk acceptance**: For `bun`, `composer`, `poetry`, and `pipenv`, do not proceed with dependency fetches unless the user explicitly approves bypassing `sfw`.
+6. **Run vulnerability checks before dependency changes**: Use `composer audit`, `npm audit`, `pnpm audit`, `yarn audit`, `pip-audit`, or similar tools before and after sensitive changes when available.
 
-7. **Check for vulnerabilities**: Run security audits regularly:
-   - `npm audit` / `pnpm audit` / `yarn audit`
-   - `composer audit`
-   - `pip-audit` / `safety check`
+7. **Minimize third-party dependencies**: Before adding a package, ask whether the feature is truly needed and whether a small local implementation would remove the supply-chain risk.
+
+8. **Use least privilege for dependency commands**: Avoid running install/update commands as `root` unless there is a clear operational reason.
+
+9. **Clean install in CI**: Use clean install commands (`sfw npm ci`, `sfw pnpm install --frozen-lockfile`, `composer install --no-dev`) in CI/CD pipelines where supported.
+
+10. **Unsupported ecosystems require explicit risk acceptance plus extra safeguards**: For `bun`, `composer`, `poetry`, and `pipenv`, do not proceed with networked dependency changes unless the user explicitly approves continuing without `sfw` coverage.
+
+11. **During active incidents, slow down**: Check trusted advisories or maintainer channels before updating packages, and prefer known-good lock-file installs over fresh resolution.
 
 ## Quick Reference
 
-| Action      | npm                      | pnpm                  | yarn                  | composer                     | pip                                   | uv                     | poetry                  |
-| ----------- | ------------------------ | --------------------- | --------------------- | ---------------------------- | ------------------------------------- | ---------------------- | ----------------------- |
-| Install all | `sfw npm install`        | `sfw pnpm install`    | `sfw yarn`            | `composer install`           | `sfw pip install -r requirements.txt` | `sfw uv sync`          | `poetry install`        |
-| Add pkg     | `sfw npm install pkg`    | `sfw pnpm add pkg`    | `sfw yarn add pkg`    | `composer require pkg`       | `sfw pip install pkg`                 | `sfw uv add pkg`       | `poetry add pkg`        |
-| Add dev     | `sfw npm install -D pkg` | `sfw pnpm add -D pkg` | `sfw yarn add -D pkg` | `composer require --dev pkg` | `sfw pip install pkg`                 | `sfw uv add --dev pkg` | `poetry add -G dev pkg` |
-| Remove      | `npm uninstall pkg`      | `pnpm remove pkg`     | `yarn remove pkg`     | `composer remove pkg`        | `pip uninstall pkg`                   | `uv remove pkg`        | `poetry remove pkg`     |
-| Update      | `sfw npm update`         | `sfw pnpm update`     | `sfw yarn upgrade`    | `composer update`            | `sfw pip install -U pkg`              | `sfw uv sync`          | `poetry update`         |
+| Action      | npm                      | pnpm                  | yarn                  | composer                                           | pip                                   | uv                     | poetry                  |
+| ----------- | ------------------------ | --------------------- | --------------------- | -------------------------------------------------- | ------------------------------------- | ---------------------- | ----------------------- |
+| Install all | `sfw npm install`        | `sfw pnpm install`    | `sfw yarn`            | `composer install`                                 | `sfw pip install -r requirements.txt` | `sfw uv sync`          | `poetry install`        |
+| Add pkg     | `sfw npm install pkg`    | `sfw pnpm add pkg`    | `sfw yarn add pkg`    | `composer require pkg:version`                     | `sfw pip install pkg`                 | `sfw uv add pkg`       | `poetry add pkg`        |
+| Add dev     | `sfw npm install -D pkg` | `sfw pnpm add -D pkg` | `sfw yarn add -D pkg` | `composer require --dev pkg:version`               | `sfw pip install pkg`                 | `sfw uv add --dev pkg` | `poetry add -G dev pkg` |
+| Remove      | `npm uninstall pkg`      | `pnpm remove pkg`     | `yarn remove pkg`     | `composer remove pkg`                              | `pip uninstall pkg`                   | `uv remove pkg`        | `poetry remove pkg`     |
+| Update      | `sfw npm update`         | `sfw pnpm update`     | `sfw yarn upgrade`    | `composer audit` then `composer update vendor/pkg` | `sfw pip install -U pkg`              | `sfw uv sync`          | `poetry update`         |
+
+For Composer, prefer reviewing the `composer.lock` diff after every dependency change. A lock file is the main guardrail that keeps other environments from silently resolving new package versions.
