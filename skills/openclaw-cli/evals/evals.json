@@ -1,0 +1,65 @@
+{
+  "skill_name": "openclaw-cli",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just installed OpenClaw on a fresh WSL2 machine and I don't want the full guided wizard yet. I only need the config/workspace created, then I want to connect this machine to an existing remote gateway at wss://gw.internal:18789 using an env var token. What commands should I run, and how do I verify the gateway is actually usable from scripts?",
+      "expected_output": "Distinguishes setup from onboard, gives a non-interactive remote setup command using a token env var, and verifies with a scriptable Gateway status/probe command.",
+      "files": [],
+      "expectations": [
+        "The answer recommends `openclaw setup` rather than the full `openclaw onboard` guided flow for baseline setup intent.",
+        "The answer includes `--non-interactive --mode remote --remote-url wss://gw.internal:18789` and avoids hardcoding the token value directly in prose.",
+        "The answer verifies scriptable gateway health with `openclaw gateway status --require-rpc --json` or an equivalent JSON gateway probe.",
+        "The answer notes that remote setup writes local connection information and does not install or modify the remote gateway host."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I'm debugging why my OpenClaw Discord bot isn't answering. `openclaw sessions` shows no recent rows, so my teammate says the socket is dead. Is that a valid check? Give me the safest command sequence to diagnose channel health without changing config.",
+      "expected_output": "Rejects sessions as a channel socket-health signal and recommends read-only status/channels/doctor diagnostics.",
+      "files": [],
+      "expectations": [
+        "The answer explicitly says sessions are stored conversation rows, not channel socket-health evidence.",
+        "The answer recommends `openclaw channels status --probe` or `openclaw status --deep` for live channel probes.",
+        "The answer includes a read-only doctor or lint command, such as `openclaw doctor --lint --json`.",
+        "The answer avoids repair commands like `doctor --fix` or config-writing commands as the first diagnostic step."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I need to smoke-test whether my configured OpenClaw providers work. I don't want to start a full chat agent turn with tools or session memory, and I need JSON output. Also I have one image model test and one audio transcription test. What should I use?",
+      "expected_output": "Routes raw provider checks to `openclaw infer`, not `openclaw agent`, and includes model, image, and audio examples with JSON.",
+      "files": [],
+      "expectations": [
+        "The answer recommends `openclaw infer` as the canonical headless provider-backed inference surface.",
+        "The answer explains that local `infer model run` is a lean provider completion and not a full agent turn with tools/session context.",
+        "The answer includes a JSON model smoke-test command using `openclaw infer model run`.",
+        "The answer includes image and audio examples using `openclaw infer image ...` and `openclaw infer audio transcribe ...` with `--json`."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "We are about to remove OpenClaw from a shared Linux host. I want to delete the service, state, and workspaces with no prompts, but I also want a recoverable snapshot first and a chance to see what will be removed. What command plan should I follow?",
+      "expected_output": "Uses backup and uninstall dry-run before non-interactive destructive uninstall, while calling out side effects.",
+      "files": [],
+      "expectations": [
+        "The answer recommends `openclaw backup create` before uninstalling state or workspaces.",
+        "The answer includes `openclaw uninstall --dry-run` before the destructive command.",
+        "The answer uses `--service --state --workspace --yes --non-interactive` or `--all --yes` appropriately and explains what will be removed.",
+        "The answer states that the CLI package itself remains when using the documented uninstall command."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I want my OpenClaw agent to send a Slack message to #deploys, but I also want to understand whether this should be `openclaw agent`, `openclaw infer`, or `openclaw message`. Please give the right command and the distinction, including a dry run if that exists.",
+      "expected_output": "Chooses `openclaw message` for direct outbound channel sends and distinguishes it from agent and infer surfaces.",
+      "files": [],
+      "expectations": [
+        "The answer selects `openclaw message send`, not `openclaw agent` or `openclaw infer`, for a direct outbound Slack send.",
+        "The answer explains that `agent` is for full agent turns and `infer` is for provider-backed inference workflows.",
+        "The answer includes `--channel slack`, a Slack target format, a message body, and `--json` or `--dry-run`.",
+        "The answer warns that a non-dry-run message command sends to a live channel."
+      ]
+    }
+  ]
+}
