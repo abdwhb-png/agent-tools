@@ -1,0 +1,65 @@
+{
+  "skill_name": "openclaw-agent-creation",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to add a second OpenClaw agent for my work Slack workspace, but my existing personal WhatsApp bot should keep full access to my private workspace. The work bot should only read a work docs workspace and answer in Slack. How should I structure the agents, workspaces, bindings, sandbox, tools, and validation commands?",
+      "expected_output": "Designs a multi-agent setup with separate workspace/runtime boundaries and a read-only work agent bound to Slack.",
+      "files": [],
+      "expectations": [
+        "The answer recommends multiple agents rather than one shared agent because personal and work trust boundaries/tool policies differ.",
+        "The answer separates workspace from agentDir and keeps personal and work state separate.",
+        "The answer gives a read-only or tightly sandboxed work-agent profile with filesystem mutation, exec/process, browser, gateway, and cron denied unless explicitly needed.",
+        "The answer includes Slack binding and validation commands such as agents list --bindings, config validate, agent --agent, doctor, and security audit."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I'm creating an OpenClaw public Discord helper. I was thinking of putting all of its instructions and API tokens into AGENTS.md, leaving skills unrestricted, and allowing browser and exec because it might need to fetch pages. Is that okay? Give me a safer agent creation plan.",
+      "expected_output": "Rejects unsafe public-agent defaults and designs a narrow, sandboxed, token-safe profile.",
+      "files": [],
+      "expectations": [
+        "The answer explicitly says not to put API tokens or secrets in AGENTS.md or committed workspace files.",
+        "The answer recommends pairing/allowlists or mention-gated group access and explains public/shared agents should not get broad tools by default.",
+        "The answer recommends sandboxing and a narrow tool allow/deny policy that blocks exec/process, filesystem mutation, browser or gateway/cron unless justified.",
+        "The answer describes skill allowlists as final sets and recommends restricting or disabling skills for the public agent."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "We want one OpenClaw agent to run on Codex for OpenAI models and another on Claude CLI for Anthropic. Should I set agents.list[].agentRuntime on each agent? Show the right runtime policy and explain what is legacy.",
+      "expected_output": "Explains model/provider-scoped runtime policy and rejects legacy whole-agent runtime pins.",
+      "files": [],
+      "expectations": [
+        "The answer states that runtime policy belongs on providers or provider/model entries, not agents.list[].agentRuntime.",
+        "The answer mentions whole-agent runtime keys and OPENCLAW_AGENT_RUNTIME are legacy or ignored by runtime selection.",
+        "The answer provides a config snippet using models.providers.<provider>.agentRuntime or agents.defaults.models/provider-model agentRuntime.",
+        "The answer recommends doctor --fix or validation to clean stale runtime settings."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I have a giant MEMORY.md and a big SOUL.md for a new OpenClaw agent. The agent keeps missing details after startup. How should I reorganize the workspace files and bootstrap/context settings?",
+      "expected_output": "Diagnoses bootstrap truncation/context-budget issues and recommends proper workspace file layout.",
+      "files": [],
+      "expectations": [
+        "The answer explains that bootstrap files are injected with per-file and total character caps and can be truncated.",
+        "The answer recommends keeping MEMORY.md curated and moving detailed history into memory/YYYY-MM-DD.md files retrievable by memory tools.",
+        "The answer distinguishes AGENTS.md, SOUL.md, USER.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md, and MEMORY.md roles.",
+        "The answer mentions relevant config knobs such as bootstrapMaxChars, bootstrapTotalMaxChars, bootstrapPromptTruncationWarning, or contextInjection and suggests diagnostics like context/status/doctor."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "A small team wants to share one OpenClaw Gateway with separate agents for each employee, and they think this gives hostile tenant isolation because each agent has a separate workspace. What should I tell them, and what architecture should they use if users are mutually untrusted?",
+      "expected_output": "Corrects the security model and recommends separate gateways/hosts for hostile trust boundaries.",
+      "files": [],
+      "expectations": [
+        "The answer states that OpenClaw's documented model is one trusted operator boundary per Gateway and many agents do not create hostile multi-tenant isolation.",
+        "The answer recommends separate Gateways, credentials, and ideally OS users or hosts for mutually untrusted users.",
+        "The answer explains that workspaces/session isolation help organization and privacy but are not host authorization boundaries.",
+        "The answer includes practical hardening for cooperative shared agents such as narrow tools, sandboxing, allowlists, dmScope isolation, and security audit."
+      ]
+    }
+  ]
+}
