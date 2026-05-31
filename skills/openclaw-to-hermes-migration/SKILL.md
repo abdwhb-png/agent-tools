@@ -1,6 +1,6 @@
 ---
 name: openclaw-to-hermes-migration
-description: Migration playbook for moving from OpenClaw to Hermes Agent without breaking agent workflows. Use this skill whenever the user mentions migrating OpenClaw to Hermes, `hermes claw migrate`, `hermes claw cleanup`, OpenClaw-to-Hermes skills, memory, cron jobs, gateway services, multi-agent setups, agent workspaces, Hermes profiles, channel bindings, Discord/Telegram/Slack/WhatsApp bots, OpenClaw directories, migration dry-runs, side-by-side operation, backups, or post-migration validation. This skill is intentionally cautious: use it even when the user only asks for the command, because real migrations can silently break skills, cron jobs, memory, gateways, or multi-agent routing if treated as a one-step copy.
+description: "Migration playbook for moving from OpenClaw to Hermes Agent without breaking agent workflows. Use this skill whenever the user mentions migrating OpenClaw to Hermes, `hermes claw migrate`, `hermes claw cleanup`, OpenClaw-to-Hermes skills, memory, cron jobs, gateway services, multi-agent setups, agent workspaces, Hermes profiles, channel bindings, Discord/Telegram/Slack/WhatsApp bots, OpenClaw directories, migration dry-runs, side-by-side operation, backups, or post-migration validation. This skill is intentionally cautious: use it even when the user only asks for the command, because real migrations can silently break skills, cron jobs, memory, gateways, or multi-agent routing if treated as a one-step copy."
 ---
 
 # OpenClaw To Hermes Migration

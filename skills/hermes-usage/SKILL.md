@@ -1,6 +1,6 @@
 ---
 name: hermes-usage
-description: Exhaustive Hermes Agent usage guide for installing, updating, configuring, operating, scripting, troubleshooting, and extending Hermes from the CLI. Use this skill whenever the user mentions Hermes Agent, hermes commands, hermes config, Hermes providers or models, Hermes MCP servers, Hermes gateway, profiles, workspaces, sandboxing, multi-agent usage, skills, plugins, sessions, dashboards, update/uninstall, environment variables, model catalog, OpenClaw migration to Hermes, or asks what Hermes command, config key, env var, or workflow to use, even when they do not explicitly say "CLI" or "configuration".
+description: 'Exhaustive Hermes Agent usage guide for installing, updating, configuring, operating, scripting, troubleshooting, and extending Hermes from the CLI. Use this skill whenever the user mentions Hermes Agent, hermes commands, hermes config, Hermes providers or models, Hermes MCP servers, Hermes gateway, profiles, workspaces, sandboxing, multi-agent usage, skills, plugins, sessions, dashboards, update/uninstall, environment variables, model catalog, OpenClaw migration to Hermes, or asks what Hermes command, config key, env var, or workflow to use, even when they do not explicitly say "CLI" or "configuration".'
 ---
 
 # Hermes Usage
@@ -22,12 +22,12 @@ Read supporting references based on the user's task:
 Hermes has several overlapping surfaces. Pick the surface by intent:
 
 | User intent                                         | Prefer                                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------ | -------- | ------- | ----- | ------- |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Full interactive agent session                      | `hermes` or `hermes chat`                                                            |
 | Scriptable final-answer-only agent call             | `hermes -z "prompt"`                                                                 |
 | One-shot chat with visible tool/session behavior    | `hermes chat -q "prompt"`                                                            |
 | Add providers, OAuth, API keys, or custom endpoints | `hermes model`                                                                       |
-| Change setup sections                               | `hermes setup [model                                                                 | terminal | gateway | tools | agent]` |
+| Change setup sections                               | `hermes setup [model\|terminal\|gateway\|tools\|agent]`                              |
 | Direct platform message without agent/LLM           | `hermes send`                                                                        |
 | Messaging gateway lifecycle                         | `hermes gateway ...`                                                                 |
 | Diagnostics                                         | `hermes doctor`, `hermes status`, `hermes dump`, `hermes logs`, `hermes debug share` |
