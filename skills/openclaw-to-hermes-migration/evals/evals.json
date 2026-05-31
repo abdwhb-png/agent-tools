@@ -1,0 +1,77 @@
+{
+  "skill_name": "openclaw-to-hermes-migration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a big OpenClaw setup on WSL2 with multiple Discord bots, channel bindings, custom skills, memory files, and a running openclaw-gateway.service. I want to migrate to Hermes tonight without breaking the existing bots. Give me the exact safe plan.",
+      "expected_output": "Recommends staged or side-by-side migration, snapshots OpenClaw, stops services before cleanup, dry-runs first, and calls out manual multi-agent/channel rebuild.",
+      "files": [],
+      "expectations": [
+        "The answer recommends a side-by-side or fresh-host migration rather than a blind one-step in-place migration.",
+        "The answer includes a user-created snapshot of `~/.openclaw` before migration.",
+        "The answer stops or verifies `openclaw-gateway.service` and OpenClaw processes before cleanup or archival.",
+        "The answer explains that multi-agent lists, channel bindings, and per-agent bot routing are archived/manual rebuild items, not automatic Hermes parity."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I ran hermes claw migrate and most things look okay, but my imported skills feel weird. Some research skills overlap with Hermes and one old pipeline still mentions OpenClaw paths. What should I do before I trust Hermes in production?",
+      "expected_output": "Treats imported skills as suspect, audits OpenClaw-specific assumptions, classifies conflicts, and tests critical workflows one by one.",
+      "files": [],
+      "expectations": [
+        "The answer says migrated skills under `~/.hermes/skills/openclaw-imports/` must be audited and tested before production use.",
+        "The answer recommends searching for OpenClaw-specific tool names, paths, or CLI calls inside imported skills.",
+        "The answer distinguishes skip/rename/overwrite or keep/replace/rewrite decisions for conflicting skills.",
+        "The answer includes representative workflow tests for complex pipeline skills rather than relying on skill import success."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I only care about moving my OpenClaw persona, memories, and skills into Hermes. I do not want old provider keys, bot tokens, gateway config, or command approvals. What migration command should I use and what should I verify afterward?",
+      "expected_output": "Chooses user-data migration, avoids secrets, preserves dry-run, and verifies memory/persona/skills while warning infra is intentionally skipped.",
+      "files": [],
+      "expectations": [
+        "The answer recommends `hermes claw migrate --preset user-data` with a dry-run first.",
+        "The answer avoids `--migrate-secrets` and explains that provider keys/bot tokens/gateway infrastructure are intentionally skipped.",
+        "The answer verifies imported memory/persona with a new session and concrete prompts.",
+        "The answer checks imported skills under `~/.hermes/skills/openclaw-imports/` and warns some may need Hermes-native edits."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "After migration my Telegram bot is silent. It worked once, then stopped. I still have OpenClaw on the same VPS because I wanted a safety net. Diagnose this without deleting anything.",
+      "expected_output": "Diagnoses old gateway/token/webhook/allowed-user conflicts first with read-only checks and avoids destructive cleanup.",
+      "files": [],
+      "expectations": [
+        "The answer checks for a still-running OpenClaw gateway or OpenClaw processes before assuming Hermes is broken.",
+        "The answer uses `hermes gateway status` and Hermes gateway/error logs as read-only diagnostics.",
+        "The answer checks bot token migration and allowed-user configuration, especially whether `--migrate-secrets` was used.",
+        "The answer avoids deleting or cleaning `~/.openclaw` while diagnosing."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I accepted the Hermes cleanup/archive prompt after migrating, and now my old ~/.openclaw is tiny and empty while ~/.openclaw.pre-migration looks huge. OpenClaw gateway crashes with proxy-preload missing. How do I recover?",
+      "expected_output": "Recognizes the cleanup skeleton failure mode, stops OpenClaw service, restores pre-migration directory, reinstalls gateway on a non-conflicting port, and repairs config.",
+      "files": [],
+      "expectations": [
+        "The answer identifies the running-service skeleton recreation failure mode from `hermes claw cleanup` or archive prompt.",
+        "The answer stops `openclaw-gateway.service` before touching directories.",
+        "The answer removes the empty skeleton and moves `~/.openclaw.pre-migration` back to `~/.openclaw`.",
+        "The answer reinstalls/restarts the OpenClaw gateway with a non-Hermes port and runs `openclaw doctor --fix` or equivalent repair validation."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "My OpenClaw has three agents: work, research, and family. Each has a different workspace, skills, memories, and bot account. I want to fully migrate those agent workspaces to Hermes, not flatten them into one default profile. What should the migration plan do?",
+      "expected_output": "Maps each OpenClaw agent/workspace to a separate Hermes profile, copies workspaces, sets per-profile terminal.cwd, migrates identity/memory/skills, and rebuilds gateway routing manually.",
+      "files": [],
+      "expectations": [
+        "The answer recommends one Hermes profile per durable OpenClaw agent identity/workspace.",
+        "The answer copies or preserves each OpenClaw workspace and sets the matching profile's `terminal.cwd` to that path.",
+        "The answer migrates `SOUL.md`, `IDENTITY.md`, `AGENTS.md`, `USER.md`, `MEMORY.md`, and workspace skills into the right profile/workspace locations.",
+        "The answer explains that OpenClaw channel bindings do not automatically become Hermes routing and must be rebuilt with per-profile gateway tokens/config."
+      ]
+    }
+  ]
+}

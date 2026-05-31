@@ -1,0 +1,77 @@
+{
+  "skill_name": "hermes-usage",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just installed Hermes on WSL2 and want the fastest sane setup with Nous Portal. I also need the gateway to keep running after I close the terminal. What commands should I run, and what should I avoid on WSL?",
+      "expected_output": "Recommends install/setup/doctor plus WSL-friendly foreground gateway in tmux, and avoids relying on systemd service start as the first choice.",
+      "files": [],
+      "expectations": [
+        "The answer recommends `hermes setup --portal` for the fastest Nous Portal setup path.",
+        "The answer verifies the install with `hermes doctor` or an equivalent read-only diagnostic.",
+        "The answer recommends `hermes gateway run` in `tmux` for WSL persistence.",
+        "The answer explains that WSL systemd/service start can be unreliable and should not be the default recommendation."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I need to call Hermes from a CI script and capture exactly the final answer, no banner, no spinner, no Session line. I also want to override the model for that one run without editing config.yaml. Should I use chat -q, -z, or send?",
+      "expected_output": "Chooses `hermes -z` and distinguishes it from `chat -q` and `send`, with per-run provider/model override examples.",
+      "files": [],
+      "expectations": [
+        "The answer selects `hermes -z` for final-answer-only stdout behavior.",
+        "The answer explains that `hermes chat -q` is still a normal agent CLI run with more interactive/session output.",
+        "The answer explains that `hermes send` is for direct platform messages with no agent or LLM loop.",
+        "The answer includes a model override using `--provider` and `--model` or `HERMES_INFERENCE_MODEL` without editing `config.yaml`."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Inside a Hermes chat I only see OpenRouter in /model, but I want to add Anthropic OAuth and maybe a local custom endpoint. Can I do that from /model? Give me the right workflow and explain what gets persisted.",
+      "expected_output": "Distinguishes `hermes model` from `/model`, tells the user to exit chat to add providers, and explains session-only vs global persistence.",
+      "files": [],
+      "expectations": [
+        "The answer says `/model` can only switch among already configured providers/models and cannot add providers, OAuth, or API keys.",
+        "The answer recommends exiting the session and running `hermes model` from the terminal.",
+        "The answer mentions custom/self-hosted endpoint configuration as part of `hermes model`.",
+        "The answer explains that `/model` changes are session-only unless `--global` is used."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need to add an internal HTTP MCP server to Hermes with a bearer token, but I don't want every tool exposed to the agent. Show the config shape and the commands to test it. Also call out the TLS/security footguns.",
+      "expected_output": "Provides `mcp_servers` config for an HTTP MCP server with headers and tool filtering, then verifies with `hermes mcp test`, while warning about secrets and ssl_verify false.",
+      "files": [],
+      "expectations": [
+        "The answer uses `mcp_servers:` in `config.yaml` with a server name and `url`.",
+        "The answer includes an authorization header that references an environment variable rather than hardcoding a real token.",
+        "The answer uses `tools.include` or `tools.exclude` to narrow exposed tools, preferring include for sensitive/internal servers.",
+        "The answer verifies with `hermes mcp list` and `hermes mcp test <name>` and warns that `ssl_verify: false` weakens TLS security."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "We're migrating from OpenClaw to Hermes and want the full migration including secrets, but we need to see conflicts first and keep a restore point. What exact plan should we follow?",
+      "expected_output": "Starts with dry-run, explains presets and secrets are explicit, uses backup defaults or avoids `--no-backup`, and then applies with confirmation flags only after review.",
+      "files": [],
+      "expectations": [
+        "The answer starts with `hermes claw migrate --dry-run` before any write.",
+        "The answer explains that `--preset full` does not include secrets unless `--migrate-secrets` is passed.",
+        "The answer avoids `--no-backup` and mentions the pre-migration restore-point archive or recommends `hermes backup` first.",
+        "The answer includes a final apply command such as `hermes claw migrate --preset full --migrate-secrets` only after reviewing conflicts and side effects."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I want Hermes to behave like my old OpenClaw setup: one coding agent for ~/work/app, one research agent with its own memory and bot token, and I want each to start in the right workspace. Do I use profiles, workspaces, or sandboxing?",
+      "expected_output": "Explains that Hermes profiles are the durable multi-agent boundary, `terminal.cwd` sets each workspace, and sandboxing is separate from profiles.",
+      "files": [],
+      "expectations": [
+        "The answer recommends one Hermes profile per durable agent identity/state boundary.",
+        "The answer sets an explicit per-profile `terminal.cwd` for each workspace/project directory.",
+        "The answer explains that profiles isolate Hermes state but do not sandbox filesystem access on the local backend.",
+        "The answer uses distinct per-profile `.env`/gateway tokens and validates with `profile show`, `doctor`, `skills list`, and a workspace check."
+      ]
+    }
+  ]
+}
