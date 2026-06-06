@@ -87,6 +87,90 @@ Unsupported does **not** mean unrestricted. It means you must apply compensating
 8. If cached artifacts could bypass protection, prefer clearing the relevant cache first or explain the limitation to the user. Socket Firewall blocks network fetches, so it cannot block already-cached artifacts.
 9. For Composer specifically, approval alone is not enough. You must also follow the Composer supply-chain rules in this document.
 
+## Supply-Chain Security & Hardening
+
+Setting a minimum release age (a "cooldown") on dependencies, disabling postinstall script execution, and blocking exotic/git-based sub-dependencies are high-leverage defenses against supply-chain attacks. Most malicious package versions are detected and yanked within hours, so these configuration gates filter out smash-and-grab attacks.
+
+You should configure (or encourage the user to configure) the following security controls for package managers:
+
+### 1. Release Age Gating (Cooldowns)
+
+Release age gating prevents the installation of brand-new, unvetted package versions. Apply these settings globally or at the project level to establish a cooldown (recommended: 7 days):
+
+- **npm (v11.10.0+):** Set in `.npmrc` (defined in days):
+  ```ini
+  min-release-age=7
+  ```
+- **pnpm (v10.16+):** Set in `.npmrc` / `.pnpm.config.yaml` / global config (defined in minutes. Note: pnpm 11+ defaults to 1 day/1440 minutes):
+  ```ini
+  minimum-release-age=10080
+  ```
+- **Bun (v1.3+):** Set under `[install]` in global or project-level `bunfig.toml` (defined in seconds):
+  ```toml
+  [install]
+  minimumReleaseAge = 604800  # 7 days in seconds
+  ```
+- **Yarn (v4.10.0+):** Set in `.yarnrc.yml` (supports string formats):
+  ```yaml
+  npmMinimalAgeGate: "7d"
+  ```
+
+_Important Caveat:_ `npx` and `bunx` do **not** respect package release age gating and will still pull the latest versions directly from the registry. Avoid running unvetted packages via these command-line runners.
+
+### 2. Disabling Postinstall / Lifecycle Scripts
+
+Postinstall scripts are the primary vector for running malicious code immediately upon package download. Disable them or restrict them via explicit allowlists:
+
+- **npm:** Disable globally or per-project in `.npmrc` with `ignore-scripts=true`. For an robust allowlist approach, use the `allow-scripts` package from LavaMoat to manage script execution in `package.json`.
+- **pnpm:** Automatically blocks postinstall scripts by default, warning you when a package requests execution.
+  - Run `pnpm approve-builds` to explicitly allow trusted scripts (saves to `pnpm-workspace.yaml` `allowBuilds`).
+  - Or run installation with `pnpm install --allow-build=<pkg>`.
+- **Bun:** Automatically blocks postinstall scripts by default, except for a curated list of common trusted packages (e.g., `esbuild`).
+  - Opt-out or define your own allowed scripts in your project's `package.json` under `trustedDependencies` (e.g., `"trustedDependencies": ["esbuild"]`).
+  - To override Bun's built-in curated defaults, set `trustedDependencies` to a non-empty array with your allowed package(s).
+  - Use `bun pm untrusted` to review scripts waiting for permission, and `bun pm trust <pkg>` to trust them.
+  - To disable all scripts entirely, set `scripts = false` under `[install]` in `bunfig.toml`.
+
+### 3. Blocking Git-based and Exotic Dependencies
+
+Git-based dependencies bypass standard registry integrity checks and can smuggle unchecked package sources or re-enable unauthorized postinstall scripts.
+
+- **npm:** Block git dependencies by setting the following in `.npmrc`:
+  ```ini
+  allow-git=none
+  ```
+  Or allow them only if explicitly defined in your root package-lock/JSON file:
+  ```ini
+  allow-git=root
+  ```
+- **pnpm:** Prevent nested sub-dependencies from using exotic sources (like git URLs or tarball links) by adding this to `.npmrc`:
+  ```ini
+  block-exotic-subdependencies=true
+  ```
+- **Bun:** Exotic blocking is currently unsupported (feature request pending).
+
+### 4. pnpm Trust Policy (No Downgrade)
+
+If using pnpm, configure the trust policy to fail installations if a package's trust level decreases compared to its prior releases (protecting against bypassed publishing workflows or signature degradation):
+
+```ini
+trust-policy=no-downgrade
+```
+
+### 5. Checking for Lockfile Injection (PR Auditing)
+
+Lockfile injection involves an attacker submitting a PR that silently alters resolved URLs in `package-lock.json` or `yarn.lock` to point to a malicious server, while keeping the package name intact.
+
+- **pnpm** is natively immune: It does not keep remote tarball URLs in its lockfile and ignores entries in the lockfile that are not declared in `package.json`.
+- For **npm**, **Yarn**, and **Bun**, configure `lockfile-lint` as a dev dependency to validate resolved URLs against trusted registries (e.g., `registry.npmjs.org`), ensure resolved names match package names, and verify integrity hashes in CI:
+  ```json
+  "scripts": {
+    "lint:lockfile": "lockfile-lint --path package-lock.json --type npm --validate-https --allowed-hosts npm"
+  }
+  ```
+
+---
+
 ## Installation Process
 
 Follow these steps when installing dependencies:
@@ -102,13 +186,14 @@ Follow these steps when installing dependencies:
 
 **Before running any install command, if the package version is not explicitly specified by the user, you MUST:**
 
-1. **Search for the official package**: Ensure you have the correct package name (check official docs or registry).
+1. **Search for the official package & spot typosquatting**: Ensure you have the correct package name (check official docs or registry).
+   - Actively watch out for typosquatting (e.g., `expres` with one 's' instead of `express`) which targets careless typing.
    - Avoid "package squatting" or similar names.
-   - Confirm it is the actual library requested.
-2. **Find the version**: Retrieve the _exact_ `latest` version number from the registry or documentation.
-   - Do NOT assume a version.
-   - Do NOT just run `install <package>` without checking unless explicitly told to.
-   - Ideally, target a specific stable version tag (e.g., `@1.2.3`).
+   - Confirm it is the actual library requested. Check the download count, registry signature, and readme presence.
+2. **Retrieve the release age & version**: Retrieve the _exact_ stable version number from the registry or documentation.
+   - Do NOT assume a version or run an unversioned `install <package>` blindly.
+   - Check if that version is brand new. Package versions published under 7 days ago (cooldown period) are highly volatile. Ensure release age gating / cooldown filters are respected or active.
+   - Ideally, target a specific stable version tag (e.g., `@1.2.3`) to pin the dependency to an exact version, making audits and updates a deliberate, documented choice.
 
 ### Step 3: Verify Package Manager Availability
 
@@ -126,18 +211,24 @@ composer --version
 pip --version   # or uv --version, poetry --version
 ```
 
-### Step 4: Enforce Socket Firewall or Compensating Controls
+### Step 4: Enforce Socket Firewall, npq, or Compensating Controls
 
-For supported ecosystems (`npm`, `pnpm`, `yarn`, `pip`, `uv`), install Socket Firewall if needed and run dependency commands through `sfw`.
+For supported ecosystems (`npm`, `pnpm`, `yarn`, `pip`, `uv`), install Socket Firewall if needed, or use `npq` (by setting up command aliases) to scan packages before they are fetched.
 
 ```bash
+# To verify or install Socket Firewall:
 npm i -g sfw
 sfw --version
+
+# To verify or install npq:
+npm i -g npq
 ```
 
-If the command will fetch packages from the network and the package manager is supported, the command should look like `sfw <package-manager> ...`.
+_Important Cache Reminder:_ Always clear your package-manager cache (e.g., `npm cache clean --force`, `pnpm store prune`, or `bun pm cache bin`) before installing dependencies if you suspected an entry could bypass protection. Socket Firewall and npq examine network downloads, so they cannot intercept already-cached malicious packages on your hard drive.
 
-If the ecosystem is unsupported by Socket Firewall (`bun`, `composer`, `poetry`, `pipenv`), stop and request explicit approval before running any networked dependency command without `sfw`.
+If the command fetches packages from the network and the package manager is supported, it must look like `sfw <package-manager> init/install/add...` (or use active aliases routing through `npq`).
+
+If the ecosystem is unsupported by Socket Firewall (`bun`, `composer`, `poetry`, `pipenv`), stop and request explicit approval before running any networked dependency command without `sfw` (or apply the manager's built-in secure defaults such as Bun's trusted dependencies filters).
 
 For Composer, apply these compensating controls before any networked command:
 
@@ -362,6 +453,16 @@ For global installations that fail:
 - If an affected package must change, update only that package and review the resulting lock-file diff carefully
 - If compromise is suspected, stop routine dependency work and move into incident response
 
+### Issue: Active cooldown/release-age gate error
+
+- Description: The installation fails because the requested package version is newer than the configured minimum release age.
+- Solution: If the package version is critical (e.g., contains a vital bugfix or security patch), bypass the age gate by explicitly requesting the exact version on the command line (e.g., `sfw npm install pkg@1.2.3`), or temporarily lower the release age in `.npmrc` / `bunfig.toml` / `.yarnrc.yml` for that specific task. Watch out for LLM prompts that try to bypass your cooldowns unnecessarily.
+
+### Issue: pnpm trust-policy no-downgrade failure (`ERR_PNPM_TRUST_DOWNGRADE`)
+
+- Description: pnpm rejects the installation because the package's trust level or publish provenance evidence is downgraded compared to its previous release.
+- Solution: Treat this with high suspicion! Verify if there is a known compromise of the publisher account or package. Check maintainer channels or advisories. If verified safe and legitimate (e.g., maintainer accidentally published without signing due to a CI/CD glitch), you can bypass or exclude the package in `pnpm-workspace.yaml` under `trustPolicyExclude` if appropriate.
+
 ## Best Practices
 
 1. **Never mix package managers**: If a project uses pnpm, always use pnpm. Mixing npm and pnpm will create conflicts.
@@ -385,6 +486,12 @@ For global installations that fail:
 10. **Unsupported ecosystems require explicit risk acceptance plus extra safeguards**: For `bun`, `composer`, `poetry`, and `pipenv`, do not proceed with networked dependency changes unless the user explicitly approves continuing without `sfw` coverage.
 
 11. **During active incidents, slow down**: Check trusted advisories or maintainer channels before updating packages, and prefer known-good lock-file installs over fresh resolution.
+
+12. **Configure Hardening Profiles Everywhere**: Apply security configurations like minimum release-age gating (cooldowns), script execution blocks, and exotic sub-dependency blocks to global or local workspace files (`.npmrc`, `bunfig.toml`, `.yarnrc.yml`).
+
+13. **Stop Blindly Updating Dependencies**: Never execute general bulk updates (e.g. `npm update`, `yarn upgrade`, or `composer update` without specifying a package). Upgrade packages selectively and only when there is an explicit need.
+
+14. **Leverage AI to Minimize Dependency Count**: Adopt the 'fewer packages' mindset. Do not install massive third-party packages (e.g. `lodash`, `axios`) for simple tasks that can be implemented locally in a few lines of code. Use agentic coding to generate optimized, secure local utilities instead of expanding your attack surface.
 
 ## Quick Reference
 
