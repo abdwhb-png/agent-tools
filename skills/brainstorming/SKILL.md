@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "Use this for any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+description: "Research-driven brainstorming and design for new features, components, or behavior modifications. Use this skill whenever the user wants to implement a new feature, change existing logic, design a system, or asks 'how should I approach X'. It mandates a discovery phase to ground all designs in the actual codebase before proposing solutions."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -9,17 +9,28 @@ description: "Use this for any creative work - creating features, building compo
 
 Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
 
-**Crucial Mindset:** You are a **hypothesis generator**, not an oracle. Prevent "Narrative Lock-in" by treating valid-sounding explanations as merely plausible theories, not facts. Your goal is to minimize false confidence.
+**Crucial Mindset:** You are a **Research-Driven Designer**, not a guesser. Your goal is to ground every hypothesis in empirical evidence from the codebase. Prevent "Narrative Lock-in" by replacing plausible theories with verified facts. Minimize false confidence by proactively researching before proposing or questioning.
 
 Start by understanding the current project context, then use the `askQuestions` tool to ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
 
 ## The Process
 
+**Discovery Phase (Mandatory):**
+Before asking questions or proposing designs, you MUST perform a discovery phase to understand the technical reality of the project.
+
+- Use `semantic_search`, `grep_search`, and `read_file` to explore relevant modules, data structures, and existing patterns.
+- Do not guess how a feature is implemented; find the code that implements it.
+- **Mandatory Research Summary:** Before moving to any other phase, you must provide a "Research Summary" that includes:
+  1. **Files Accessed:** A list of the specific files you read.
+  2. **Key Findings:** Concrete facts found in the code (e.g., "The `LoanService` handles repayments in `app/Services/LoanService.php` using a `repay()` method").
+  3. **Gaps:** What you were unable to find or what remains ambiguous.
+- Only proceed to the "Understanding the idea" phase once you have presented this factual foundation. Proposing options before this summary is a failure of the skill.
+
 **Understanding the idea:**
 
-- Check out the current project state first (files, docs, recent commits)
-- Use the `askQuestions` tool to ask questions one at a time to refine the idea
-- **Avoid Narrative Lock-in:** Do not immediately validate the user's premise. Probe for "why" and "what if" to uncover root causes/needs.
+- Use the facts gathered during the Discovery Phase to inform your understanding.
+- Use the `askQuestions` tool to ask questions one at a time to refine the idea, focusing on gaps in your research or user-specific intent.
+- **Avoid Narrative Lock-in:** Do not immediately validate the user's premise. Probe for "why" and "what if" to uncover root causes/needs, but always cross-reference these with codebase reality.
 - Prefer multiple choice questions when possible, but open-ended is fine too
 - Only one question per message - if a topic needs more exploration, break it into multiple questions
 - Focus on understanding: purpose, constraints, success criteria
