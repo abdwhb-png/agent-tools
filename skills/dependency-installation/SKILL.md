@@ -1,6 +1,6 @@
 ---
 name: dependency-installation
-description: Guide for installing dependencies and packages in any project. Use this whenever asked to install, add, update, or manage dependencies across Node.js (npm, pnpm, yarn, bun), PHP (composer), or Python (pip, uv, poetry, pipenv) projects. This skill should be used by default for dependency changes because it enforces package-manager detection, version verification, mandatory Socket Firewall (`sfw`) wrapping for supported ecosystems, and compensating security controls for unsupported registries such as Composer.
+description: Install or manage dependencies for any project (npm, pnpm, yarn, bun, composer, pip, uv, poetry, pipenv). Detects package managers automatically, wraps commands with Socket Firewall (`sfw`), blocks typosquatting, and applies supply-chain hardening. Use this whenever the user mentions installing, adding, updating, requiring, syncing, or managing packages — even for simple requests like "add lodash" or "sync my env."
 ---
 
 # Dependency Installation Skill
@@ -184,16 +184,18 @@ Follow these steps when installing dependencies:
 
 ### Step 2: Verify Package & Version (MANDATORY)
 
-**Before running any install command, if the package version is not explicitly specified by the user, you MUST:**
+**Before any install/add/sync command, you MUST verify the package name and version.**
 
-1. **Search for the official package & spot typosquatting**: Ensure you have the correct package name (check official docs or registry).
-   - Actively watch out for typosquatting (e.g., `expres` with one 's' instead of `express`) which targets careless typing.
-   - Avoid "package squatting" or similar names.
-   - Confirm it is the actual library requested. Check the download count, registry signature, and readme presence.
-2. **Retrieve the release age & version**: Retrieve the _exact_ stable version number from the registry or documentation.
-   - Do NOT assume a version or run an unversioned `install <package>` blindly.
-   - Check if that version is brand new. Package versions published under 7 days ago (cooldown period) are highly volatile. Ensure release age gating / cooldown filters are respected or active.
-   - Ideally, target a specific stable version tag (e.g., `@1.2.3`) to pin the dependency to an exact version, making audits and updates a deliberate, documented choice.
+1. **Typosquatting detection — HARD STOP required**: Compare the requested package name against the well-known alternative (e.g., `expres` → `express`). If you detect a name mismatch, unusual variant, or low-download-count package with a name similar to a popular library:
+   - **You MUST stop and present evidence** to the user: the suspicious name, the legitimate alternative, download counts, publisher, and description.
+   - **You MUST explicitly ask the user to confirm** they want the suspicious package rather than the legitimate one.
+   - **Do NOT proceed** without an explicit affirmative response from the user.
+   - Even with user confirmation, still apply full `sfw` and hardening controls to the install.
+
+2. **Version pinning**: Retrieve the _exact_ stable version number from the registry.
+   - Do NOT run an unversioned `install <package>` blindly. Use `packagename@X.Y.Z`.
+   - Check the release age. Packages published under 7 days ago are highly volatile — verify cooldown filters are active.
+   - Pinning to an exact version makes updates a deliberate, documented choice.
 
 ### Step 3: Verify Package Manager Availability
 
@@ -227,6 +229,8 @@ npm i -g npq
 _Important Cache Reminder:_ Always clear your package-manager cache (e.g., `npm cache clean --force`, `pnpm store prune`, or `bun pm cache bin`) before installing dependencies if you suspected an entry could bypass protection. Socket Firewall and npq examine network downloads, so they cannot intercept already-cached malicious packages on your hard drive.
 
 If the command fetches packages from the network and the package manager is supported, it must look like `sfw <package-manager> init/install/add...` (or use active aliases routing through `npq`).
+
+**At this step, also configure release age gating and script blocking** for the detected package manager by writing the appropriate config file (see "Supply-Chain Security & Hardening" section below for exact syntax per package manager). Choose which hardening controls to apply based on the sensitivity of the project and the risk profile of the package being installed — for a simple known package like `typescript` or `lodash` the cooldown gate alone suffices; for risky, unknown, or requested-by-name-only packages, apply the full set (cooldown + script blocking + exotic dep blocking).
 
 If the ecosystem is unsupported by Socket Firewall (`bun`, `composer`, `poetry`, `pipenv`), stop and request explicit approval before running any networked dependency command without `sfw` (or apply the manager's built-in secure defaults such as Bun's trusted dependencies filters).
 
