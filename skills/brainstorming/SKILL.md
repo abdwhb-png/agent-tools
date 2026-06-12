@@ -77,4 +77,4 @@ Before asking questions or proposing designs, you MUST perform a discovery phase
 
 ## Mandatory Use
 
-Always use `vscode/askQuestion` or equivalent to ask questions to the user. It's mandatory to use that tool to make it easier for user to answer and for you to track the conversation history. Do not ask questions in free text without using the tool.
+Always use `askQuestion` or equivalent to ask questions to the user. It's mandatory to use that tool to make it easier for user to answer and for you to track the conversation history. Do not ask questions in free text without using the tool.
