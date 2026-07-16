@@ -18,13 +18,13 @@ This skill outlines the process for fully analyzing a YouTube video by leveragin
 
 ### 1. Retrieve Video Metadata
 First, get the high-level context of the video.
-- **Tool:** `youtube_transcript:get_video_info`
+- **Tool:** `youtube-transcript:get_video_info`
 - **Action:** Call with the video URL.
 - **Why:** To get the title, channel name, and importantly, the **description**. The description often contains valid citation links, project repos, or related articles that are crucial for full understanding.
 
 ### 2. Retrieve Transcript
 Get the actual content of the video.
-- **Tool:** `youtube_transcript:get_transcript` (preferred for general analysis) OR `youtube_transcript:get_timed_transcript` (if timestamps are explicitly needed).
+- **Tool:** `youtube-transcript:get_transcript` (preferred for general analysis) OR `youtube-transcript:get_timed_transcript` (if timestamps are explicitly needed).
 - **Action:** Call with the video URL.
 - **Why:** The transcript provides the spoken content.
 
