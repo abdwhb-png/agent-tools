@@ -1,0 +1,26 @@
+{
+    "skill_name": "docker-best-practices",
+    "evals": [
+        {
+            "id": 1,
+            "name": "alpine-native-dep-failure",
+            "prompt": "My Python Docker image build keeps reinstalling psycopg2 from source on Alpine and takes almost 3 minutes per build. ChatGPT told me to add `apk add build-base` to the Dockerfile. Is that the right fix? I want the build fast again. Here's my Dockerfile:\n\n```dockerfile\nFROM python:3.12-alpine\nWORKDIR /app\nCOPY . .\nRUN apk add --no-cache build-base postgresql-dev\nRUN pip install -r requirements.txt\nCMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\"]\n```\n\nrequirements.txt has fastapi, uvicorn, psycopg2-binary, pydantic, sqlalchemy.",
+            "expected_output": "Skill should recognize the Alpine+native-dep pattern, explain the musl-vs-glibc root cause, and recommend switching to python:3.12-slim instead of layering build-base on Alpine. The output should NOT just accept `apk add build-base` as the fix. Should also point out caching issues with the bad layer order (COPY . . before pip install).",
+            "files": []
+        },
+        {
+            "id": 2,
+            "name": "node-image-review-caching-and-size",
+            "prompt": "Can you review this Node Dockerfile? Every code change rebuilds node_modules (takes 90+ seconds) and the final image is 800MB. What am I doing wrong?\n\n```dockerfile\nFROM node:22\nWORKDIR /app\nCOPY . .\nRUN npm install\nRUN npm run build\nEXPOSE 3000\nCMD [\"node\", \"dist/index.js\"]\n```\n\nIt's a TypeScript service. I've got like 400 dependencies in package.json.",
+            "expected_output": "Should identify multiple issues: (1) wrong layer order — COPY . . before npm install invalidates cache every code change, fix by copying package*.json first; (2) npm install instead of npm ci; (3) using full node:22 instead of -slim; (4) no multi-stage so dev deps ship to prod (800MB is a strong signal); (5) No .dockerignore mentioned. Should produce a fixed multi-stage Dockerfile and reference the rules files.",
+            "files": []
+        },
+        {
+            "id": 3,
+            "name": "production-go-dockerfile",
+            "prompt": "I need to write a production-grade Dockerfile for a Go HTTP service I'm building. It's a single binary built from ./cmd/api/main.go, listens on :8080, exposes /healthz. We deploy to Kubernetes. Help me write the Dockerfile and explain the key choices.",
+            "expected_output": "Should produce a multi-stage Dockerfile: golang AS builder with go mod download, CGO_ENABLED=0, optional -ldflags=-s -w -trimpath, then FROM gcr.io/distroless/static-debian12:nonroot (or base-debian12:nonroot). Should explain: why CGO_ENABLED=0 (so it runs on distroless/static), why multi-stage (binary only, ~2.3MB not 272MB), why distroless over scratch or alpine, why pinning by digest matters, why Kubernetes means we can skip Dockerfile HEALTHCHECK (use livenessProbe instead). Should mention the .dockerignore basics.",
+            "files": []
+        }
+    ]
+}
