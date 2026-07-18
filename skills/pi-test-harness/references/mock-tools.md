@@ -151,14 +151,19 @@ When an extension's `tool_call` hook blocks a tool call, the harness throws `Too
 ```typescript
 await t.run(when("Try write", [
   calls("bash", { command: "rm -rf /" }),
-  says("Done."),  // <- will be consumed if-and-only-if the call wasn't blocked
+  says("Done."),  // consumed regardless of block — the block becomes a result that feeds back into streamFn
 ]));
 
 const result = t.events.toolResultsFor("bash")[0];
 expect(result.isError).toBe(true);
+
+// You can also confirm the block specifically via the call record:
+const call = t.events.toolCallsFor("bash")[0];
+expect(call.blocked).toBe(true);
+expect(call.blockReason).toMatch(/blocked by/i);
 ```
 
-This is the cleanest pattern when you want to verify the block happened but the test shouldn't abort.
+Note: the playbook **continues** after a block — the block surfaces as a tool result with `isError: true`, which feeds back into the next `streamFn` call, so subsequent `calls(...)` / `says(...)` still get consumed. Since v0.5.0 the harness uses a hybrid block check (`instanceof ToolBlockedError` + message fallback) so both hook-block paths are classified as blocks rather than test failures.
 
 ### Pattern B: catch the throw explicitly
 
@@ -184,7 +189,7 @@ try {
 
 ### Combining `propagateErrors` with blocks
 
-With the default `propagateErrors: true`, a blocked call aborts with `ToolBlockedError`. With `propagateErrors: false`, blocked calls surface as `isError: true` in the result record and the playbook continues. Choose between the two based on whether the *extension* or the *test author* is supposed to be aware of the block.
+With the default `propagateErrors: true`, a blocked call aborts the test by throwing `ToolBlockedError`. With `propagateErrors: false`, blocked calls surface as `isError: true` in the result record and the playbook continues. Regardless of `propagateErrors`, the call record carries `blocked: true` and `blockReason: "..."` so you can assert the hook fired.
 
 ## Common pitfalls
 

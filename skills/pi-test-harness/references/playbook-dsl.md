@@ -160,11 +160,13 @@ The harness auto-asserts that all playbook actions are consumed after `run()` co
 ### 1. Playbook exhausted unexpectedly
 
 ```
-Error during tool execution at playbook step 3 (call "bash"):
-  ENOENT: no such file or directory '/foo/bar'
-  at Object.readFileSync (node:fs:...)
+Playbook exhausted unexpectedly.
+  Consumed 2 action(s).
+  Last consumed: calls("bash", {"command":"ls"}) at step 2
 
-This was thrown by the real tool execution, not by the playbook.
+  The agent loop called streamFn but no more playbook actions were available.
+  This usually means a tool call produced an unexpected result that caused
+  additional streamFn calls (retries, error handling).
 ```
 
 **What it means**: the agent loop called `streamFn` more times than your script expected. The most common causes:
@@ -174,6 +176,13 @@ This was thrown by the real tool execution, not by the playbook.
 - An extension spawned an extra `streamFn` call you didn't anticipate.
 
 **Fix**: read the diagnostic's "Last consumed" line to find where reality diverged. Either add the missing actions to your script, or change `mockTools` so the tool doesn't error / the hook doesn't fire.
+
+> **Do not confuse** this exhaustion diagnostic with the `propagateErrors: true` error diagnostic, which looks like:
+> ```
+> Error during tool execution at playbook step 3 (call "bash"):
+>   ENOENT: no such file or directory '/foo/bar'
+> ```
+> That one fires when a **real** (non-mocked) tool throws and `propagateErrors` is on. The exhaustion diagnostic above fires when the **script** and the agent loop disagree on how many actions exist. Different cause, different fix.
 
 ### 2. Playbook not fully consumed
 

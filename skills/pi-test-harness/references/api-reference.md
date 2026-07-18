@@ -131,7 +131,7 @@ interface TestEvents {
   // Tool interactions
   toolCallsFor(name: string): ToolCallRecord[];
   toolResultsFor(name: string): ToolResultRecord[];
-  blockedCalls(): ToolResultRecord[];
+  blockedCalls(): ToolCallRecord[];  // subset of toolCallsFor where blocked === true
 
   // UI interactions
   uiCallsFor(name: UIMethodName): UICallRecord[];
@@ -148,10 +148,20 @@ interface TestEvents {
 |------------------------------|--------------------------|--------------------------------------------------------------|
 | `toolCallsFor("bash")`       | `ToolCallRecord[]`       | All invocations of `bash`                                    |
 | `toolResultsFor("bash")`     | `ToolResultRecord[]`     | All results returned by `bash` (real or mocked)              |
-| `blockedCalls()`             | `ToolResultRecord[]`     | Tools blocked by extension hooks (e.g. plan mode)            |
+| `blockedCalls()`             | `ToolCallRecord[]`       | Calls blocked by extension hooks (where `blocked === true`)  |
 | `uiCallsFor("confirm")`      | `UICallRecord[]`         | All calls to that UI method                                  |
 | `messages`                   | `AgentMessage[]`         | The conversation history                                     |
 | `all`                        | `AgentSessionEvent[]`    | Every event, in order                                         |
+
+### Additional accessors
+
+`TestEvents` also exposes:
+
+```typescript
+toolSequence(): string[];     // ordered list of tool names as they were called
+```
+
+Useful when the *order* of tool invocations matters more than their params, e.g. asserting your extension always calls `plan_mode` before `plan_propose`.
 
 ### UI method names
 
@@ -167,18 +177,19 @@ Pass any of these to `uiCallsFor`:
 
 ## `ToolCallRecord`
 
-The shape returned by `t.events.toolCallsFor(name)`. Use it when you want to assert *what was asked*, not what came back — that goes through [`ToolResultRecord`](#toolresultrecord).
-
-> **Source note**: the package README enumerates `ToolResultRecord`'s fields explicitly but does not enumerate `ToolCallRecord`'s. The shape below reflects the convention seen across pi-test-harness's own test fixtures: a `step` index (matching the playbook step), a `toolCallId` that pairs 1:1 with the same field on the matching `ToolResultRecord`, the `toolName`, and the `params` object as passed to `calls(tool, params)`. If your installed version diverges (e.g., the field is called `arguments` or `input` instead of `params`), trust the installed types over this document and treat the names below as guidance, not contract.
+The shape returned by `t.events.toolCallsFor(name)`. Use it when you want to assert *what was asked*, not what came back — that goes through [`ToolResultRecord`](#toolresultrecord). Also returned by `blockedCalls()`.
 
 ```typescript
 interface ToolCallRecord {
   step: number;                              // playbook step index
   toolName: string;
-  toolCallId: string;                        // pairs 1:1 with ToolResultRecord.toolCallId
-  params: Record<string, unknown>;          // the params object from calls(tool, params)
+  input: Record<string, unknown>;           // the params object from calls(tool, params)
+  blocked: boolean;                          // true if an extension hook blocked this call
+  blockReason?: string;                      // the reason string if blocked
 }
 ```
+
+**Source**: verified against `dist/types.d.ts` in v0.6.1. Note the field is `input` (not `params`); it carries the params you passed via `calls(tool, params)`. There is no `toolCallId` on `ToolCallRecord` — pair with results by index (e.g. `toolCallsFor(name)[i]` ↔ `toolResultsFor(name)[i]`) since both arrays are in call order.
 
 ### Reading it
 
@@ -188,23 +199,37 @@ expect(bashCalls).toHaveLength(1);
 
 const c = bashCalls[0];
 expect(c.toolName).toBe("bash");
-expect(c.params).toEqual({ command: "ls -la" });
-expect(c.toolCallId).toMatch(/^call_/);     // prefix varies by runtime
+expect(c.input).toEqual({ command: "ls -la" });
+expect(c.blocked).toBe(false);              // no hook blocked
 ```
 
 ### Pairing calls with results
 
-`toolCallId` is the join key. If you need to assert param + result together:
+Pair `toolCallsFor(name)` with `toolResultsFor(name)` by index — both arrays are in call order:
 
 ```typescript
 const call = t.events.toolCallsFor("summarize_doc")[0];
-const result = t.events
-  .toolResultsFor("summarize_doc")
-  .find((r) => r.toolCallId === call.toolCallId)!;
+const result = t.events.toolResultsFor("summarize_doc")[0];
 
-expect(call.params).toEqual({ path: "README.md" });
+expect(call.input).toEqual({ path: "README.md" });
 expect(result.mocked).toBe(false);          // extension's real code ran
 ```
+
+### Asserting on blocks
+
+`ToolCallRecord.blocked` + `blockReason` (since v0.5.0) are the canonical way to assert a hook did the blocking. `blockedCalls()` returns the subset where `blocked === true`:
+
+```typescript
+await t.run(when("Try write", [calls("bash", { command: "rm -rf /" }), says("Done.")]));
+
+const blocked = t.events.blockedCalls();
+expect(blocked).toHaveLength(1);
+expect(blocked[0].toolName).toBe("bash");
+expect(blocked[0].blocked).toBe(true);
+expect(blocked[0].blockReason).toBeTruthy();
+```
+
+This is the lower-friction alternative to catching `ToolBlockedError` — see `mock-tools.md` for when to prefer each.
 
 ---
 
@@ -220,9 +245,12 @@ interface ToolResultRecord {
   text: string;                              // concatenated text content
   content: Array<{ type: string; text?: string }>;
   isError: boolean;
+  details?: unknown;                         // optional details object (mock-provided or real)
   mocked: boolean;                           // true if mockTools handled it
 }
 ```
+
+**Source**: verified against `dist/types.d.ts` in v0.6.1.
 
 ### Reading it
 
@@ -246,19 +274,17 @@ expect(r.step).toBe(0);                      // first playbook step
 
 ## `UICallRecord`
 
-The shape returned by `t.events.uiCallsFor(name)`.
-
-> **Source note**: like [`ToolCallRecord`](#toolcallrecord), `UICallRecord` is not enumerated exhaustively in the package README. The shape below reflects typical usage across the harness's own examples: a `step` index, the `method` name (e.g. `"confirm"`, `"notify"`), the positional arguments the extension passed in (`title`, plus the method-specific second argument), and the `returnValue` the mock produced. Both `args` shapes and exact field names can drift — treat this as guidance and prefer the installed type definitions when in doubt.
+The shape returned by `t.events.uiCallsFor(method)`. Note: there is no `step` or `title` field — `args` carries the positional arguments (typically `[title, messageOrItemsOrPlaceholder]` depending on method).
 
 ```typescript
 interface UICallRecord {
-  step: number;
-  method: UIMethodName;                     // "confirm" | "select" | "input" | "editor" | "notify"
-  title: string;
-  args: unknown[];                          // method-specific positional args (message, items, ...)
-  returnValue: unknown;                     // the boolean / string / undefined the mock returned
+  method: string;                            // "confirm" | "select" | "input" | "editor" | "notify"
+  args: unknown[];                           // positional args the extension passed
+  returnValue?: unknown;                     // what the mock returned (omitted for outbound-only methods)
 }
 ```
+
+**Source**: verified against `dist/types.d.ts` in v0.6.1. `notify` calls are recorded here too — `returnValue` is typically omitted for outbound methods.
 
 ### Reading it
 
@@ -267,26 +293,24 @@ const confirms = t.events.uiCallsFor("confirm");
 expect(confirms).toHaveLength(1);
 
 const c = confirms[0];
-expect(c.title).toContain("Delete");        // the prompt title the extension passed
+expect(c.method).toBe("confirm");
+expect(c.args[0]).toContain("Delete");      // args[0] is typically the title
 expect(c.returnValue).toBe(false);          // what the user (mock) answered
 
 // `notify` is outbound-only and not in MockUIConfig, but it IS recorded —
 // so uiCallsFor("notify") is the canonical way to assert "the user saw X".
 const notifies = t.events.uiCallsFor("notify");
-// notify bodies vary; JSON.stringify defensively if your assertion is
-// substring-based and you don't know the exact field name.
-expect(JSON.stringify(notifies)).toContain("Plan approved");
+expect(notifies).toHaveLength(1);
+expect(JSON.stringify(notifies[0].args)).toContain("Plan approved");
 ```
 
-### Reading bodies safely when the exact field is unpinned
+### Reading bodies safely
 
-Some methods (notably `notify`) carry their body in a field the harness's
-public types don't pin down. If you want a test that's robust to field-name
-drift, stringify the whole record before asserting on substrings:
+The `notify` body lives in `args` (positional, no pinned shape beyond method). Stringify the whole record if your assertion is substring-based and you don't want to commit to a specific arg index:
 
 ```typescript
 const text = JSON.stringify(t.events.uiCallsFor("notify"));
-expect(text).not.toMatch(/agent crashed/i); // raw stderr never leaks
+expect(text).not.toMatch(/agent crashed/i);  // raw stderr never leaks
 expect(text).toMatch(/couldn't|unable|sorry/i); // friendly message present
 ```
 
@@ -409,7 +433,7 @@ try {
 }
 ```
 
-The reason to prefer `instanceof ToolBlockedError` over a generic `isError` assertion: a generic error could come from anywhere (a real tool that threw, a config bug, etc.). `ToolBlockedError` proves the *extend hook* did the blocking. See `mock-tools.md` for the two assertion patterns.
+The reason to prefer `instanceof ToolBlockedError` over a generic `isError` assertion: a generic error could come from anywhere (a real tool that threw, a config bug, etc.). `ToolBlockedError` proves the *extension hook* did the blocking. See `mock-tools.md` for the two assertion patterns.
 
 ---
 

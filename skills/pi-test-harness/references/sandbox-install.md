@@ -12,7 +12,7 @@ This catches a class of bugs that `createTestSession` cannot: broken `package.js
 | **`verifySandboxInstall`** | **Publishable-package bugs (broken install, bad exports)** |
 | `createMockPi`           | Subprocess-spawning extension bugs                         |
 
-Run `verifySandboxInstall` as a CI step before every publish, or locally as `npm run prepack` / `npm publish --dry-run`. Several open Pi extensions use this exact pattern to gate releases.
+Run `verifySandboxInstall` as a CI step before every publish, or locally as `npm run prepack` / `npm publish --dry-run`. At least [`marcfargas/pi-mf-extensions`](https://github.com/marcfargas/pi-mf-extensions) (pi-planner) uses this layer to test the plan lifecycle; check its CI for a concrete release-gate example.
 
 ## Basic usage
 
@@ -100,7 +100,7 @@ It's worth being explicit because the layers overlap conceptually but solve diff
 | **Are the right files included in the tarball?**     | **`verifySandboxInstall`**|
 | **Do peer deps resolve in a clean install?**         | **`verifySandboxInstall`**|
 
-In practice, open Pi extension repos use `createTestSession` for the bulk of their tests and `verifySandboxInstall` as a single release-gate test. The release gate catches things like forgetting to add a new tool's source file to the package's `"files"` list (which would make local `createTestSession` pass but a published package throw).
+In practice, the natural split is: use `createTestSession` for the bulk of behavioral tests (it's fast, in-process, and exercises the extension under test directly), and reserve `verifySandboxInstall` for a single release-gate CI test (it's slower because it runs a real `npm pack` + `npm install`). The release gate catches things like forgetting to add a new tool's source file to the package's `"files"` list (which would make local `createTestSession` pass but a published package throw).
 
 ## Common pitfalls
 
