@@ -9,9 +9,9 @@ description: >
   Pi extension test in Vitest/bun:test/Jest. Prefer this over generic test-runner
   guidance whenever Pi runtime types appear (AgentSession, ExtensionRunner, ctx.ui,
   ToolResultRecord).
-license: MIT
 metadata:
-  author: marcfargas
+  package_author: marcfargas (pi core maintainer)
+  skill_author: abdwhb-png
   source: https://github.com/marcfargas/pi-test-harness
   version: "0.6.1"
   languages: [TypeScript, JavaScript]
@@ -20,9 +20,9 @@ metadata:
 
 # pi-test-harness
 
-`@marcfargas/pi-test-harness` is the official-style test harness for [Pi](https://github.com/earendil-works/pi-coding-agent) extensions. Its job: let you exercise **real** extension code paths (tool registration, hooks, session events, UI prompts) in any test runner with zero LLM calls and full determinism.
+`@marcfargas/pi-test-harness` is a community test harness for [Pi](https://github.com/earendil-works/pi-coding-agent) extensions, written by Marc Fargas (a Pi core maintainer). Its job: let you exercise **real** extension code paths (tool registration, hooks, session events, UI prompts) in any test runner with zero LLM calls and full determinism.
 
-> **Verify before use**: this skill snapshots the README as of v0.6.1 (2026-05). If the API ends up looking subtly different, re-fetch the README from https://github.com/marcfargas/pi-test-harness before trusting any snippet here.
+> **Verify before use**: this skill snapshots the README as of harness v0.6.1 (2026-05). If the API ends up looking subtly different, re-fetch the README from https://github.com/marcfargas/pi-test-harness before trusting any snippet here. Note: the harness version (e.g. `0.6.1`) and the Pi version (e.g. `0.74.x`) are **independent release tracks** — do not compare them numerically.
 
 ## The mental model: "let pi be pi"
 
@@ -82,6 +82,24 @@ This skill's snippets use the Vitest import for concreteness (the upstream READM
 
 **Things to verify if you go off-script (bun:test in particular)**: process-exit timing for `safeRmSync`'s `EPERM`/`EBUSY` swallow (the harness assumes Node-like exit behavior — bun's process-exit timing can differ for SQLite lock release); and the `createMockPi` PATH-shim mechanism uses `child_process.spawn` under the hood, which bun handles via Node-compat but is worth a smoke test. Both work in theory; neither is in the package's upstream CI matrix (which is Vitest-only).
 
+## When NOT to use this skill
+
+This harness pays the cost of booting a real Pi session (jiti, tool wrapping, hook runner, event system). That cost is justified when you actually need it and pure noise when you don't.
+
+**Use plain `bun:test` / Vitest / Jest instead when:**
+- Testing **pure helpers** (string formatting, JSON transforms,开封 validation, math) that don't touch `ctx`, the tool registry, or hooks.
+- Testing **imports** in isolation — `mock.module()` + `await import()` is faster and sufficient.
+- Testing **type shapes** — `tsc --noEmit` or a `expectTypeOf` check needs no runtime.
+
+**Reach for this harness when the test must exercise:**
+- Tool registration (your extension calls `ctx.registerTool(...)`).
+- Hook behavior (`tool_call`, `tool_result`, `session_start`, plan-mode gating).
+- Multi-step agent flow (tool A output feeds tool B input).
+- UI prompts (`ctx.ui.confirm()`, `.select()`, `.input()`).
+- Real tool wrapping pipeline (your `beforeExecute` / `renderResult` overrides).
+
+Rule of thumb: if dropping Pi's runtime would make the test trivially pass without exercising the bug you're guarding against — use this harness. Otherwise, don't.
+
 ## Quick start
 
 A full first test, ~15 lines:
@@ -124,6 +142,20 @@ describe("my extension", () => {
 ```
 
 Read it like this: `createTestSession` boots a real Pi session, loads `./src/index.ts` as the extension under test, and intercepts the four built-in tools listed in `mockTools`. The playbook passed to `t.run(...)` **is** what the model "says" — first a user prompt, then the model calls `bash` with `{ command: "ls" }`, then the model emits the text `"Found 2 files..."`. After the run, you assert against the recorded events.
+
+#### Extension specifiers — what `extensions: [...]` accepts
+
+Each entry in the `extensions` array follows Pi's normal extension resolution rules. The harness itself does not invent a new format. Any of these work:
+
+| Form | Example | Resolves to |
+|------------|------------------------------------------|-----------------------------------------------|
+| Relative path | `"./src/index.ts"` | Relative to the test process CWD |
+| Absolute path | `"/abs/path/to/index.ts"` | Used as-is |
+| Package name | `"@vendor/my-pi-extension"` | Via Node module resolution (must be installed) |
+| Package subpath | `"@vendor/my-pi-extension/sub"` | The package's `exports` map must allow it |
+| Glob | `["./extensions/*.ts"]` | Pi's loader expands globs |
+
+If your test runs from your package root, `"./src/index.ts"` is correct. If your extension is published as an npm package, use its package name instead. Paths are resolved by Pi's real extension loader (via jiti), so anything Pi's CLI accepts in `-e` or `extensions:` config is accepted here too.
 
 ## The playbook DSL in one paragraph
 
@@ -341,6 +373,23 @@ afterEach(() => {
 Files get cleaned up by the OS when the test process exits anyway. For isolation across tests, give each one a unique DB path (typically `mkdtempSync` + the test name).
 
 `safeRmSync` only suppresses `EPERM` and `EBUSY` — every other error still propagates.
+
+## Common pitfalls / anti-patterns
+
+**1. Mocking your own extension's tools.**
+If your extension registers a tool named `my_tool`, don't also put `my_tool` in `mockTools`. The mock intercepts `tool.execute()` and your tool's real logic never runs — the test passes vacuously. Mock **built-in** tools (`bash`, `read`, `write`, `edit`); let your extension's own tools execute for real.
+
+**2. Forgetting `afterEach(() => t?.dispose())`.**
+Pi extensions that open a SQLite DB (memory extensions, etc.) keep the file handle for the test process's lifetime. Skipping `dispose()` + `safeRmSync()` causes cross-test contamination and `EPERM` on Windows. See the "Windows + SQLite" section.
+
+**3. Mocking a tool that an extension hook will block.**
+When your hook blocks a call (plan mode, dangerous command), the mock handler never executes and the harness throws `ToolBlockedError`. This is correct behavior — use `instanceof ToolBlockedError` rather than treating it as a test failure.
+
+**4. Assuming hooks fire on the mock path.**
+Pi's `tool_call` / `tool_result` hooks **do** fire for mocked tools (via the real `ExtensionRunner`), but lifecycle hooks (`session_start`, `session_shutdown`) follow Pi's normal timing. `session_shutdown` only fires on process exit — `dispose()` will not trigger it. Plan accordingly.
+
+**5. Trusting the snapshot blindly.**
+The `description` and code in this skill are pinned to harness v0.6.1. On any minor bump, re-fetch the upstream README and reconcile before trusting snippets.
 
 ## Test-layer summary
 
