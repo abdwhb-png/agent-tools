@@ -4,13 +4,9 @@ description: >
   Write deterministic tests for Pi (earendil-works/pi-coding-agent) extensions using
   @marcfargas/pi-test-harness — assert on tools, hooks, and UI without calling an LLM.
   Works with any JavaScript/TypeScript test runner (Vitest, bun:test, Jest). Use when
-  the user mentions pi-test-harness, createTestSession, createMockPi, verifySandboxInstall,
-  "test my pi extension", "playbook mocking", pi-coding-agent, earendil pi, or writes a
-  Pi extension test in Vitest/bun:test/Jest. Prefer this over generic test-runner
-  guidance whenever Pi runtime types appear (AgentSession, ExtensionRunner, ctx.ui,
-  ToolResultRecord).
+  the user mentions pi-test-harness, createTestSession, createMockPi, verifySandboxInstall, "test my pi extension", "playbook mocking", pi-coding-agent, earendil pi, or writes a Pi extension test in Vitest/bun:test/Jest. Prefer this over generic test-runner guidance whenever Pi runtime types appear (AgentSession, ExtensionRunner, ctx.ui, ToolResultRecord).
 metadata:
-  package_author: marcfargas (pi core maintainer)
+  package_author: "marcfargas (prolific pi-community contributor; pi itself is by Mario Zechner / earendil-works)"
   skill_author: abdwhb-png
   source: https://github.com/marcfargas/pi-test-harness
   version: "0.6.1"
@@ -20,7 +16,7 @@ metadata:
 
 # pi-test-harness
 
-`@marcfargas/pi-test-harness` is a community test harness for [Pi](https://github.com/earendil-works/pi-coding-agent) extensions, written by Marc Fargas (a Pi core maintainer). Its job: let you exercise **real** extension code paths (tool registration, hooks, session events, UI prompts) in any test runner with zero LLM calls and full determinism.
+`@marcfargas/pi-test-harness` is a community test harness for [Pi](https://github.com/earendil-works/pi-coding-agent) extensions, written by Marc Fargas (a prolific pi-community contributor — pi-powershell, pi-tramp, pi-planner, etc.; note that pi itself is maintained by Mario Zechner / earendil-works, not the same person). Its job: let you exercise **real** extension code paths (tool registration, hooks, session events, UI prompts) in any test runner with zero LLM calls and full determinism.
 
 > **Verify before use**: this skill snapshots the README as of harness v0.6.1 (2026-05). If the API ends up looking subtly different, re-fetch the README from https://github.com/marcfargas/pi-test-harness before trusting any snippet here. Note: the harness version (e.g. `0.6.1`) and the Pi version (e.g. `0.74.x`) are **independent release tracks** — do not compare them numerically.
 
@@ -87,7 +83,7 @@ This skill's snippets use the Vitest import for concreteness (the upstream READM
 This harness pays the cost of booting a real Pi session (jiti, tool wrapping, hook runner, event system). That cost is justified when you actually need it and pure noise when you don't.
 
 **Use plain `bun:test` / Vitest / Jest instead when:**
-- Testing **pure helpers** (string formatting, JSON transforms,开封 validation, math) that don't touch `ctx`, the tool registry, or hooks.
+- Testing **pure helpers** (string formatting, JSON transforms, schema validation, math) that don't touch `ctx`, the tool registry, or hooks.
 - Testing **imports** in isolation — `mock.module()` + `await import()` is faster and sufficient.
 - Testing **type shapes** — `tsc --noEmit` or a `expectTypeOf` check needs no runtime.
 
@@ -145,17 +141,26 @@ Read it like this: `createTestSession` boots a real Pi session, loads `./src/ind
 
 #### Extension specifiers — what `extensions: [...]` accepts
 
-Each entry in the `extensions` array follows Pi's normal extension resolution rules. The harness itself does not invent a new format. Any of these work:
+Each entry in the `extensions` array follows Pi's normal extension resolution rules. The harness itself does not invent a new format. Pi's loader accepts **literal paths only — no glob expansion** (`*`, `?`, `{}` are treated as literal characters and the entry is silently skipped if the resulting path doesn't exist). Any of these work:
 
 | Form | Example | Resolves to |
 |------------|------------------------------------------|-----------------------------------------------|
 | Relative path | `"./src/index.ts"` | Relative to the test process CWD |
 | Absolute path | `"/abs/path/to/index.ts"` | Used as-is |
-| Package name | `"@vendor/my-pi-extension"` | Via Node module resolution (must be installed) |
-| Package subpath | `"@vendor/my-pi-extension/sub"` | The package's `exports` map must allow it |
-| Glob | `["./extensions/*.ts"]` | Pi's loader expands globs |
+| Tilde path | `"~/path/to/ext.ts"` | Expanded via tilde, then used as-is |
+| Directory path | `"./extensions"` | Pi enumerates `*.ts` / `*.js` direct children (one level deep, not glob) |
 
-If your test runs from your package root, `"./src/index.ts"` is correct. If your extension is published as an npm package, use its package name instead. Paths are resolved by Pi's real extension loader (via jiti), so anything Pi's CLI accepts in `-e` or `extensions:` config is accepted here too.
+If your test runs from your package root, `"./src/index.ts"` is correct. Paths are resolved by Pi's real extension loader (via jiti), so anything Pi's CLI accepts in `-e` or `settings.json` `extensions:` config is accepted here too.
+
+**Distributed packages are a different field.** Don't put them in `extensions:`. Use Pi's `packages:` config (with `npm:`/`git:`/`github:` prefixes) or `pi install <pkg>`, then let the package's `package.json` `pi.extensions` field point at the entry file(s):
+
+```json
+{
+  "packages": ["npm:@foo/bar@1.0.0", "git:github.com/user/repo@v1"]
+}
+```
+
+To test a local package with the harness, `pi install` it first (or `npm pack` + install into the test repo), then rely on Pi's auto-discovery of the `pi.extensions` field in the installed `package.json` — don't try to reference the package's internal entry file path directly from `extensions:[]`. For pre-publish smoke testing of the file layout, see `verifySandboxInstall` below instead.
 
 ## The playbook DSL in one paragraph
 
@@ -340,16 +345,34 @@ mockPi.onCall({
     { type: "tool_execution_start", toolName: "bash" },
     { type: "message_end", message: { role: "assistant", content: [{ type: "text", text: "done" }] } },
   ],
+  // Optional: write files during execution (e.g., chain_dir output simulation)
+  // writeFiles: { "/tmp/output.md": "# Result\nDone." },
 });
+
+// Reset the response queue between tests (preserves the installed shim, clears queued responses)
+mockPi.reset();
 
 expect(mockPi.callCount()).toBe(0);
 
 // ...run playbook that triggers those subprocesses...
+// When the queue is exhausted, the LAST response repeats.
+// If no responses are queued at all, the mock echoes the task text.
 
 mockPi.uninstall();                     // restore PATH, delete temp dir
 ```
 
-The response shape (`output`, `exitCode`, `stderr`, `delay`, `jsonl`, `writeFiles`), the concurrency caveat (serial spawns only), and the safety features (exit handler auto-restores PATH; 30s timeout; key validation that throws on typos like `{ ouptut: ... }`) are documented in `references/mock-pi-cli.md`.
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `output` | `string` | echo task | Text in the `message_end` event |
+| `exitCode` | `number` | `0` | Process exit code |
+| `stderr` | `string` | — | Written to stderr |
+| `delay` | `number` | `0` | Delay in ms before responding |
+| `jsonl` | `object[]` | — | Raw JSONL events (replaces default `message_end`) |
+| `writeFiles` | `Record<string, string>` | — | Files written during execution (e.g., to simulate chain_dir output) |
+
+Lifecycle: `install()` → `onCall(...)` (queue N responses) → `reset()` (clears queue, preserves shim) → `uninstall()` (restores PATH, deletes temp dir). When the queue is exhausted the last response repeats; if empty, the mock echoes the task text. `callCount()` returns the number of invocations since install.
+
+The key-validation behavior (throws on typos like `{ ouptut: ... }`), the concurrency caveat (serial spawns only — queued responses are consumed FIFO across spawned subprocesses), and the safety features (exit handler auto-restores PATH; 30s timeout) are documented in `references/mock-pi-cli.md`.
 
 ## Windows + SQLite: use `safeRmSync` in `afterEach`
 
