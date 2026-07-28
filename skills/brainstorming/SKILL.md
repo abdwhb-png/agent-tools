@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "Research-driven brainstorming and design for new features, components, or behavior modifications. Use this skill whenever the user wants to implement a new feature, change existing logic, design a system, or asks 'how should I approach X'. It mandates a discovery phase to ground all designs in the actual codebase before proposing solutions."
+description: "Research-driven brainstorming and design for new features, components, or behavior modifications. Use this skill whenever the user wants to implement a new feature, change existing logic, design a system, compare approaches, or asks 'how should I approach X'. It mandates discovery in the actual codebase and verification of decision-critical assumptions before recommending a design."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -37,10 +37,38 @@ Before asking questions or proposing designs, you MUST perform a discovery phase
 
 **Exploring approaches:**
 
-- Propose 2-3 different approaches with trade-offs
-- **Identify Uncertainties:** For each approach, list "Critical Uncertainties" (what we don't know yet) and "Conditions for Failure" (when would this approach be wrong?).
-- Present options conversationally with your recommendation and reasoning
-- Lead with your recommended option and explain why, but remain open to being wrong.
+- Propose 2-3 materially different approaches with trade-offs.
+- For each approach, identify assumptions that could change the recommendation and conditions that would make the approach fail.
+
+Classify each decision-critical assumption:
+
+- **Empirical:** Can be checked against code, tests, runtime behavior, measurements, APIs, or authoritative documentation.
+- **Design choice:** Depends on an explicit trade-off or user preference rather than factual verification.
+- **Future contingency:** Cannot be resolved until a stated future condition occurs.
+
+Do not stop after listing uncertainty. Investigate empirical assumptions before recommending an approach:
+
+1. Use the narrowest reliable check available: inspect the real code path, run focused tests or deterministic commands, query the relevant API, measure behavior, or consult official documentation.
+2. Keep the observed result separate from your interpretation of what it means for each approach.
+3. Treat failed searches, stale sources, synthesized summaries, and unsupported opinions as insufficient proof.
+4. Treat user answers as preferences or approvals, not evidence of technical behavior.
+5. Keep contradictory evidence visible and explain how it changes confidence.
+
+Execution or analysis without an identifiable source is a derived conclusion, not direct evidence. Verify its underlying input before relying on it. Absence of evidence is not evidence of absence unless the searched scope is demonstrably complete.
+
+For each important empirical assumption, state whether it is:
+
+- **Verified:** Relevant evidence supports it.
+- **Falsified:** Relevant evidence contradicts it.
+- **Unresolved:** Evidence is missing, conflicting, stale, or insufficient.
+
+Do not turn an unresolved critical assumption into a confident recommendation. Explain its impact and mitigation, then ask the user whether to investigate further, choose another approach, or knowingly accept the risk.
+
+For high-impact decisions, contradictory evidence, or accepted unresolved risk, seek an independent critical review when another agent or reviewer is available. Ask it to inspect the same primary evidence and challenge the recommendation. Reviewer prose is not a substitute for the underlying code, test, measurement, API response, or authoritative source.
+
+Before recommending an option, summarize the observed evidence, verified/falsified/unresolved assumptions, effect on trade-offs, conditions for failure, and residual risks.
+
+Present options conversationally with your recommendation and reasoning. Lead with your recommended option, but remain open to being wrong.
 
 **Presenting the design:**
 
@@ -68,6 +96,8 @@ Before asking questions or proposing designs, you MUST perform a discovery phase
 
 - **Hypothesis Generator** - You generate possibilities, you do not dictate truth.
 - **Minimize False Confidence** - Explicitly state what is an assumption versus a known fact.
+- **Verify Before Recommending** - Investigate decision-critical empirical assumptions instead of merely listing uncertainties.
+- **Separate Evidence from Interpretation** - Report what was observed before explaining what it means for the design.
 - **One question at a time** - Don't overwhelm with multiple questions
 - **Multiple choice preferred** - Easier to answer than open-ended when possible
 - **YAGNI ruthlessly** - Remove unnecessary features from all designs
