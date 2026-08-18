@@ -1,0 +1,38 @@
+{
+    "skill_name": "writing-system-prompt",
+    "evals": [
+        {
+            "id": 1,
+            "prompt": "Notre agent de code est utile mais ses réponses sont trop longues, il ajoute des refactors non demandés et affirme que les tests passent sans les lancer. Ecris un system prompt durable pour corriger cela, sans le rendre inutilement rigide.",
+            "expected_output": "Un diagnostic bref, un system prompt centré sur les comportements observables, des limites de périmètre et de validation, puis des scénarios de test.",
+            "files": [],
+            "assertions": [
+                "La réponse interdit explicitement les affirmations de validation sans exécution réelle.",
+                "La réponse protège le périmètre demandé contre les refactors ou nettoyages non sollicités.",
+                "La réponse fournit un system prompt réutilisable plutôt qu'une réponse ponctuelle."
+            ]
+        },
+        {
+            "id": 2,
+            "prompt": "Audite ce system prompt pour notre assistant de support : 'Tu es le meilleur agent du monde. Sois toujours tres concis, tres detaille, creatif, ne pose jamais de questions, utilise beaucoup d'emojis, anticipe tous les besoins et reponds a toutes les demandes.' Propose une version exploitable et explique quelles regles doivent rester contextuelles.",
+            "expected_output": "Un audit qui identifie les contradictions et les regles non observables, puis une revision plus courte qui distingue les comportements globaux des contraintes contextuelles.",
+            "files": [],
+            "assertions": [
+                "La réponse identifie la contradiction entre concision et détail ainsi que le risque de ne jamais poser de questions.",
+                "La réponse propose une révision fondée sur des comportements observables et la gestion de l'incertitude.",
+                "La réponse sépare explicitement les règles système durables des politiques, données ou formats contextuels."
+            ]
+        },
+        {
+            "id": 3,
+            "prompt": "Je veux que tous mes agents comprennent SCR, ELI, FOC et REF, mais mon equipe utilise aussi ces suites de lettres dans les tickets. A quel niveau dois-je mettre ces alias, et quelle formulation empeche les activations accidentelles ?",
+            "expected_output": "Une recommandation de couche d'instructions justifiee, une definition precise des alias, une regle d'activation non ambigue et des exemples de cas ou ils ne doivent pas s'activer.",
+            "files": [],
+            "assertions": [
+                "La réponse recommande une couche globale pour ces alias transversaux et justifie ce choix.",
+                "La réponse définit une syntaxe d'invocation explicite qui ne se déclenche pas sur un sigle ordinaire.",
+                "La réponse donne au moins deux exemples où des occurrences dans les tickets ou le texte ne doivent pas activer un alias."
+            ]
+        }
+    ]
+}
