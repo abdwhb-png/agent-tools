@@ -1,24 +1,40 @@
 # API reference
 
-Type definitions and the event-collection API for `@marcfargas/pi-test-harness` v0.6.1. Use this as a reference when authoring assertions or tracing through snippets.
+Type definitions and the event-collection API for `@abdwhb-png/pi-test-harness` v0.7.0 (Pi 0.83.x). Use this as a reference when authoring assertions or tracing through snippets.
 
 ## Table of contents
 
-- [Entry points](#entry-points)
-- [`createTestSession(options?)`](#createtestsessionoptions)
-- [`TestSession`](#testsession)
-- [`TestEvents`](#testevents)
-- [`ToolCallRecord`](#toolcallrecord)
-- [`ToolResultRecord`](#toolresultrecord)
-- [`UICallRecord`](#uicallrecord)
-- [`MockToolHandler`](#mocktoolhandler)
-- [`MockUIConfig`](#mockuiconfig)
-- [`verifySandboxInstall(options)`](#verifysandboxinstalloptions)
-- [`createMockPi()`](#createmockpi)
-- [`MockPiCall`](#mockpicall)
-- [`MockPi`](#mockpi)
-- [`ToolBlockedError`](#toolblockederror)
-- [`safeRmSync(filePath)`](#safermsyncfilepath)
+- [API reference](#api-reference)
+  - [Table of contents](#table-of-contents)
+  - [Entry points](#entry-points)
+  - [`createTestSession(options?)`](#createtestsessionoptions)
+  - [`TestSession`](#testsession)
+    - [`run(...turns)`](#runturns)
+    - [`events`](#events)
+    - [`playbook`](#playbook)
+    - [`dispose()`](#dispose)
+  - [`TestEvents`](#testevents)
+    - [Method cheatsheet](#method-cheatsheet)
+    - [Additional accessors](#additional-accessors)
+    - [UI method names](#ui-method-names)
+  - [`ToolCallRecord`](#toolcallrecord)
+    - [Reading it](#reading-it)
+    - [Pairing calls with results](#pairing-calls-with-results)
+    - [Asserting on blocks](#asserting-on-blocks)
+  - [`ToolResultRecord`](#toolresultrecord)
+    - [Reading it](#reading-it-1)
+    - [`.mocked` vs `.isError`](#mocked-vs-iserror)
+  - [`UICallRecord`](#uicallrecord)
+    - [Reading it](#reading-it-2)
+    - [Reading bodies safely](#reading-bodies-safely)
+  - [`MockToolHandler`](#mocktoolhandler)
+  - [`MockUIConfig`](#mockuiconfig)
+  - [`verifySandboxInstall(options)`](#verifysandboxinstalloptions)
+  - [`createMockPi()`](#createmockpi)
+  - [`MockPiCall`](#mockpicall)
+  - [`MockPi`](#mockpi)
+  - [`ToolBlockedError`](#toolblockederror)
+  - [`safeRmSync(filePath)`](#safermsyncfilepath)
 
 ---
 
@@ -46,7 +62,7 @@ import {
   type MockPi,
   type MockPiCall,
   type Turn,
-} from "@marcfargas/pi-test-harness";
+} from "@abdwhb-png/pi-test-harness";
 ```
 
 The three playbook builders (`when`, `calls`, `says`) are covered in depth in `playbook-dsl.md`; this file documents the rest.
@@ -61,15 +77,15 @@ Creates a test session with a real Pi environment.
 function createTestSession(options?: TestSessionOptions): Promise<TestSession>;
 ```
 
-| Option              | Type                                  | Default          | Notes                                                  |
-|---------------------|---------------------------------------|------------------|--------------------------------------------------------|
-| `extensions`        | `string[]`                            | `[]`             | Extension file paths to load (via real jiti)           |
-| `extensionFactories`| `Function[]`                          | `[]`             | Inline extension factory functions (no file needed)    |
-| `cwd`               | `string`                              | auto temp dir    | Working directory (auto-cleanup on `dispose()`)        |
-| `systemPrompt`      | `string`                              | (default)        | Override the system prompt                             |
-| `mockTools`         | `Record<string, MockToolHandler>`     | —                | Tool execution interceptors (see `mock-tools.md`)      |
-| `mockUI`            | `MockUIConfig`                        | defaults         | UI mock configuration (see `mock-ui.md`)               |
-| `propagateErrors`   | `boolean`                             | `true`           | If true, real tool errors abort the test               |
+| Option               | Type                              | Default       | Notes                                               |
+| -------------------- | --------------------------------- | ------------- | --------------------------------------------------- |
+| `extensions`         | `string[]`                        | `[]`          | Extension file paths to load (via real jiti)        |
+| `extensionFactories` | `Function[]`                      | `[]`          | Inline extension factory functions (no file needed) |
+| `cwd`                | `string`                          | auto temp dir | Working directory (auto-cleanup on `dispose()`)     |
+| `systemPrompt`       | `string`                          | (default)     | Override the system prompt                          |
+| `mockTools`          | `Record<string, MockToolHandler>` | —             | Tool execution interceptors (see `mock-tools.md`)   |
+| `mockUI`             | `MockUIConfig`                    | defaults      | UI mock configuration (see `mock-ui.md`)            |
+| `propagateErrors`    | `boolean`                         | `true`        | If true, real tool errors abort the test            |
 
 Returns `Promise<TestSession>`.
 
@@ -144,14 +160,14 @@ interface TestEvents {
 
 ### Method cheatsheet
 
-| Method                       | Returns                  | Purpose                                                      |
-|------------------------------|--------------------------|--------------------------------------------------------------|
-| `toolCallsFor("bash")`       | `ToolCallRecord[]`       | All invocations of `bash`                                    |
-| `toolResultsFor("bash")`     | `ToolResultRecord[]`     | All results returned by `bash` (real or mocked)              |
-| `blockedCalls()`             | `ToolCallRecord[]`       | Calls blocked by extension hooks (where `blocked === true`)  |
-| `uiCallsFor("confirm")`      | `UICallRecord[]`         | All calls to that UI method                                  |
-| `messages`                   | `AgentMessage[]`         | The conversation history                                     |
-| `all`                        | `AgentSessionEvent[]`    | Every event, in order                                         |
+| Method                   | Returns               | Purpose                                                     |
+| ------------------------ | --------------------- | ----------------------------------------------------------- |
+| `toolCallsFor("bash")`   | `ToolCallRecord[]`    | All invocations of `bash`                                   |
+| `toolResultsFor("bash")` | `ToolResultRecord[]`  | All results returned by `bash` (real or mocked)             |
+| `blockedCalls()`         | `ToolCallRecord[]`    | Calls blocked by extension hooks (where `blocked === true`) |
+| `uiCallsFor("confirm")`  | `UICallRecord[]`      | All calls to that UI method                                 |
+| `messages`               | `AgentMessage[]`      | The conversation history                                    |
+| `all`                    | `AgentSessionEvent[]` | Every event, in order                                       |
 
 ### Additional accessors
 
@@ -189,7 +205,7 @@ interface ToolCallRecord {
 }
 ```
 
-**Source**: verified against `dist/types.d.ts` in v0.6.1. Note the field is `input` (not `params`); it carries the params you passed via `calls(tool, params)`. There is no `toolCallId` on `ToolCallRecord` — pair with results by index (e.g. `toolCallsFor(name)[i]` ↔ `toolResultsFor(name)[i]`) since both arrays are in call order.
+**Source**: verified against `dist/types.d.ts` in v0.7.0. Note the field is `input` (not `params`); it carries the params you passed via `calls(tool, params)`. There is no `toolCallId` on `ToolCallRecord` — pair with results by index (e.g. `toolCallsFor(name)[i]` ↔ `toolResultsFor(name)[i]`) since both arrays are in call order.
 
 ### Reading it
 
@@ -250,7 +266,7 @@ interface ToolResultRecord {
 }
 ```
 
-**Source**: verified against `dist/types.d.ts` in v0.6.1.
+**Source**: verified against `dist/types.d.ts` in v0.7.0.
 
 ### Reading it
 
@@ -284,7 +300,7 @@ interface UICallRecord {
 }
 ```
 
-**Source**: verified against `dist/types.d.ts` in v0.6.1. `notify` calls are recorded here too — `returnValue` is typically omitted for outbound methods.
+**Source**: verified against `dist/types.d.ts` in v0.7.0. `notify` calls are recorded here too — `returnValue` is typically omitted for outbound methods.
 
 ### Reading it
 
@@ -325,11 +341,11 @@ type MockToolHandler =
   | ((params: Record<string, unknown>) => string | ToolResult);
 ```
 
-| Variant          | Returns                                                       | Use case                              |
-|------------------|---------------------------------------------------------------|---------------------------------------|
-| `string`         | `{ content: [{ type: "text", text: "..." }] }`                | Static, canned response               |
-| `ToolResult`     | (the object itself)                                            | Precise control of content/details    |
-| function         | `string` or `ToolResult` (resolved per call)                   | Dynamic, params-dependent responses   |
+| Variant      | Returns                                        | Use case                            |
+| ------------ | ---------------------------------------------- | ----------------------------------- |
+| `string`     | `{ content: [{ type: "text", text: "..." }] }` | Static, canned response             |
+| `ToolResult` | (the object itself)                            | Precise control of content/details  |
+| function     | `string` or `ToolResult` (resolved per call)   | Dynamic, params-dependent responses |
 
 The function form receives `Record<string, unknown>` — cast or narrow as needed for your test.
 
@@ -358,14 +374,14 @@ See `mock-ui.md` for the full behavior table and when to override defaults.
 function verifySandboxInstall(options: SandboxInstallOptions): Promise<SandboxInstallResult>;
 ```
 
-| Option                 | Type                                       | Required | Purpose                                |
-|------------------------|--------------------------------------------|----------|----------------------------------------|
-| `packageDir`           | `string`                                   | yes      | Package directory (must have pkg.json) |
-| `expect.extensions`    | `number`                                   | —        | Expected extension count               |
-| `expect.tools`         | `string[]`                                 | —        | Required tool names                    |
-| `expect.skills`        | `number`                                   | —        | Expected skill count                   |
-| `smoke.mockTools`      | `Record<string, MockToolHandler>`          | —        | Mock tools for the smoke test          |
-| `smoke.script`         | `Turn[]`                                   | —        | Playbook turns for the smoke test      |
+| Option              | Type                              | Required | Purpose                                |
+| ------------------- | --------------------------------- | -------- | -------------------------------------- |
+| `packageDir`        | `string`                          | yes      | Package directory (must have pkg.json) |
+| `expect.extensions` | `number`                          | —        | Expected extension count               |
+| `expect.tools`      | `string[]`                        | —        | Required tool names                    |
+| `expect.skills`     | `number`                          | —        | Expected skill count                   |
+| `smoke.mockTools`   | `Record<string, MockToolHandler>` | —        | Mock tools for the smoke test          |
+| `smoke.script`      | `Turn[]`                          | —        | Playbook turns for the smoke test      |
 
 Returns `{ loaded, smoke? }` — `loaded` includes `extensionErrors`, `tools`, `extensions`, `skills`; `smoke` (if configured) exposes the `TestEvents` API for the in-sandbox run. See `sandbox-install.md`.
 
@@ -417,23 +433,24 @@ interface MockPi {
 
 ## `ToolBlockedError`
 
-Exported class. Thrown (when `propagateErrors: true`) if an extension's `tool_call` hook blocks a mocked call.
+Exported for source compatibility with upstream consumers, but **not promised** by normal Pi 0.83 runs through `AgentSession`. The canonical block signal is the event records: `blocked: true`/`blockReason` on the `ToolCallRecord` and `isError: true` + result text on the `ToolResultRecord` — assert those instead.
 
 ```typescript
-import { ToolBlockedError } from "@marcfargas/pi-test-harness";
+import {
+  createTestSession, when, calls, says,
+} from "@abdwhb-png/pi-test-harness";
 
-try {
-  await t.run(when("Try write", [calls("bash", { command: "rm -rf /" }), says("Done.")]));
-} catch (err) {
-  if (err instanceof ToolBlockedError) {
-    // Extension blocked the call as expected
-  } else {
-    throw err;
-  }
-}
+const t = await createTestSession({ mockTools: { bash: "ok" } });
+await t.run(when("Try write", [calls("bash", { command: "rm -rf /" }), says("Done.")]));
+
+const call = t.events.toolCallsFor("bash")[0];
+expect(call.blocked).toBe(true);
+expect(call.blockReason).toMatch(/blocked/i);
+const result = t.events.toolResultsFor("bash")[0];
+expect(result.isError).toBe(true);
 ```
 
-The reason to prefer `instanceof ToolBlockedError` over a generic `isError` assertion: a generic error could come from anywhere (a real tool that threw, a config bug, etc.). `ToolBlockedError` proves the *extension hook* did the blocking. See `mock-tools.md` for the two assertion patterns.
+Do not rely on `instanceof ToolBlockedError` to detect a hook block from a normal Pi 0.83 run. See `mock-tools.md` for the event-assertion patterns.
 
 ---
 
@@ -448,7 +465,7 @@ Removes a file, swallowing `EPERM` and `EBUSY` errors only. All other errors pro
 Use it in `afterEach` on Windows when an extension opened a SQLite database in `session_start` (memory, brainiac, etc.) and `session.dispose()` doesn't release the file lock (because `session_shutdown` only fires on process exit).
 
 ```typescript
-import { safeRmSync } from "@marcfargas/pi-test-harness";
+import { safeRmSync } from "@abdwhb-png/pi-test-harness";
 
 let dbPath: string;
 

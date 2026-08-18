@@ -6,18 +6,18 @@ This catches a class of bugs that `createTestSession` cannot: broken `package.js
 
 ## When to use it
 
-| Test layer               | What it catches                                            |
-|--------------------------|------------------------------------------------------------|
-| `createTestSession`      | Extension logic bugs (hook firing, tool behavior, events)  |
+| Test layer                 | What it catches                                            |
+| -------------------------- | ---------------------------------------------------------- |
+| `createTestSession`        | Extension logic bugs (hook firing, tool behavior, events)  |
 | **`verifySandboxInstall`** | **Publishable-package bugs (broken install, bad exports)** |
-| `createMockPi`           | Subprocess-spawning extension bugs                         |
+| `createMockPi`             | Subprocess-spawning extension bugs                         |
 
 Run `verifySandboxInstall` as a CI step before every publish, or locally as `npm run prepack` / `npm publish --dry-run`. At least [`marcfargas/pi-mf-extensions`](https://github.com/marcfargas/pi-mf-extensions) (pi-planner) uses this layer to test the plan lifecycle; check its CI for a concrete release-gate example.
 
 ## Basic usage
 
 ```typescript
-import { verifySandboxInstall } from "@marcfargas/pi-test-harness";
+import { verifySandboxInstall } from "@abdwhb-png/pi-test-harness";
 
 const result = await verifySandboxInstall({
   packageDir: "./packages/my-extension",
@@ -43,15 +43,18 @@ What it does, step by step:
 
 ## Options
 
-| Option                 | Type                                      | Purpose                                                |
-|------------------------|-------------------------------------------|--------------------------------------------------------|
-| `packageDir`           | `string`                                  | Path to the package (must contain `package.json`)      |
-| `expect.extensions`    | `number`                                  | How many extensions should have loaded                 |
-| `expect.tools`         | `string[]`                                | Required tool names                                    |
-| `expect.skills`        | `number`                                  | How many skills should have loaded                     |
-| `smoke`                | `{ mockTools, script }`                   | Optional in-sandbox playbook smoke test                |
-| `smoke.mockTools`      | `Record<string, MockToolHandler>`         | Same as `createTestSession`'s `mockTools`              |
-| `smoke.script`         | `Turn[]`                                  | Playbook turns (built with `when / calls / says`)      |
+| Option              | Type                              | Purpose                                           |
+| ------------------- | --------------------------------- | ------------------------------------------------- |
+| `packageDir`        | `string`                          | Path to the package (must contain `package.json`) |
+| `expect.extensions` | `number`                          | How many extensions should have loaded            |
+| `expect.tools`      | `string[]`                        | Required tool names                               |
+| `expect.skills`     | `number`                          | How many skills should have loaded                |
+| `smoke`             | `{ mockTools, script }`           | Optional in-sandbox playbook smoke test           |
+| `smoke.mockTools`   | `Record<string, MockToolHandler>` | Same as `createTestSession`'s `mockTools`         |
+| `smoke.script`      | `Turn[]`                          | Playbook turns (built with `when / calls / says`) |
+| `npmCommand`        | `string[]`                        | npm argv for `pack`/`install` (default `["npm"]`; use `["sfw", "npm"]` to route through Socket Firewall) |
+
+`npmCommand` lets a wrapper intercept the real release-gate commands: `verifySandboxInstall({ packageDir, npmCommand: ["sfw", "npm"] })` runs `sfw npm pack` / `sfw npm install`, keeping supply-chain checks on the actual `npm pack`/`npm install` calls.
 
 ## Smoke test inside the sandbox
 
@@ -61,7 +64,7 @@ Once the package is installed and loaded, you can drive it through a real playbo
 import {
   verifySandboxInstall,
   when, calls, says,
-} from "@marcfargas/pi-test-harness";
+} from "@abdwhb-png/pi-test-harness";
 
 const result = await verifySandboxInstall({
   packageDir: "./packages/my-extension",
@@ -83,22 +86,22 @@ const result = await verifySandboxInstall({
 });
 
 expect(result.loaded.extensionErrors).toEqual([]);
-expect(result.smoke.toolResultsFor("my_tool")).toHaveLength(1);
+expect(result.smoke.events.toolResultsFor("my_tool")).toHaveLength(1);
 ```
 
-`result.smoke` exposes the same `TestEvents` API as `createTestSession`, so you can assert against events exactly as you would in an in-process test.
+`result.smoke.events` exposes the same `TestEvents` API as `createTestSession`, so you can assert against events exactly as you would in an in-process test.
 
 ## How this differs from `createTestSession`
 
 It's worth being explicit because the layers overlap conceptually but solve different problems:
 
-| Diagnostic question                                  | Use                       |
-|------------------------------------------------------|---------------------------|
-| Does my extension's hook fire and block correctly?   | `createTestSession`       |
-| Does the tool's logic do the right thing?            | `createTestSession`       |
-| **Does the package I'm about to publish install?**   | **`verifySandboxInstall`**|
-| **Are the right files included in the tarball?**     | **`verifySandboxInstall`**|
-| **Do peer deps resolve in a clean install?**         | **`verifySandboxInstall`**|
+| Diagnostic question                                | Use                        |
+| -------------------------------------------------- | -------------------------- |
+| Does my extension's hook fire and block correctly? | `createTestSession`        |
+| Does the tool's logic do the right thing?          | `createTestSession`        |
+| **Does the package I'm about to publish install?** | **`verifySandboxInstall`** |
+| **Are the right files included in the tarball?**   | **`verifySandboxInstall`** |
+| **Do peer deps resolve in a clean install?**       | **`verifySandboxInstall`** |
 
 In practice, the natural split is: use `createTestSession` for the bulk of behavioral tests (it's fast, in-process, and exercises the extension under test directly), and reserve `verifySandboxInstall` for a single release-gate CI test (it's slower because it runs a real `npm pack` + `npm install`). The release gate catches things like forgetting to add a new tool's source file to the package's `"files"` list (which would make local `createTestSession` pass but a published package throw).
 

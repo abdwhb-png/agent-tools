@@ -106,6 +106,27 @@ mockUI: {
 }
 ```
 
+## Pi 0.83 fire-and-forget methods
+
+Pi 0.83's `ExtensionUIContext` adds indicator/autocomplete methods that fire and forget — they return nothing, and the mock records their arguments instead of answering:
+
+- `setWorkingVisible(visible: boolean)` — show/hide the working indicator
+- `setWorkingIndicator(options?: { frames?: string[]; intervalMs?: number })` — set the working indicator animation; `frames: []` hides the indicator entirely, `frames: ["●"]` renders a static indicator, and omitting the argument restores the default spinner
+- `setHiddenThinkingLabel(label?: string)` — set the hidden-thinking label
+- `addAutocompleteProvider(provider)` — records the registration call; the provider is never invoked
+- `getEditorComponent()` — returns `undefined` by default; unlike mutation methods, this query is not recorded
+
+```typescript
+await t.run(when("Do work", [calls("start_task", {}), says("Working.")]));
+
+expect(t.events.uiCallsFor("setWorkingVisible")[0].args).toEqual([true]);
+expect(t.events.uiCallsFor("setWorkingIndicator")[0].args[0]).toEqual({ frames: ["●"], intervalMs: 500 });
+expect(t.events.uiCallsFor("setHiddenThinkingLabel")).toHaveLength(1);
+expect(t.events.uiCallsFor("addAutocompleteProvider")).toHaveLength(1);
+```
+
+The mock is typed as Pi 0.83's `ExtensionUIContext`, so a future Pi minor that adds a mandatory member breaks the typecheck instead of failing at runtime.
+
 ## Asserting on UI calls
 
 All UI interactions are recorded in `t.events`:

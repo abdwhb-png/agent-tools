@@ -107,7 +107,7 @@ A non-trivial extension that registers 8 tools, blocks writes in plan mode, and 
 ```typescript
 import {
   createTestSession, when, calls, says, type TestSession,
-} from "@marcfargas/pi-test-harness";
+} from "@abdwhb-png/pi-test-harness";
 import * as path from "node:path";
 
 const EXTENSION = path.resolve(__dirname, "../../src/index.ts");

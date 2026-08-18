@@ -57,13 +57,13 @@ Use this when your extension reads from `result.details` or when you need to ret
 
 This is the part that surprises people: **everything except `tool.execute()` keeps running.**
 
-| Layer                                  | Mocked? | Notes                                                       |
-|----------------------------------------|---------|-------------------------------------------------------------|
-| Tool registration                      | No      | Real `wrapToolsWithExtensions` pipeline                     |
-| `tool_call` hook                       | No      | Fires via real `ExtensionRunner` — **including for mocked tools** |
-| `tool_result` hook                     | No      | Fires via real `ExtensionRunner`                             |
-| Tool's own `execute()` body            | Yes (if listed) | The mock handler runs instead                            |
-| Event collection                       | No      | Real event bus                                              |
+| Layer                       | Mocked?         | Notes                                                             |
+| --------------------------- | --------------- | ----------------------------------------------------------------- |
+| Tool registration           | No              | Real `wrapToolsWithExtensions` pipeline                           |
+| `tool_call` hook            | No              | Fires through `AgentSession.beforeToolCall` — **including for mocked tools** |
+| `tool_result` hook          | No              | Fires through `AgentSession.afterToolCall`                                  |
+| Tool's own `execute()` body | Yes (if listed) | The mock handler runs instead                                     |
+| Event collection            | No              | Real event bus                                                    |
 
 Why this matters: if your extension registers a `tool_call` hook that blocks `bash` in plan mode, the block works correctly even when `bash` is mocked. The mock handler never runs (the block happens first), and the result will show `isError: true`.
 
@@ -106,9 +106,9 @@ Is this tool implemented by the extension under test?
 
 When a **real** tool execution throws (i.e. a tool that's *not* in `mockTools`), you control how the harness handles it.
 
-| Value | Behavior                                                            |
-|-------|---------------------------------------------------------------------|
-| `true` (default) | Aborts the test immediately, with a diagnostic pointing at the exact playbook step |
+| Value            | Behavior                                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `true` (default) | Aborts the test immediately, with a diagnostic pointing at the exact playbook step             |
 | `false`          | Captures the error as a tool result with `isError: true`, allowing your extension to handle it |
 
 ```typescript
@@ -142,9 +142,9 @@ To capture errors as tool results instead of aborting, set:
   createTestSession({ propagateErrors: false })
 ```
 
-## Blocked tools and `ToolBlockedError`
+## Blocked tools: assert the event records
 
-When an extension's `tool_call` hook blocks a tool call, the harness throws `ToolBlockedError`. The package exports the class so you can assert *this specific failure mode* rather than conflating it with a generic error.
+When an extension's `tool_call` hook blocks a tool call, the canonical signals are the collected event records: `blocked: true` + `blockReason` on the `ToolCallRecord`, and `isError: true` + result text on the `ToolResultRecord`. Assert those — the package still exports `ToolBlockedError` for source compatibility, but a normal Pi 0.83 run through `AgentSession` does not promise to throw it.
 
 ### Pattern A: assert via events after the fact
 
@@ -163,36 +163,14 @@ expect(call.blocked).toBe(true);
 expect(call.blockReason).toMatch(/blocked by/i);
 ```
 
-Note: the playbook **continues** after a block — the block surfaces as a tool result with `isError: true`, which feeds back into the next `streamFn` call, so subsequent `calls(...)` / `says(...)` still get consumed. Since v0.5.0 the harness uses a hybrid block check (`instanceof ToolBlockedError` + message fallback) so both hook-block paths are classified as blocks rather than test failures.
-
-### Pattern B: catch the throw explicitly
-
-Use this to prove a *specific* call was blocked (not just that *some* error occurred):
-
-```typescript
-import { ToolBlockedError } from "@marcfargas/pi-test-harness";
-
-try {
-  await t.run(when("Try write", [
-    calls("bash", { command: "rm -rf /" }),
-    says("Done."),
-  ]));
-  throw new Error("Expected ToolBlockedError, but playbook completed");
-} catch (err) {
-  if (err instanceof ToolBlockedError) {
-    // Expected: extension hook blocked the call
-  } else {
-    throw err;
-  }
-}
-```
+Note: the playbook **continues** after a block — the block surfaces as a tool result with `isError: true`, which feeds back into the next `streamFn` call, so subsequent `calls(...)` / `says(...)` still get consumed. Hook-block paths are classified as blocks (`blocked: true`) rather than test failures.
 
 ### Combining `propagateErrors` with blocks
 
-With the default `propagateErrors: true`, a blocked call aborts the test by throwing `ToolBlockedError`. With `propagateErrors: false`, blocked calls surface as `isError: true` in the result record and the playbook continues. Regardless of `propagateErrors`, the call record carries `blocked: true` and `blockReason: "..."` so you can assert the hook fired.
+Regardless of `propagateErrors`, the call record carries `blocked: true` and `blockReason: "..."` so you can assert the hook fired. With `propagateErrors: false`, blocked calls also surface as `isError: true` in the result record and the playbook continues. Do not rely on a `ToolBlockedError` throw from normal Pi 0.83 runs.
 
 ## Common pitfalls
 
 - **Listing your extension's own tool in `mockTools`**. If you do, your tool's `execute()` never runs and you're testing nothing. Remove it.
-- **Expecting `calls(...)` to throw on a block**. By default it does (via `ToolBlockedError`), but if you want to keep the playbook flowing, set `propagateErrors: false` and read `.isError` instead.
+- **Expecting `calls(...)` to throw `ToolBlockedError` on a block**. Normal Pi 0.83 runs do not promise that throw; assert the canonical event records (`blocked`, `blockReason`, `isError`, result text) instead. If you want the playbook to keep flowing, set `propagateErrors: false` and read `.isError`.
 - **Mocking a tool the extension doesn't actually call**. The mock is harmless but adds noise; trim the list to what the test exercises.

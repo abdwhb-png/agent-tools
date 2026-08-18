@@ -4,6 +4,8 @@
 
 In tests, those subprocesses would call a real LLM (non-deterministic, slow, possibly requiring credentials). `createMockPi` solves this by putting a *fake* `pi` binary on `PATH` that returns controllable responses from a queue.
 
+`createMockPi` replaces only the executable boundary. Load the actual extension with `createTestSession`, or import its exported helper, so the test exercises production code. Do not recreate the subprocess helper inside the test.
+
 ## How it works
 
 1. `install()` creates a temp directory with a platform-specific shim:
@@ -19,7 +21,7 @@ You read & assert the queue from your test; the spawned subprocesses read it fro
 ## Full lifecycle
 
 ```typescript
-import { createMockPi } from "@marcfargas/pi-test-harness";
+import { createMockPi } from "@abdwhb-png/pi-test-harness";
 
 const mockPi = createMockPi();
 mockPi.install();                      // 1. enable

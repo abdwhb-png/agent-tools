@@ -2,27 +2,27 @@
 name: pi-test-harness
 description: >
   Write deterministic tests for Pi (earendil-works/pi-coding-agent) extensions using
-  @marcfargas/pi-test-harness — assert on tools, hooks, and UI without calling an LLM.
+  @abdwhb-png/pi-test-harness — assert on tools, hooks, and UI without calling an LLM.
   Works with any JavaScript/TypeScript test runner (Vitest, bun:test, Jest). Use when
-  the user mentions pi-test-harness, createTestSession, createMockPi, verifySandboxInstall, "test my pi extension", "playbook mocking", pi-coding-agent, earendil pi, or writes a Pi extension test in Vitest/bun:test/Jest. Prefer this over generic test-runner guidance whenever Pi runtime types appear (AgentSession, ExtensionRunner, ctx.ui, ToolResultRecord).
+  the user mentions pi-test-harness, createTestSession, createMockPi, verifySandboxInstall, "test my pi extension", "playbook mocking", pi-coding-agent, earendil pi, or writes a Pi extension test in Vitest/bun:test/Jest. Prefer this over generic test-runner guidance whenever Pi runtime types appear (AgentSession, ExtensionUIContext, ctx.ui, ToolResultRecord).
 metadata:
-  package_author: "marcfargas (prolific pi-community contributor; pi itself is by Mario Zechner / earendil-works)"
+  package_author: "abdwhb-png (maintained fork of marcfargas' MIT-licensed pi-test-harness; pi itself is by Mario Zechner / earendil-works)"
   skill_author: abdwhb-png
-  source: https://github.com/marcfargas/pi-test-harness
-  version: "0.6.1"
+  source: https://github.com/abdwhb-png/pi-test-harness
+  version: "0.7.0"
   languages: [TypeScript, JavaScript]
   category: testing
 ---
 
 # pi-test-harness
 
-`@marcfargas/pi-test-harness` is a community test harness for [Pi](https://github.com/earendil-works/pi-coding-agent) extensions, written by Marc Fargas (a prolific pi-community contributor — pi-powershell, pi-tramp, pi-planner, etc.; note that pi itself is maintained by Mario Zechner / earendil-works, not the same person). Its job: let you exercise **real** extension code paths (tool registration, hooks, session events, UI prompts) in any test runner with zero LLM calls and full determinism.
+`@abdwhb-png/pi-test-harness` is a maintained fork of Marc Fargas' MIT-licensed [pi-test-harness](https://github.com/marcfargas/pi-test-harness) for [Pi](https://github.com/earendil-works/pi-coding-agent) extensions, targeting **Pi 0.83.x only**. It keeps the upstream API and credits Marc Fargas' original work (pi-powershell, pi-tramp, pi-planner, etc.; note that pi itself is maintained by Mario Zechner / earendil-works, not the same person). Its job: let you exercise **real** extension code paths (tool registration, hooks, session events, UI prompts) in any test runner with zero LLM calls and full determinism.
 
-> **Verify before use**: this skill snapshots the README as of harness v0.6.1 (2026-05). If the API ends up looking subtly different, re-fetch the README from https://github.com/marcfargas/pi-test-harness before trusting any snippet here. Note: the harness version (e.g. `0.6.1`) and the Pi version (e.g. `0.74.x`) are **independent release tracks** — do not compare them numerically.
+> **Verify before use**: this skill snapshots the fork README as of harness v0.7.0 (Pi 0.83.x). If the API ends up looking subtly different, re-fetch the README from https://github.com/abdwhb-png/pi-test-harness before trusting any snippet here. Note: the harness version (e.g. `0.7.0`) and the Pi version (e.g. `0.83.x`) are **independent release tracks** — do not compare them numerically.
 
 ## The mental model: "let pi be pi"
 
-The harness minimizes faking. Everything runs through Pi's real code (extension loader via jiti, real tool wrapping pipeline, real `ExtensionRunner` for hooks, real event system). Only three substitution points are intercepted, all at boundaries:
+The harness minimizes faking. Everything runs through Pi's real code (extension loader via jiti, real tool wrapping pipeline, `AgentSession`'s hook pipeline, real event system). Only three substitution points are intercepted, all at boundaries:
 
 ```
 +-------------------------------------------+
@@ -106,7 +106,7 @@ import {
   createTestSession,
   when, calls, says,
   type TestSession,
-} from "@marcfargas/pi-test-harness";
+} from "@abdwhb-png/pi-test-harness";
 
 describe("my extension", () => {
   let t: TestSession;
@@ -201,7 +201,7 @@ mockTools: {
 
 ### Critical correctness note
 
-Pi's `tool_call` and `tool_result` hooks **still fire** for mocked tools through the real `ExtensionRunner`. This means extension-side gating (plan mode, allowlists, block-on-dangerous-command) works correctly even when the tool itself is mocked. If your extension blocks a call, the mock handler never runs and you'll see a `ToolBlockedError`.
+Pi's `tool_call` and `tool_result` hooks **still fire** for mocked tools through `AgentSession`'s `beforeToolCall`/`afterToolCall` pipeline. This means extension-side gating (plan mode, allowlists, block-on-dangerous-command) works correctly even when the tool itself is mocked. If your extension blocks a call, the mock handler never runs and the block is recorded canonically as `blocked: true`/`blockReason` on the `ToolCallRecord` and `isError: true` on the `ToolResultRecord`.
 
 ### Error propagation
 
@@ -253,7 +253,7 @@ Every interaction is collected in `t.events`.
 
 ```typescript
 // Tool interaction
-t.events.toolCallsFor("bash")         // ToolCallRecord[] (has .params — read what was asked)
+t.events.toolCallsFor("bash")         // ToolCallRecord[] (has .input — read what was asked)
 t.events.toolResultsFor("bash")       // ToolResultRecord[] (has .mocked, .isError, .text)
 t.events.blockedCalls()               // tool calls that hooks blocked (e.g. plan mode)
 
@@ -268,14 +268,14 @@ t.events.all                          // AgentSessionEvent[] (everything)
 
 ### Reading call params and pairing with results
 
-Use `toolCallsFor(name)` when you want to assert on what was *asked* (the params passed to `calls(...)`), and pair via `toolCallId` if you also need the result:
+Use `toolCallsFor(name)` when you want to assert on what was *asked* (the input passed to `calls(...)`). `ToolCallRecord` has no `toolCallId`, so pair filtered calls and results by array index:
 
 ```typescript
-const call   = t.events.toolCallsFor("summarize_doc")[0];
+const call = t.events.toolCallsFor("summarize_doc")[0];
 const result = t.events.toolResultsFor("summarize_doc")[0];
 
-expect(call.params).toEqual({ path: "README.md" });
-expect(result.mocked).toBe(false);     // extension's real code ran
+expect(call.input).toEqual({ path: "README.md" });
+expect(result.mocked).toBe(false); // extension's real code ran
 expect(result.isError).toBe(false);
 ```
 
@@ -283,25 +283,22 @@ For `ToolCallRecord`, `ToolResultRecord`, and `UICallRecord` shapes — and the 
 
 ## Handling blocked tools
 
-When an extension hook blocks a mocked tool, the harness throws `ToolBlockedError` (exported from the package). Use `instanceof` to assert a *block* rather than an *error*:
+When an extension hook blocks a mocked tool, the canonical signal is the event record: `blocked: true` + `blockReason` on the `ToolCallRecord`, and `isError: true` + result text on the `ToolResultRecord`. Assert those fields — `ToolBlockedError` is still exported for source compatibility, but normal Pi 0.83 runs through `AgentSession` do not promise to throw it:
 
 ```typescript
-import { ToolBlockedError } from "@marcfargas/pi-test-harness";
+import {
+  createTestSession, when, calls, says,
+} from "@abdwhb-png/pi-test-harness";
 
-try {
-  await t.run(when("Try write", [
-    calls("bash", { command: "rm -rf /" }),
-    says("Done."),
-  ]));
-} catch (err) {
-  if (err instanceof ToolBlockedError) {
-    // Expected: extension hook blocked the call
-  } else {
-    throw err;
-  }
-}
+const t = await createTestSession({ mockTools: { bash: "ok" } });
+await t.run(when("Try write", [
+  calls("bash", { command: "rm -rf /" }),
+  says("Done."),
+]));
 
-// Or assert via the event record after the fact
+const call = t.events.toolCallsFor("bash")[0];
+expect(call.blocked).toBe(true);
+expect(call.blockReason).toMatch(/blocked/i);
 const result = t.events.toolResultsFor("bash")[0];
 expect(result.isError).toBe(true);
 ```
@@ -311,7 +308,7 @@ expect(result.isError).toBe(true);
 Before publishing an extension package, `verifySandboxInstall` does a real `npm pack` → temp-dir install → dynamic import and checks that extensions/tools/skills load cleanly. This catches broken `exports`, missing dependencies, and bad `main`/`types` fields that only bite *after* install.
 
 ```typescript
-import { verifySandboxInstall } from "@marcfargas/pi-test-harness";
+import { verifySandboxInstall } from "@abdwhb-png/pi-test-harness";
 
 const result = await verifySandboxInstall({
   packageDir: "./packages/my-extension",
@@ -330,10 +327,10 @@ You can also run a smoke playbook inside the sandbox install to make sure tools 
 
 ## Testing subprocess-spawning extensions
 
-If your extension shells out to `pi --mode json -p` (typical for subagent orchestrators, parallel-task runners, etc.), `createMockPi` puts a fake `pi` binary on PATH that returns controllable responses. The full lifecycle is install → queue responses → run test → uninstall.
+If your extension shells out to `pi --mode json -p` (typical for subagent orchestrators, parallel-task runners, etc.), `createMockPi` puts a fake `pi` binary on PATH that returns controllable responses. Keep the extension itself real: load its actual entry point with `createTestSession` (or import its exported helper) and drive that code rather than copying the subprocess helper into the test. The full lifecycle is install → queue responses → run test → uninstall.
 
 ```typescript
-import { createMockPi } from "@marcfargas/pi-test-harness";
+import { createMockPi } from "@abdwhb-png/pi-test-harness";
 
 const mockPi = createMockPi();
 mockPi.install();                       // create shim, prepend to PATH
@@ -381,7 +378,7 @@ This is the single biggest Windows footgun, and it always bites users who haven'
 On Windows, `rmSync(dbPath)` in `afterEach` will throw `EPERM` because the file is still locked. Use the bundled `safeRmSync` instead, which swallows only `EPERM`/`EBUSY`:
 
 ```typescript
-import { safeRmSync } from "@marcfargas/pi-test-harness";
+import { safeRmSync } from "@abdwhb-png/pi-test-harness";
 
 let dbPath: string;
 
@@ -406,13 +403,16 @@ If your extension registers a tool named `my_tool`, don't also put `my_tool` in 
 Pi extensions that open a SQLite DB (memory extensions, etc.) keep the file handle for the test process's lifetime. Skipping `dispose()` + `safeRmSync()` causes cross-test contamination and `EPERM` on Windows. See the "Windows + SQLite" section.
 
 **3. Mocking a tool that an extension hook will block.**
-When your hook blocks a call (plan mode, dangerous command), the mock handler never executes and the harness throws `ToolBlockedError`. This is correct behavior — use `instanceof ToolBlockedError` rather than treating it as a test failure.
+When your hook blocks a call (plan mode, dangerous command), the mock handler never executes. Assert the block via the event records — `blocked: true`/`blockReason` on the `ToolCallRecord` and `isError: true` on the `ToolResultRecord` — rather than expecting a `ToolBlockedError` throw from normal Pi 0.83 runs.
 
 **4. Assuming hooks fire on the mock path.**
-Pi's `tool_call` / `tool_result` hooks **do** fire for mocked tools (via the real `ExtensionRunner`), but lifecycle hooks (`session_start`, `session_shutdown`) follow Pi's normal timing. `session_shutdown` only fires on process exit — `dispose()` will not trigger it. Plan accordingly.
+Pi's `tool_call` / `tool_result` hooks **do** fire for mocked tools through `AgentSession`'s hook pipeline, but lifecycle hooks (`session_start`, `session_shutdown`) follow Pi's normal timing. `session_shutdown` only fires on process exit — `dispose()` will not trigger it. Plan accordingly.
 
-**5. Trusting the snapshot blindly.**
-The `description` and code in this skill are pinned to harness v0.6.1. On any minor bump, re-fetch the upstream README and reconcile before trusting snippets.
+**5. Reimplementing extension logic inside the test.**
+`createMockPi` replaces only the `pi` executable. Load or import the real extension code that spawns it; never paste a local copy of the subprocess helper into the test, because that can pass while the extension is broken.
+
+**6. Trusting the snapshot blindly.**
+The `description` and code in this skill are pinned to fork v0.7.0 (Pi 0.83.x). On any minor bump, re-fetch the fork README and reconcile before trusting snippets.
 
 ## Test-layer summary
 
@@ -425,14 +425,17 @@ The `description` and code in this skill are pinned to harness v0.6.1. On any mi
 ## Install
 
 ```bash
-npm install --save-dev @marcfargas/pi-test-harness
+npm install --save-dev @abdwhb-png/pi-test-harness
 ```
 
-Peer dependencies (matched minor lines `0.74.x` and `0.75.x` currently supported):
+In `~/.pi/agent`, the fork is consumed as a local dev dependency:
+`bun add --dev file:../../projects/pi-integrations/pi-test-harness/dist/package.tgz`
 
-- `@earendil-works/pi-coding-agent` >= 0.74.0
-- `@earendil-works/pi-ai` >= 0.74.0
-- `@earendil-works/pi-agent-core` >= 0.74.0
+Peer dependencies (Pi line `0.83.x` only):
+
+- `@earendil-works/pi-coding-agent` ^0.83.0
+- `@earendil-works/pi-ai` ^0.83.0
+- `@earendil-works/pi-agent-core` ^0.83.0
 
 ## Reference index
 
