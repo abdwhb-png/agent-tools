@@ -36,6 +36,18 @@
                 "The analysis distinguishes conclusions supported by the video from conclusions supported by an external source or introduced as general implementation advice.",
                 "The analysis does not imply that a source was read unless it names the exact URL or documents the attempted retrieval."
             ]
+        },
+        {
+            "id": 4,
+            "prompt": "Analyze https://youtu.be/S_QdQ1G4GlU and its linked technical source. Produce a proposed revision plan for the writing-system-prompt skill that faithfully adapts the source's structure while preserving this product constraint: aliases must never be proposed or added unless explicitly requested. Save it to analysis.md.",
+            "expected_output": "A structurally grounded revision plan that maps material source components to target-skill decisions and records the alias policy as an intentional divergence.",
+            "files": [],
+            "expectations": [
+                "The analysis contains a source-to-artifact mapping that names material source components, their mechanism or intended result, the target-skill decision, and a status.",
+                "The mapping identifies the source's Purpose and Instructions structure or equivalent material structure, and explains how it is preserved or adapted in the target skill.",
+                "The mapping records aliases as an intentional divergence caused by the explicit requester constraint rather than attributing the opt-in policy to the video or repository.",
+                "The analysis claims faithful adaptation only when it supplies the structural mapping and material divergences; otherwise it uses a weaker synthesis or generalization label."
+            ]
         }
     ]
 }
