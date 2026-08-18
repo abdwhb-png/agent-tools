@@ -1,6 +1,6 @@
 ---
 name: writing-system-prompt
-description: Design, audit, or revise durable system prompts and custom instructions for AI assistants and coding agents.
+description: Create, audit, or revise system prompts and custom instructions for durable AI and coding-agent behavior.
 ---
 
 # Writing System Prompts
@@ -8,6 +8,24 @@ description: Design, audit, or revise durable system prompts and custom instruct
 Create a system prompt that makes an agent more useful across many tasks without turning a single user's preference into a brittle global rule. A system prompt has multiplicative impact: reserve it for durable behavior that should apply repeatedly, and keep task-specific work in the user prompt, project instructions, or a dedicated skill.
 
 When drafting instructions, explain the intended outcome, the reason it matters, and the conditions that change the decision. Prefer this to absolute "do this" or "do not do this" language: models can apply a stated rationale to novel cases, while a blanket prohibition can fail in its exceptions. Reserve hard constraints for genuine policy, safety, security, legal, or irreversible-action boundaries.
+
+## When to Use
+
+Use this skill when the user needs to create, audit, or revise instructions that should govern an AI assistant across multiple future interactions, including:
+
+- System prompts, custom instructions, agent personas, or standing behavior rules.
+- Persistent issues such as excessive verbosity, unsupported certainty, scope drift, inconsistent tone, or poor validation claims.
+- A review of whether existing instructions conflict, are too broad, or belong in another instruction layer.
+- An explicit request to create shared reference points, aliases, or other durable interaction conventions.
+
+## When Not to Use
+
+Use the narrower instruction layer when the behavior is not durable:
+
+- A one-off request with its own goal, context, or acceptance criteria belongs in the user prompt.
+- Repository architecture, commands, and conventions belong in project or repository instructions.
+- A repeatable domain workflow belongs in a dedicated skill.
+- An immediate implementation, debugging, research, or writing task should use the relevant task skill rather than creating a system prompt.
 
 ## Establish The Target
 
@@ -37,6 +55,8 @@ Explain any ambiguous placement choice briefly. A shorter prompt with correctly 
 ## Build The Prompt
 
 Draft the smallest coherent prompt using only sections that solve an established need. Prefer concrete rules and observable outcomes over a theatrical persona.
+
+Structure the prompt with `# Purpose` followed by `# Instructions`. `Purpose` establishes the stable role, audience, and outcome; `Instructions` contains the guidance that achieves that outcome. Before the rules in each substantive `Instructions` section, state the recurring problem or goal, intended result, why it matters, and any conditions that alter the judgment. This context lets the agent generalize the instruction instead of applying a disconnected list mechanically.
 
 ### 1. Purpose And Working Relationship
 
@@ -107,26 +127,37 @@ Use this template when the user asks for a prompt. Remove empty or inapplicable 
 
 ```markdown
 # Purpose
-[Stable role, audience, and working outcome.]
+[Stable role, audience, intended outcome, and why it matters.]
 
-# Communication
-## Prefer
-- [Observed, reusable behavior and why it helps.]
+# Instructions
+
+## Positive Patterns
+[Recurring goal, intended result, why it matters, and conditions that change the choice.]
+- [Observed, reusable behavior.]
 
 ## Failure Modes And Judgment
-- [Observed failure mode, why it harms the outcome, and the behavior that fits the conditions.]
+[Observed failure mode, its consequence, and the context-sensitive judgment that replaces it.]
+- [Guidance.]
 
-# Operational Boundaries
+## Operational Boundaries
+[Authority or risk context and why the boundary matters.]
 - [Scope, authority, evidence, and validation rules.]
 
-# Shared Language
-- [Include only the shared-language rules explicitly requested by the user.]
+## Shared Reference Points
+[Include only when explicitly requested; explain why these reference points reduce ambiguity.]
+- [Reference-point rule.]
 
-# Examples
-## Preferred
+## Aliases
+[Include only when explicitly requested; explain the intended use and unambiguous activation conditions.]
+- [Alias definition.]
+
+## Examples
+[Use only when abstract wording remains ambiguous; explain the behavioral distinction being demonstrated.]
+
+### Preferred
 [Representative response or action.]
 
-## Less Effective
+### Less Effective
 [Contrastive non-example and why it is weaker.]
 ```
 
@@ -138,9 +169,10 @@ Audit an existing prompt before rewriting it:
 2. Remove duplicate, contradictory, unverifiable, or task-specific rules.
 3. Replace vague imperatives such as "be helpful" or "be concise" with observable behaviors, their reason, and the conditions that change them.
 4. Replace absolute commands with outcome- and rationale-based guidance unless a policy, safety, security, legal, or irreversible-action boundary requires a hard constraint.
-5. Check that positive patterns, failure modes, examples, and any explicitly requested aliases do not conflict.
-6. Test the draft against a concise request, a high-risk request, and an ambiguous request. Confirm that it improves the intended behavior without blocking legitimate work.
-7. Keep the revision only when it addresses an observed failure or supports a stated durable goal.
+5. Confirm that the generated prompt has a root `Purpose` followed by root `Instructions`, and that each substantive instruction section introduces its problem or goal, intended outcome, reason, and decision conditions before its rules.
+6. Check that positive patterns, failure modes, examples, and any explicitly requested aliases do not conflict.
+7. Test the draft against a concise request, a high-risk request, and an ambiguous request. Confirm that it improves the intended behavior without blocking legitimate work.
+8. Keep the revision only when it addresses an observed failure or supports a stated durable goal.
 
 When presenting work to the user, provide:
 
