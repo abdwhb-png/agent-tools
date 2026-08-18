@@ -1,0 +1,41 @@
+{
+    "skill_name": "youtube-analysis",
+    "evals": [
+        {
+            "id": 1,
+            "prompt": "Analyze https://youtu.be/S_QdQ1G4GlU and turn its guidance into a concise design brief for a new system-prompt-writing skill. The brief must be grounded in both the video and the relevant technical source linked in its description. Include an evidence record that distinguishes the video, description links selected, and external sources actually read. Cite the exact URL for each external-source conclusion. Save the final brief to analysis.md.",
+            "expected_output": "A source-grounded design brief that names the linked GitHub repository and records its external-source coverage before drawing conclusions.",
+            "files": [],
+            "expectations": [
+                "The analysis names https://github.com/disler/fixing-smartass-opus-5 as a selected description link and explains why it is relevant to creating the requested skill.",
+                "The analysis records video metadata and transcript status, including an explicit unavailable status if either source cannot be retrieved.",
+                "The analysis records whether external content was read; if a fetch failed, it records the concrete failure and fallback rather than implying that the repository was read.",
+                "Every conclusion attributed to an external source is labelled with an exact external URL, not merely a generic label such as 'the repository'."
+            ]
+        },
+        {
+            "id": 2,
+            "prompt": "Deep-dive https://youtu.be/S_QdQ1G4GlU to advise how to revise an existing system-prompt-writing skill. The requester explicitly does not want the revised skill to create or recommend aliases unless aliases are explicitly requested. Use the technical repository linked in the video description when it is relevant. Produce analysis.md with: an evidence record; recommendations grouped by source; and a short explanation of how the requester's alias constraint changes the implementation. Do not invent source support that you did not verify.",
+            "expected_output": "A provenance-aware recommendation that recognizes aliases as a source feature but treats the requester constraint as an independent adaptation.",
+            "files": [],
+            "expectations": [
+                "The analysis identifies the linked GitHub repository as a relevant description source and records whether it was successfully read or documents a concrete failure and fallback.",
+                "The analysis distinguishes the video's or repository's discussion of aliases from the requester's explicit requirement to make aliases opt-in.",
+                "The analysis does not attribute the opt-in alias constraint to the video or repository unless it provides an exact URL and evidence supporting that attribution.",
+                "The analysis labels recommendations or findings with video, description, the exact external URL, or an explicit user-context label."
+            ]
+        },
+        {
+            "id": 3,
+            "prompt": "Analyze https://youtu.be/S_QdQ1G4GlU and give me a concise implementation checklist for improving a system-prompt-writing skill. Save it to analysis.md.",
+            "expected_output": "A concise implementation checklist that independently reveals the relevant description-source coverage and does not present unverified repository guidance as video evidence.",
+            "files": [],
+            "expectations": [
+                "The analysis independently identifies the linked GitHub repository as a relevant selected description source, even though the user prompt does not mention it.",
+                "The analysis states whether the selected external source was read and provides its exact URL, or records a concrete fetch failure and fallback attempted.",
+                "The analysis distinguishes conclusions supported by the video from conclusions supported by an external source or introduced as general implementation advice.",
+                "The analysis does not imply that a source was read unless it names the exact URL or documents the attempted retrieval."
+            ]
+        }
+    ]
+}

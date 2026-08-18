@@ -1,6 +1,6 @@
 ---
 name: youtube-analysis
-description: Use when you need to analyze, summarize, or extract learnings from a YouTube video. Also triggers for YouTube research tasks like finding creators on a topic, surveying videos, deep-diving a channel, or mining a playlist.
+description: Analyze YouTube videos, channels, playlists, and topic landscapes for summaries, insights, creator discovery, or source-grounded research.
 ---
 
 # YouTube Analysis
@@ -98,15 +98,43 @@ Parse the URL → `videoId`. If user gave just a title, use `videos_searchVideos
 - Parse the description.
 - **Keep** informational links: GitHub repos, arxiv papers, blog posts, official docs.
 - **Ignore** social profiles, sponsor/affiliate links, merch.
-- **Rule:** For a deep dive or technical/tutorial video, you **MUST** fetch 1-2 of the most relevant informational links.
+- For a deep dive or technical/tutorial video, select 1-2 informational links that directly support the user's request. A linked repository, source document, or official documentation takes priority when the user asks to implement, extract, or transform a technique from the video.
 
 ### 5. Fetch External Content (if found)
 - **Tools:** `read_url_content` (fast, text-only) or `firecrawl:scrape` (richer DOM).
 - **Fallback:** On 403/shortlink failures, `search_web` with the link's anchor text.
 
-### 6. Synthesize
-Combine video metadata + transcript + external sources. Cite whether each finding came from the video or an external link.
+### 6. Verify External-Source Coverage
+Before drafting a final synthesis or derived artifact, record the evidence used:
 
+| Evidence | Required record |
+| --- | --- |
+| Video metadata | Retrieved or unavailable |
+| Transcript | Retrieved language or unavailable |
+| Relevant description links | URLs selected and why they matter |
+| External content | URLs successfully read, or the concrete failure and fallback attempted |
+
+For a technical/tutorial deep dive with relevant informational links, complete the external-content fetch before synthesizing. If none can be read, say so explicitly and limit conclusions to the video evidence. A subagent's summary does not satisfy this check unless it identifies the exact URLs it read; the primary agent remains responsible for verifying that record.
+
+### 7. Synthesize
+Combine video metadata, transcript, and verified external sources. Label each finding by source: `video`, `description`, or the specific external URL. When producing code, a skill, a prompt, or another artifact from the video, distinguish source-derived decisions from generalizations introduced for the user's context.
+
+For a technical/tutorial analysis that selected any description link, include this compact section in the final response or artifact. It keeps a concise answer auditable without making the reader infer what was actually consulted:
+
+```markdown
+## Source Coverage
+- Video: metadata status; transcript language or unavailable status.
+- Selected description link: `<exact URL>` - why it supports this task.
+- External content read: `<exact URL>`; `<exact URL>`.
+	If no selected link could be read, state each failure and fallback attempted instead.
+```
+## Provenance
+- `[video]` finding or recommendation.
+- `[<exact external URL>]` finding or recommendation.
+- `[generalization]` or `[user context]` adaptation.
+
+
+Do not write `External content: N/A` after reading a selected description link. Apply the provenance labels to every material finding or recommendation, or group items under a heading carrying one of those labels.
 ---
 
 ## Workflow A: Creator Discovery
@@ -217,6 +245,8 @@ Parse URL `list=PLAYLIST_ID` → `playlistId`.
 - **Ignoring the `sortBy: "indie_priority"` option** — Critical for discovering rising creators rather than just the biggest channels.
 - **Forgetting the `youtube-transcript` fallback** — When `transcripts_getTranscript` fails (rare, but happens when captions are disabled), fall back to `youtube-transcript:get_transcript`.
 - **Ignoring the description links** — Missing code repos, source papers, or documentation mentioned in the video.
+- **Treating a delegated summary as proof that links were read** — A delegated analysis is incomplete until it names the exact external URLs consulted and the primary agent checks that record.
+- **Synthesizing before external-source coverage is known** — For technical/tutorial videos, either read the selected links or report the failed fetches and limit claims to video evidence.
 - **Fetching irrelevant description links** — Wasting tokens on sponsor links, social profiles, or merch.
 - **Over-reliance on transcripts** — Transcripts have errors and lack visual context; description links and `videos_getVideo` metadata often resolve ambiguity.
 
@@ -231,7 +261,8 @@ User: "Summarize this AI agents lecture: https://youtube.com/watch?v=FwOTs4UxQS4
 2. `videos_getVideo("FwOTs4UxQS4")` → title + description with a link to an arxiv paper and a GitHub repo
 3. `transcripts_getTranscript("FwOTs4UxQS4")` → lecture text
 4. `read_url_content(arxiv_link)` → fetches paper abstract
-5. **Synthesis**: summary integrating lecture points with formal paper definitions, cited.
+5. Record the video, transcript, and `arxiv_link` as the evidence used.
+6. **Synthesis**: summary integrating lecture points with formal paper definitions and labelling the source of each conclusion.
 
 ### Example 2: Creator Discovery
 User: "Find me 3 rising AI agents creators on YouTube"
