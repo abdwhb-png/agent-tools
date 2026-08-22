@@ -82,15 +82,14 @@ Present options conversationally with your recommendation and reasoning. Lead wi
 
 **Documentation:**
 
-- Write the validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`
-- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Write the validated design to `docs/brainstorming-decisions/YYYY-MM-DD-<topic>.md` or based on project convention
+- Follow project conventions and documentation guidelines for writing and formatting
 - Commit the design document to git
 
 **Implementation (if continuing):**
 
 - Ask: "Ready to set up for implementation?"
-- Use superpowers:using-git-worktrees to create isolated workspace
-- Use superpowers:writing-plans to create detailed implementation plan
+- Follow project conventions and workflows for creating implementation plans
 
 ## Key Principles
 
