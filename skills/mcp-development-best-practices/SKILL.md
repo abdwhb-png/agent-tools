@@ -1,11 +1,39 @@
 ---
-name: mcp-development
-description: Design principles and best practices for building high-quality, agent-native Model Context Protocol (MCP) servers in any language. Use this skill when planning, building, or refactoring MCP servers to ensure they are optimized for LLM agent selection, usage, and reliability.
+name: mcp-development-best-practices
+description: >
+  Best practices and design philosophy for high-quality, agent-native Model
+  Context Protocol (MCP) servers, applicable to any language SDK. Use when
+  planning, auditing, or reviewing MCP server designs to ensure tools are
+  optimized for LLM agent selection, usage, and reliability. For hands-on
+  implementation guidance, delegate to the mcp-builder skill (local or fetched).
 ---
 
-# MCP Development Guide
+# MCP Development — Best Practices & Philosophy
 
-This skill provides a unified framework for building high-quality MCP servers. It combines "Agent-Native Product Design" principles with rigorous implementation standards, applicable to any language SDK (Python, TypeScript, Go, etc.).
+This skill provides the design philosophy and quality standards for building agent-native MCP servers. It is intentionally **not** an implementation guide: it defines what a good MCP server looks like and why, not step-by-step build instructions.
+
+## When to Use
+
+- Planning or designing an MCP server before writing code (this skill).
+- Reviewing or auditing an existing MCP server against quality standards (this skill).
+- Building, scaffolding, or refactoring MCP server code (delegate to mcp-builder per the scope boundary above).
+
+## When Not to Use
+
+- Step-by-step server creation: use the `mcp-builder` skill directly.
+- General API design unrelated to agent-tool interaction.
+
+## Scope Boundary: Philosophy vs Implementation
+
+- **This skill covers**: design principles, tool-discovery philosophy, primitives taxonomy, review checklists.
+- **This skill does not cover**: SDK setup, scaffolding, code templates, language-specific workflows.
+
+For actual development guidance:
+
+1. **If the `mcp-builder` skill is available locally** (e.g. `.agents/skills/mcp-builder/SKILL.md`), use it for implementation. This skill provides the quality bar; mcp-builder provides the procedure.
+2. **If it is not available locally**, fetch and read the source from [anthropics/skills — mcp-builder](https://github.com/anthropics/skills/tree/main/skills/mcp-builder), then follow its SKILL.md for the implementation workflow.
+
+**Success criteria**: The implementation work starts from the local mcp-builder skill or its fetched source — never from ad-hoc invented steps.
 
 ## 1. Core Philosophy: Agent-Native Design
 
@@ -52,93 +80,25 @@ Regardless of the language (Python, TypeScript, Go, Java), follow these rules:
     *   Treat all tool inputs as untrusted user input.
     *   Implement confirmation steps for sensitive actions if the SDK supports "human in the loop" or "confirmation" flags.
 
-## 4. SDK-Specific Guidelines
+## 4. SDK Selection Philosophy
 
-### Python (`python-sdk`)
-**Best for**: General automation, AI agents, data science integration.
-- **Package**: `mcp`
-- **Installation**: `uv add mcp` (recommended) or `pip install mcp`
-- **Key Concepts**:
-  - Use `FastMCP` for quick, declarative server creation.
-  - Use low-level `Server` for complex, asynchronous workflows.
-- **Reference**: [python-sdk README](https://github.com/modelcontextprotocol/python-sdk)
-- **Quick Start**:
-  ```python
-  from mcp.server.fastmcp import FastMCP
-  
-  mcp = FastMCP("weather")
-  
-  @mcp.tool()
-  def get_weather(location: str) -> str:
-      return f"Sunny in {location}"
-  
-  if __name__ == "__main__":
-      mcp.run()
-  ```
+The choice of SDK is an implementation decision — mcp-builder covers the specifics. The philosophy that applies regardless of language:
 
-### TypeScript / Node.js (`typescript-sdk`)
-**Best for**: Web integrations, browser-based tools, heavy I/O operations.
-- **Package**: `@modelcontextprotocol/sdk`
-- **Installation**: `npm install @modelcontextprotocol/sdk zod`
-- **Key Concepts**:
-  - `McpServer` class for managing capabilities.
-  - `zod` for robust schema validation.
-- **Reference**: [typescript-sdk README](https://github.com/modelcontextprotocol/typescript-sdk)
-- **Quick Start**:
-  ```typescript
-  import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-  import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-  import { z } from "zod";
-  
-  const server = new McpServer({ name: "weather-server", version: "1.0.0" });
-  
-  server.tool(
-    "get_weather",
-    { location: z.string() },
-    async ({ location }) => ({ content: [{ type: "text", text: `Sunny in ${location}` }] })
-  );
-  
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  ```
+1. **Single Source of Truth**: Always adhere to the official SDK documentation for your language. Do not invent custom patterns that deviate from the standard protocol.
+2. **Match SDK to workload**: declarative frameworks (FastMCP, McpServer) for standard tool servers; low-level server classes only when you need fine-grained async or transport control.
+3. **Validate at the boundary**: use the schema library idiomatic to the SDK (zod for TypeScript, pydantic via FastMCP for Python) so bad inputs are rejected before business logic runs.
 
-### Java (`java-sdk`)
-**Best for**: Enterprise integrations, Spring Boot applications, high-performance services.
-- **Artifacts**: `io.modelcontextprotocol:mcp` (Core), `io.modelcontextprotocol:mcp-spring` (Spring support).
-- **Build Tool**: Maven or Gradle.
-- **Key Concepts**:
-  - Sync and Async (Reactor) APIs.
-  - Spring Boot starters for rapid development.
-- **Reference**: [java-sdk README](https://github.com/modelcontextprotocol/java-sdk)
-- **Quick Start (Spring)**:
-  ```xml
-  <dependency>
-      <groupId>io.modelcontextprotocol</groupId>
-      <artifactId>mcp-spring</artifactId>
-      <version>${mcp.version}</version>
-  </dependency>
-  ```
+Official SDKs and references:
 
-### Kotlin (`kotlin-sdk`)
-**Best for**: Modern JVM applications, Multiplatform targeting (JVM, JS, Native).
-- **Artifacts**: `io.modelcontextprotocol:kotlin-sdk`
-- **Installation**:
-  ```kotlin
-  implementation("io.modelcontextprotocol:kotlin-sdk:$mcpVersion")
-  ```
-- **Key Concepts**:
-  - Coroutine-native API.
-  - DSL for defining tools and resources.
-- **Reference**: [kotlin-sdk README](https://github.com/modelcontextprotocol/kotlin-sdk)
-- **Quick Start**:
-  ```kotlin
-  val server = Server(
-      serverInfo = Implementation("my-server", "1.0"),
-      options = ServerOptions(components = ServerComponents(logging = true))
-  )
-  ```
+- [MCP Documentation](https://modelcontextprotocol.io)
+- [Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+- [TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
+- [Java SDK](https://github.com/modelcontextprotocol/java-sdk)
+- [Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk)
 
 ## 5. Development Checklist
+
+Use this checklist to audit any MCP server design or implementation:
 
 1.  [ ] **Tool Names**: unambiguous verb-noun pairs?
 2.  [ ] **Descriptions**: clear purpose and trigger conditions?
@@ -147,7 +107,8 @@ Regardless of the language (Python, TypeScript, Go, Java), follow these rules:
 5.  [ ] **Error Messages**: suggest fixes?
 6.  [ ] **Resources**: reference data exposed as resources, not hardcoded context?
 7.  [ ] **Prompts**: reusable workflows provided as prompts?
-8.  [ ] **SDK Best Practices**: adhere to the specific guidelines for your chosen language?
+8.  [ ] **Transport**: stdio for local servers, SDK-managed JSON-RPC framing?
+9.  [ ] **Security**: inputs treated as untrusted; sensitive actions gated?
 
 ## 6. Official Resources
 
