@@ -26,6 +26,10 @@ Do not use for one-off tasks unlikely to repeat (a task prompt is enough), for p
 
 > **If you are running in the pi harness** (earendil-works/pi-coding-agent): read [references/pi-harness.md](references/pi-harness.md) before starting Phase 0. It maps each phase onto pi-specific tools (`session_search`, `memory_search`, `ask_user_question`, `safe_bash`, `skill_manage`) and defines the four pi save locations. Agents on other platforms ignore this reference safely.
 
+> **If you are running in VS Code with GitHub Copilot** and the visible conversation does not contain enough detail to reconstruct the workflow: read [references/vscode-copilot-session.md](references/vscode-copilot-session.md) before starting Phase 0. It explains how to recover the session's requests, tool actions, corrections, decisions, and outcomes from Copilot's session log without loading the full log into context.
+
+> **If you are running in Codex** and the visible conversation does not contain enough detail to reconstruct the workflow: read [references/codex-session.md](references/codex-session.md) before starting Phase 0. It uses Codex's structured thread APIs to locate and read stored session history without resuming or modifying the thread.
+
 ## Inputs
 
 - `$focus`: Optional. Restrict capture to one part of the session instead of the whole session.
@@ -36,7 +40,7 @@ A validated `SKILL.md` saved at a location chosen by the user, following the age
 
 ## Phase 0: Gather Session Context
 
-Reconstruct the session using complementary sources. If your harness provides session or memory search tools, use them first; otherwise rely on reconstruction alone.
+Reconstruct the session using complementary sources. If your harness provides session or memory search tools, use them first. In VS Code with GitHub Copilot or in Codex, use the matching session reference only when the visible conversation is incomplete; otherwise rely on the conversation and repository artifacts.
 
 ### Step A: Review Conversation History
 
