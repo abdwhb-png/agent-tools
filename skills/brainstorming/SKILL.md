@@ -13,6 +13,14 @@ Help turn ideas into fully formed designs and specs through natural collaborativ
 
 Start by understanding the current project context, then use the `askQuestions` tool to ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
 
+## When to Use
+
+Use this skill when the user wants to design a feature, component, system, workflow, or behavior change and the right implementation path still requires discovery or trade-off decisions. It is especially useful when the destination is understandable but parts of the route remain uncertain.
+
+## When Not to Use
+
+Do not use this skill for direct edits with an already-decided outcome, straightforward debugging with a concrete failure, simple code explanations, package installation, or implementation of an approved design. Route those requests to the narrower execution or debugging workflow.
+
 ## The Process
 
 **Discovery Phase (Mandatory):**
@@ -26,6 +34,17 @@ Before asking questions or proposing designs, you MUST perform a discovery phase
   3. **Gaps:** What you were unable to find or what remains ambiguous.
 - Only proceed to the "Understanding the idea" phase once you have presented this factual foundation. Proposing options before this summary is a failure of the skill.
 
+If no relevant implementation exists, state that as an observed gap after searching the plausible scope. Ground greenfield discovery in the supplied requirements, nearby project conventions, domain constraints, and authoritative external sources when the decision depends on them. Do not fabricate a codebase pattern to satisfy the discovery phase.
+
+**Set the Destination:**
+
+After the Research Summary, state the destination in one sentence: the end state, decision, or design artifact this brainstorming effort must make possible. The destination bounds the discussion and gives every option a common evaluation target.
+
+- Base it on verified context and the user's stated intent.
+- Mark it as provisional when a missing success criterion or scope choice could materially change the design.
+- If it is provisional, use `askQuestions` to ask one precise question that sharpens it before proposing approaches.
+- Do not silently choose a success metric, user priority, or scope boundary for the user.
+
 **Understanding the idea:**
 
 - Use the facts gathered during the Discovery Phase to inform your understanding.
@@ -35,9 +54,28 @@ Before asking questions or proposing designs, you MUST perform a discovery phase
 - Only one question per message - if a topic needs more exploration, break it into multiple questions
 - Focus on understanding: purpose, constraints, success criteria
 
+**Navigate uncertainty:**
+
+Keep a lightweight working state throughout the conversation:
+
+- **Decisions and known facts:** Verified evidence and explicit choices that current reasoning may rely on.
+- **Not yet specified:** Relevant uncertainty that should remain visible rather than receive a plausible default.
+- **Out of scope:** A path or concern excluded by the destination, with a one-line reason.
+
+An uncertainty is ready for active resolution when its deciding question can be stated precisely now, even if the answer is not yet known. If the question is still vague, sharpen it before generating solutions.
+
+Route each precise question to the narrowest reliable source of truth:
+
+- **User intent or trade-off:** Use `askQuestions`; the user must speak for their own priorities.
+- **Empirical behavior:** Inspect the relevant code, tests, runtime, API, measurement, or authoritative documentation.
+- **Experiential behavior:** When dialogue and existing evidence cannot settle how something should look or feel, propose a minimal reversible prototype or spike and define what observation would decide the question.
+- **Future contingency:** Keep it in **Not yet specified** with its trigger condition; do not treat it as a present fact.
+
+After resolving a question, update the working state and address the next uncertainty that most directly blocks the destination. Keep this inside the conversation and design artifact; do not create issue maps, ticket graphs, branches, or multi-session orchestration.
+
 **Exploring approaches:**
 
-- Propose 2-3 materially different approaches with trade-offs.
+- Propose 2-3 materially different approaches only after the central deciding question and destination are sharp enough to compare them.
 - For each approach, identify assumptions that could change the recommendation and conditions that would make the approach fail.
 
 Classify each decision-critical assumption:
@@ -66,9 +104,17 @@ Do not turn an unresolved critical assumption into a confident recommendation. E
 
 For high-impact decisions, contradictory evidence, or accepted unresolved risk, seek an independent critical review when another agent or reviewer is available. Ask it to inspect the same primary evidence and challenge the recommendation. Reviewer prose is not a substitute for the underlying code, test, measurement, API response, or authoritative source.
 
-Before recommending an option, summarize the observed evidence, verified/falsified/unresolved assumptions, effect on trade-offs, conditions for failure, and residual risks.
+Before recommending an option, summarize the observed evidence, verified/falsified/unresolved assumptions, effect on trade-offs, conditions for failure, and residual risks. Compare each path by its fit to the destination, complexity, reversibility, and failure conditions.
 
 Present options conversationally with your recommendation and reasoning. Lead with your recommended option, but remain open to being wrong.
+
+When converging, record:
+
+- **Selected path:** The decision and why it best fits the destination.
+- **Ruled-out paths:** One line per rejected option explaining why it lost.
+- **Remaining uncertainties:** Unresolved items, their impact, and the next reliable way to settle them.
+
+Do not silently revive a ruled-out path later. Reconsider it only when new evidence, a changed destination, or an explicit user decision invalidates the earlier reason.
 
 **Presenting the design:**
 
@@ -77,12 +123,14 @@ Present options conversationally with your recommendation and reasoning. Lead wi
 - Ask after each section whether it looks right so far
 - Cover: architecture, components, data flow, error handling, testing
 - Be ready to go back and clarify if something doesn't make sense
+- Keep brainstorming plan-only. Prototypes may answer a design question, but do not turn the session into production implementation.
 
 ## After the Design
 
 **Documentation:**
 
 - Write the validated design to `docs/brainstorming-decisions/YYYY-MM-DD-<topic>.md` or based on project convention
+- Include the destination, research evidence, selected path, ruled-out paths, not-yet-specified items, architecture, components, data flow, error handling, testing, and implementation handoff boundary.
 - Follow project conventions and documentation guidelines for writing and formatting
 - Commit the design document to git
 
@@ -95,8 +143,13 @@ Present options conversationally with your recommendation and reasoning. Lead wi
 
 - **Hypothesis Generator** - You generate possibilities, you do not dictate truth.
 - **Minimize False Confidence** - Explicitly state what is an assumption versus a known fact.
+- **Name the Destination** - Keep exploration anchored to the end state it must enable.
+- **Preserve the Unknown** - Visible uncertainty is safer than an invented default.
+- **Sharpen Before Solving** - Resolve a question only after it can be stated precisely.
+- **Use the Right Source of Truth** - Route preference, evidence, experience, and future contingencies differently.
 - **Verify Before Recommending** - Investigate decision-critical empirical assumptions instead of merely listing uncertainties.
 - **Separate Evidence from Interpretation** - Report what was observed before explaining what it means for the design.
+- **Record Convergence** - Preserve selected, rejected, and unresolved paths so the discussion does not drift backward.
 - **One question at a time** - Don't overwhelm with multiple questions
 - **Multiple choice preferred** - Easier to answer than open-ended when possible
 - **YAGNI ruthlessly** - Remove unnecessary features from all designs

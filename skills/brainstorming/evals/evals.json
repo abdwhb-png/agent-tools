@@ -1,0 +1,58 @@
+{
+    "skill_name": "brainstorming",
+    "evals": [
+        {
+            "id": 1,
+            "prompt": "I want to add a new notification type to q-messenger. How should I design the data flow for this?",
+            "expected_output": "The agent should first research how notifications are currently implemented in the q-messenger project, identify the relevant classes/services, and then propose a design based on those findings.",
+            "files": []
+        },
+        {
+            "id": 2,
+            "prompt": "I'm thinking about adding a new loan repayment strategy to the cryptoLoan platform. What's the best way to integrate this into the existing logic?",
+            "expected_output": "The agent should research the existing loan repayment logic in the cryptoLoan project, find the strategy pattern or logic used for repayments, and propose an integration plan based on the actual code.",
+            "files": []
+        },
+        {
+            "id": 3,
+            "prompt": "I want to implement a new filter for the aitimart product list. How should I approach this?",
+            "expected_output": "The agent should research how product filtering is currently implemented in aitimart, identify the filtering logic and where it's called, and then suggest a way to add the new filter.",
+            "files": []
+        },
+        {
+            "id": 4,
+            "prompt": "I want to build an internal knowledge tool for our support team, but I am not sure whether success means faster search, better answer quality, or fewer escalations. Help me design it.",
+            "expected_output": "The agent should preserve the unresolved success criterion, state a provisional destination, and use the question tool to ask one precise question that sharpens the destination before proposing architectures.",
+            "files": [],
+            "expectations": [
+                "The response distinguishes the provisional destination from unresolved success criteria instead of inventing a default metric.",
+                "The agent asks exactly one user question through the question tool before proposing solution paths.",
+                "The question is precise enough to determine which outcome the design must optimize."
+            ]
+        },
+        {
+            "id": 5,
+            "prompt": "We need to redesign the checkout confirmation experience. We do not know which payment states the backend currently exposes, product has not decided whether speed or reassurance matters more, and the team cannot tell whether a compact receipt or a detailed status timeline will work better. Find the right path.",
+            "expected_output": "The agent should route each uncertainty to its proper source of truth: inspect the repository for backend payment states, ask the user one preference question about the product trade-off, and defer a minimal reversible prototype until discussion and evidence cannot settle the experiential UI question.",
+            "files": [],
+            "expectations": [
+                "The agent treats backend payment states as an empirical question to investigate in the codebase.",
+                "The agent treats speed versus reassurance as a design choice requiring one user question through the question tool.",
+                "The agent treats compact receipt versus detailed timeline as an experiential uncertainty suitable for a minimal reversible prototype only if research and dialogue remain insufficient.",
+                "The agent does not collapse all three uncertainties into one speculative recommendation."
+            ]
+        },
+        {
+            "id": 6,
+            "prompt": "We have verified that our notification service supports both event-specific handlers and a generic dispatcher. Compare those paths for adding compliance alerts, recommend one for an audit-sensitive system, and make clear what we are not choosing.",
+            "expected_output": "The agent should compare materially different paths against an explicit destination, use the verified evidence, discuss complexity, reversibility, and failure conditions, then record the selected path, ruled-out path with its reason, and any unresolved risk.",
+            "files": [],
+            "expectations": [
+                "The response states the destination or decision criterion for the audit-sensitive alert design.",
+                "The response compares the two paths using evidence, complexity, reversibility, and failure conditions.",
+                "The response records the selected path and the ruled-out path with a concise reason.",
+                "The response identifies any unresolved critical risk or explicitly states that none remains."
+            ]
+        }
+    ]
+}
