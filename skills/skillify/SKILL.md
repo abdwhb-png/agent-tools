@@ -14,208 +14,91 @@ metadata:
 
 # Skillify — Turn Any Session Into a Reusable Skill
 
-Capture this session's repeatable process as a reusable `SKILL.md` file that follows the [agentskills.io](https://agentskills.io) open standard — compatible with Claude Code, Cursor, GitHub Copilot, Gemini CLI, VS Code, pi, and other Agent Skills platforms.
+Turn a completed session into a concise, reusable `SKILL.md` that follows the [agentskills.io](https://agentskills.io) standard.
 
 ## When to Use
 
-The user asks to persist the current session's process as a skill ("skillify this", "save this workflow"), typically at the end of a completed multi-step task.
+Use when the user asks to save, skillify, or make a completed workflow repeatable.
 
 ## When Not to Use
 
-Do not use for one-off tasks unlikely to repeat (a task prompt is enough), for project-local conventions that belong in AGENTS.md or repository instructions, or for stable cross-task behavior that belongs in a system prompt.
+Do not use for one-off tasks, project conventions that belong in repository instructions, or cross-task behavior that belongs in a system prompt.
 
-> **If you are running in Pi** and the visible conversation does not contain enough detail to reconstruct the workflow: read [references/pi-session.md](references/pi-session.md) before starting Phase 0. It explains how to recover the active branch, messages, tool results, corrections, and decisions from Pi's standard JSONL session format.
+## Input
 
-> **If you are running in VS Code with GitHub Copilot** and the visible conversation does not contain enough detail to reconstruct the workflow: read [references/vscode-copilot-session.md](references/vscode-copilot-session.md) before starting Phase 0. It explains how to recover the session's requests, tool actions, corrections, decisions, and outcomes from Copilot's session log without loading the full log into context.
+- `$focus`: Optional part of the session to capture. Default: the whole repeatable workflow.
 
-> **If you are running in Codex** and the visible conversation does not contain enough detail to reconstruct the workflow: read [references/codex-session.md](references/codex-session.md) before starting Phase 0. It uses Codex's structured thread APIs to locate and read stored session history without resuming or modifying the thread.
+## Workflow
 
-## Inputs
+### 1. Reconstruct the Session
 
-- `$focus`: Optional. Restrict capture to one part of the session instead of the whole session.
+Review the conversation and relevant repository artifacts. Extract:
 
-## Goal
+- goal and final outcome;
+- ordered actions and essential tools;
+- user corrections and hard constraints;
+- decisions, rejected paths, failures, and validation.
 
-A validated `SKILL.md` saved at a location chosen by the user, following the agentskills.io standard, so the captured workflow is reusable on demand across compatible agent platforms.
+Use platform session history only when the visible conversation is incomplete:
 
-## Phase 0: Gather Session Context
+- Pi: [references/pi-session.md](references/pi-session.md)
+- VS Code with GitHub Copilot: [references/vscode-copilot-session.md](references/vscode-copilot-session.md)
+- Codex: [references/codex-session.md](references/codex-session.md)
 
-Reconstruct the session using complementary sources. If your harness provides session or memory search tools, use them first. In VS Code with GitHub Copilot or in Codex, use the matching session reference only when the visible conversation is incomplete; otherwise rely on the conversation and repository artifacts.
+Cross-check material claims against changed files, commands, tests, or commits. Keep unresolved contradictions visible.
 
-### Step A: Review Conversation History
+**Success criteria**: A factual workflow summary exists with no important gaps hidden by assumption.
 
-Look back through the entire conversation. Extract:
-- **Goal**: What did the user ask you to accomplish?
-- **Steps taken**: Ordered actions (tools used, files touched, commands run)
-- **Corrections**: Where did the user redirect your approach? These become Rules in the skill.
-- **Tools used**: Which tools were critical?
-- **Decision points**: Where did you or the user choose between alternatives?
+### 2. Confirm the Skill Contract
 
-**Success criteria**: A written summary covering goal, ordered steps, corrections, and decision points.
+Use the harness's structured question tool. Ask only what the session does not already establish, combining related choices when practical.
 
-### Step B: Check Git Artifacts
+Confirm:
 
-Fill gaps in conversation context with recent changes:
+- name and trigger-focused description;
+- goal, inputs, ordered steps, and expected artifacts;
+- success criteria and hard rules for each major step;
+- human checkpoints, parallelism, and important failure cases;
+- inline or delegated execution;
+- cross-platform requirements;
+- save location. Always ask for the save location rather than assuming it.
 
-```bash
-git diff --stat | head -30
-git log --oneline -10
-```
+Common locations:
 
-Skip when outside a git repository.
+- User shared: `~/.agents/skills/<name>/SKILL.md`
+- Project shared: `.agents/skills/<name>/SKILL.md`
+- Harness-specific locations from the relevant platform reference
 
-**Success criteria**: Recent file changes and commits reviewed, or repository absence confirmed and skipped.
+Keep the interview proportional. A simple workflow may need one question round.
 
-### Step C: Detect Project Context
+**Success criteria**: The user has confirmed the skill's scope, behavior, and save location.
 
-Auto-detect the project's tooling so the generated skill uses the right commands:
+### 3. Draft the Skill
 
-```bash
-{ [ -f package.json ] && echo "NODE: $(grep -E '"(name|test|build|lint)"' package.json | head -5)"; \
-  [ -f Makefile ] && echo "MAKE: $(head -20 Makefile | grep '^[a-z].*:')"; \
-  [ -f Cargo.toml ] && echo "RUST: $(head -5 Cargo.toml)"; \
-  [ -f go.mod ] && echo "GO: $(head -3 go.mod)"; \
-  [ -f pyproject.toml ] && echo "PYTHON: $(head -10 pyproject.toml)"; } 2>/dev/null \
-  || echo "No standard project files detected"
-```
+Write a focused `SKILL.md` with:
 
-**Success criteria**: Project tooling identified, so Phase 2 commands match the environment.
+- `name`: lowercase hyphenated directory name, at most 64 characters;
+- `description`: action and trigger context, at most 1024 characters;
+- `When to Use` and `When Not to Use` boundaries;
+- optional inputs and a concrete goal;
+- ordered, actionable steps with success criteria;
+- user corrections expressed as durable rules;
+- only the commands, examples, and annotations that improve execution.
 
-## Phase 1: Interview the User
+Prefer standard frontmatter fields: `name`, `description`, `license`, and `metadata`. Put substantial platform or domain detail in `references/`. Avoid harness-specific tool names when the skill must be portable.
 
-Use your harness's structured question tool for ALL questions. Never ask questions via plain text. Iterate each round until the user is satisfied.
+Keep simple skills simple. Do not preserve incidental debugging, narration, or session-specific details.
 
-### Round 1: High-Level Confirmation
+**Success criteria**: The draft is self-contained, concise, and reproduces the verified workflow.
 
-- Present your summary from Phase 0
-- Suggest a **name** (lowercase, hyphens only, max 64 chars per agentskills.io spec) and one-line **description**
-- Suggest high-level goal(s) and success criteria
-- Ask the user to confirm, rename, or adjust
+### 4. Review and Save
 
-### Round 2: Structure and Scope
+Present the complete draft and request approval through the structured question tool. After approval:
 
-- Present steps as a numbered list. Tell the user you'll dig into per-step detail next round.
-- If the skill needs **arguments**, suggest them based on what you observed. Clarify what a future user would provide.
-- Ask **execution context**: `inline` (default — runs in current conversation, user can steer mid-process) or delegated/subagent (isolated, better for self-contained tasks).
-- Ask **save location** — ALWAYS ask this question, even when one location seems obvious. Never skip it and never assume. Generic options:
-  - **User-level, shared across harnesses** (`~/.agents/skills/<name>/SKILL.md`) — follows the user everywhere; every Agent Skills platform loads it
-  - **Project-level, shared across harnesses** (`.agents/skills/<name>/SKILL.md`) — this project's workflows on any compatible platform
-  - Harness-specific locations exist too (e.g. `~/.claude/skills/`, `~/.pi/agent/skills/`) — offer them when relevant
+1. Create the confirmed directory and files.
+2. Validate frontmatter, links, and available checks.
+3. Report the saved path, invocation syntax, validation performed, and whether a new agent session is required for discovery.
 
-**Success criteria**: Name, description, steps list, arguments, execution context, and save location confirmed by the user.
+Do not save before approval.
 
-### Round 3: Step-by-Step Detail
-
-For each major step (skip if obvious), ask:
-- What does this step **produce** that later steps need? (artifacts: PR URL, commit SHA, file path)
-- What **proves** this step succeeded? (success criteria — required on every step)
-- Should the user **confirm** before proceeding? (human checkpoint — for irreversible actions)
-- Can any steps run in **parallel**? (concurrent steps use sub-numbers: 3a, 3b)
-- What are **hard rules**? (constraints from user corrections found in Step A, must/must-not)
-
-Do multiple rounds if there are more than 3 steps or complex decision points.
-
-**Success criteria**: Every major step has an artifact definition, success criteria, and explicit parallelism/checkpoint decisions.
-
-### Round 4: Triggers and Edge Cases
-
-- Confirm **when** this skill should be invoked — suggest trigger phrases
-  - Example: "Use when the user says 'cherry-pick', 'hotfix', or 'CP this PR to release'"
-- Ask about edge cases, gotchas, or failure modes to handle
-- Ask if the skill should be **cross-platform** (if yes, avoid harness-specific tool names in the body)
-
-Stop interviewing once you have enough. Don't over-ask for simple 2-3 step processes.
-
-**Success criteria**: Trigger phrases confirmed and edge cases either documented or explicitly declined.
-
-## Phase 2: Write the SKILL.md
-
-Generate a `SKILL.md` following the agentskills.io standard (`name` ≤64 chars lowercase-hyphens matching directory name, `description` ≤1024 chars; unknown frontmatter fields are ignored by agents that don't understand them).
-
-### Frontmatter Template
-
-```yaml
----
-name: {{skill-name}}
-description: >
-  {{One-line description. Start with an action verb. Under 1024 chars.
-  Include "Use when..." trigger context so agents know when to activate.}}
-license: MIT
-metadata:
-  author: {{user or org name}}
-  version: "1.0.0"
-{{Optional: allowed-tools — some platforms accept permission narrowing here.
-Omit unless the workflow needs explicit permission constraints.}}
----
-```
-
-### Body Template
-
-```markdown
-# {{Skill Title}}
-
-{{Brief description of what this skill does and its goal.}}
-
-## Inputs
-
-- `$arg_name`: Description of this input
-
-## Goal
-
-{{Clearly stated goal. Include concrete success artifacts
-(e.g., "an open PR with CI passing" not just "code changes").}}
-
-## Steps
-
-### 1. {{Step Name}}
-
-{{Specific, actionable instructions. Include commands where appropriate.}}
-
-**Success criteria**: {{How to know this step is done.}}
-
-### 2. {{Step Name}}
-
-...
-```
-
-### Writing Rules
-
-**Frontmatter:**
-- `name`: lowercase, hyphens only, max 64 chars, matching directory name
-- `description`: under 1024 chars, start with action verb, include "Use when..." triggers
-- Prefer standard fields: `name`, `description`, `license`, `metadata`; add platform-specific fields only when needed
-
-**Body:**
-- **Success criteria** on EVERY step — required, not optional
-- Use per-step annotations where helpful:
-  - **Execution**: `Direct` (default), `Subagent` (parallel/isolated)
-  - **Artifacts**: Data this step produces for later steps
-  - **Human checkpoint**: Pause for user confirmation (irreversible actions)
-  - **Rules**: Hard constraints (especially from user corrections found during Phase 0)
-- Concurrent steps use sub-numbers: 3a, 3b
-- Steps requiring user action get `[human]` in the title
-- Keep simple skills simple — a 2-step skill doesn't need every annotation
-- Put large reference material in a `references/` subdirectory, not inline
-
-**Cross-platform compatibility:**
-- The agentskills.io standard works across many agent platforms
-- Avoid naming tools specific to one harness when cross-platform behavior is requested
-- Agents that don't understand extra fields simply ignore them
-
-**Success criteria**: A complete draft SKILL.md exists, conforming to the templates and rules above, incorporating all interview answers.
-
-## Phase 3: Review and Save
-
-1. Output the complete SKILL.md in a fenced code block so the user can review
-2. Ask for confirmation via your question tool: "Does this SKILL.md look good to save?"
-3. On approval:
-   - Create the skill directory at the location chosen in Round 2
-   - Write the SKILL.md file
-   - If the skill has reference files, create a `references/` subdirectory
-4. Confirm to the user:
-   - Where the skill was saved
-   - How to invoke it (e.g. `/skill-name [arguments]` — adapt to their platform's invocation syntax)
-   - That they can edit the SKILL.md directly to refine it
-   - That most platforms load skills at startup — remind them to restart their agent session
-
-**Success criteria**: The SKILL.md is saved at the confirmed location and the user knows where it lives, how to invoke it, and that a restart may be needed for discovery.
+**Success criteria**: The validated skill is saved at the chosen location and the user knows how to invoke it.
