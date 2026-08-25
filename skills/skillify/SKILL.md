@@ -24,7 +24,7 @@ The user asks to persist the current session's process as a skill ("skillify thi
 
 Do not use for one-off tasks unlikely to repeat (a task prompt is enough), for project-local conventions that belong in AGENTS.md or repository instructions, or for stable cross-task behavior that belongs in a system prompt.
 
-> **If you are running in the pi harness** (earendil-works/pi-coding-agent): read [references/pi-harness.md](references/pi-harness.md) before starting Phase 0. It maps each phase onto pi-specific tools (`session_search`, `memory_search`, `ask_user_question`, `safe_bash`, `skill_manage`) and defines the four pi save locations. Agents on other platforms ignore this reference safely.
+> **If you are running in Pi** and the visible conversation does not contain enough detail to reconstruct the workflow: read [references/pi-session.md](references/pi-session.md) before starting Phase 0. It explains how to recover the active branch, messages, tool results, corrections, and decisions from Pi's standard JSONL session format.
 
 > **If you are running in VS Code with GitHub Copilot** and the visible conversation does not contain enough detail to reconstruct the workflow: read [references/vscode-copilot-session.md](references/vscode-copilot-session.md) before starting Phase 0. It explains how to recover the session's requests, tool actions, corrections, decisions, and outcomes from Copilot's session log without loading the full log into context.
 
@@ -199,7 +199,7 @@ Omit unless the workflow needs explicit permission constraints.}}
 
 **Cross-platform compatibility:**
 - The agentskills.io standard works across many agent platforms
-- Avoid naming tools specific to one harness (`session_search`, `safe_bash`, ...) when cross-platform is requested
+- Avoid naming tools specific to one harness when cross-platform behavior is requested
 - Agents that don't understand extra fields simply ignore them
 
 **Success criteria**: A complete draft SKILL.md exists, conforming to the templates and rules above, incorporating all interview answers.
