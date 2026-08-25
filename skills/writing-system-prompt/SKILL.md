@@ -1,6 +1,6 @@
 ---
 name: writing-system-prompt
-description: Create, audit, or revise system prompts and custom instructions for durable AI and coding-agent behavior.
+description: Create, audit, or revise system-level instructions and global agent prompts (e.g. AGENTS.md, CLAUDE.md, .instructions.md, system personas). Use ONLY for durable system prompt files or when explicitly requested. Do NOT use for drafting user prompts, task prompts, or reusable user prompt templates.
 ---
 
 # Writing System Prompts
@@ -17,6 +17,7 @@ Use this skill when the user needs to create, audit, or revise instructions that
 - Persistent issues such as excessive verbosity, unsupported certainty, scope drift, inconsistent tone, or poor validation claims.
 - A review of whether existing instructions conflict, are too broad, or belong in another instruction layer.
 - An explicit request to create shared reference points, aliases, or other durable interaction conventions.
+- An explicit request to use this skill or write system prompts in AGENTS.md, CLAUDE.md, or .instructions.md.
 
 ## When Not to Use
 
@@ -26,6 +27,7 @@ Use the narrower instruction layer when the behavior is not durable:
 - Repository architecture, commands, and conventions belong in project or repository instructions.
 - A repeatable domain workflow belongs in a dedicated skill.
 - An immediate implementation, debugging, research, or writing task should use the relevant task skill rather than creating a system prompt.
+- Drafting or refining user prompts, task prompts, or reusable prompt templates (handle directly without this skill).
 
 ## Establish The Target
 
