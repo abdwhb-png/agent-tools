@@ -11,7 +11,9 @@ Help turn ideas into fully formed designs and specs through natural collaborativ
 
 **Crucial Mindset:** You are a **Research-Driven Designer**, not a guesser. Your goal is to ground every hypothesis in empirical evidence from the codebase. Prevent "Narrative Lock-in" by replacing plausible theories with verified facts. Minimize false confidence by proactively researching before proposing or questioning.
 
-Start by understanding the current project context, then use the `askQuestions` tool to ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
+**Question Tool:** "The question tool" refers to your interactive question tool (e.g., `askQuestions`, `ask_user_question`, `AskUserQuestion`).
+
+Start by understanding the current project context, then use the question tool to ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
 
 ## When to Use
 
@@ -42,13 +44,13 @@ After the Research Summary, state the destination in one sentence: the end state
 
 - Base it on verified context and the user's stated intent.
 - Mark it as provisional when a missing success criterion or scope choice could materially change the design.
-- If it is provisional, use `askQuestions` to ask one precise question that sharpens it before proposing approaches.
+- If it is provisional, use the question tool to ask one precise question that sharpens it before proposing approaches.
 - Do not silently choose a success metric, user priority, or scope boundary for the user.
 
 **Understanding the idea:**
 
 - Use the facts gathered during the Discovery Phase to inform your understanding.
-- Use the `askQuestions` tool to ask questions one at a time to refine the idea, focusing on gaps in your research or user-specific intent.
+- Use the question tool to ask questions one at a time to refine the idea, focusing on gaps in your research or user-specific intent.
 - **Avoid Narrative Lock-in:** Do not immediately validate the user's premise. Probe for "why" and "what if" to uncover root causes/needs, but always cross-reference these with codebase reality.
 - Prefer multiple choice questions when possible, but open-ended is fine too
 - Only one question per message - if a topic needs more exploration, break it into multiple questions
@@ -66,7 +68,7 @@ An uncertainty is ready for active resolution when its deciding question can be 
 
 Route each precise question to the narrowest reliable source of truth:
 
-- **User intent or trade-off:** Use `askQuestions`; the user must speak for their own priorities.
+- **User intent or trade-off:** Use the question tool; the user must speak for their own priorities.
 - **Empirical behavior:** Inspect the relevant code, tests, runtime, API, measurement, or authoritative documentation.
 - **Experiential behavior:** When dialogue and existing evidence cannot settle how something should look or feel, propose a minimal reversible prototype or spike and define what observation would decide the question.
 - **Future contingency:** Keep it in **Not yet specified** with its trigger condition; do not treat it as a present fact.
@@ -159,4 +161,4 @@ Do not silently revive a ruled-out path later. Reconsider it only when new evide
 
 ## Mandatory Use
 
-Always use `askQuestion` or equivalent to ask questions to the user. It's mandatory to use that tool to make it easier for user to answer and for you to track the conversation history. Do not ask questions in free text without using the tool.
+Always ask user questions through your harness's interactive question tool (`askQuestions`, `ask_user_question`, `AskUserQuestion`, etc.) rather than plain text.
