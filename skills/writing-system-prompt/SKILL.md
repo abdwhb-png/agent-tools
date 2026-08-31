@@ -7,7 +7,7 @@ description: Create, audit, or revise system-level instructions and global agent
 
 Create a system prompt that makes an agent more useful across many tasks without turning a single user's preference into a brittle global rule. A system prompt has multiplicative impact: reserve it for durable behavior that should apply repeatedly, and keep task-specific work in the user prompt, project instructions, or a dedicated skill.
 
-When drafting instructions, explain the intended outcome, the reason it matters, and the conditions that change the decision. Prefer this to absolute "do this" or "do not do this" language: models can apply a stated rationale to novel cases, while a blanket prohibition can fail in its exceptions. Reserve hard constraints for genuine policy, safety, security, legal, or irreversible-action boundaries.
+When drafting instructions, explain the intended outcome, the reason it matters, and the conditions that change the decision. Prefer this to absolute "do this" or "do not do this" language: llms can apply a stated rationale to novel cases, while a blanket prohibition can fail in its exceptions. Reserve hard constraints for genuine policy, safety, security, legal, or irreversible-action boundaries.
 
 ## When to Use
 
@@ -83,12 +83,17 @@ Do not copy these examples blindly. For example, placing the key point last can 
 
 Describe the few recurring behaviors that harm the target workflow, why they create that harm, and the judgment that should replace them. For example, explain that unsupported certainty misleads users because it obscures what remains unverified; the agent can then distinguish evidence, assumptions, and unknowns without being reduced to a phrase blacklist.
 
+Guard against machine distortion and convergence toward the average:
+- **Prevent Machine Distortion / Over-claiming:** Llms naturally amplify confident claims while discarding qualifying conditions and limits. Counter this by defining what the agent must not claim when evidence is partial, and welding boundaries directly to capabilities.
+- **Enforce Visibility Over Invisible Fallbacks:** Suppressing errors or taking silent fallbacks creates false confidence. Require the agent to expose limitations and state unverified assumptions rather than presenting a polished answer that conceals missing data.
+
 Keep this list evidence-led and short. A growing blacklist is fragile: remove an item when it does not correspond to a meaningful, observed failure mode. Treat style preferences such as punctuation, emoji use, or metaphors as contextual choices rather than universal policies.
 
 ### 4. Operational Boundaries
 
 Specify what the agent may do without confirmation and what requires evidence or permission. Frame ordinary operating guidance around its outcome and decision conditions. For coding agents, useful boundaries can include:
 
+- Weld the limit to the claim: State permissions and their boundaries together in the same rule. Never write an unrestricted action rule followed by a detached negative constraint; the llm must not be able to execute the capability while discarding the boundary.
 - Keep work aligned with the requested scope because unsolicited cleanup, refactors, documentation, or adjacent features make review and risk management harder. Surface broader work separately when it is required for correctness or explicitly requested.
 - Distinguish uncertainty from confirmed results so users can judge what remains to be checked.
 - Treat a validation result as evidence only after the relevant check has run; when validation is unavailable, report the concrete limitation and the remaining uncertainty.
@@ -175,6 +180,7 @@ Audit an existing prompt before rewriting it:
 6. Check that positive patterns, failure modes, examples, and any explicitly requested aliases do not conflict.
 7. Test the draft against a concise request, a high-risk request, and an ambiguous request. Confirm that it improves the intended behavior without blocking legitimate work.
 8. Keep the revision only when it addresses an observed failure or supports a stated durable goal.
+9. Distortion probe: Run the draft against an ambiguous or boundary-testing request to verify that the llm does not drop caveats, over-generalize narrow rules, or revert to generic boilerplate.
 
 When presenting work to the user, provide:
 
@@ -183,4 +189,4 @@ When presenting work to the user, provide:
 3. A short rationale for non-obvious rules and any context-dependent choices.
 4. Three realistic test prompts or scenarios, plus what each should reveal.
 
-Do not claim that a prompt guarantees model behavior. Treat it as a hypothesis to test, then revise from observed outputs.
+Do not claim that a prompt guarantees llm behavior. Treat it as a hypothesis to test, then revise from observed outputs.
