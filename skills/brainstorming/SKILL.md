@@ -9,7 +9,7 @@ description: "Research-driven brainstorming and design for new features, compone
 
 Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
 
-**Crucial Mindset:** You are a **Research-Driven Designer**, not a guesser. Your goal is to ground every hypothesis in empirical evidence from the codebase. Prevent "Narrative Lock-in" by replacing plausible theories with verified facts. Minimize false confidence by proactively researching before proposing or questioning.
+**Crucial Mindset:** You are a **Research-Driven Designer**, not a guesser. Your goal is to ground every hypothesis in empirical evidence from the codebase. Prevent "Narrative Lock-in" and **"Mode Collapse" (Typicality Bias)** by replacing plausible theories with verified facts and exploring the full probability distribution of solutions instead of settling for safe, generic averages.
 
 **Question Tool:** "The question tool" refers to your interactive question tool (e.g., `askQuestions`, `ask_user_question`, `AskUserQuestion`).
 
@@ -77,8 +77,13 @@ After resolving a question, update the working state and address the next uncert
 
 **Exploring approaches:**
 
-- Propose 2-3 materially different approaches only after the central deciding question and destination are sharp enough to compare them.
+- Propose 3-4 materially different approaches spanning the full solution distribution (Verbalized Sampling) rather than superficial variations of a single mainstream pattern:
+  1. **Idiomatic / Direct Baseline (High probability — Conventional A):** The direct path using existing codebase patterns, built-in framework primitives, or minimal extensions (lowest friction, in-house conventions).
+  2. **Ecosystem / Pattern-Driven Alternative (High probability — Conventional B):** The second mainstream industry standard leveraging proven libraries, established design patterns (e.g., state machines, adapter/strategy, dedicated middleware), or structured decoupling.
+  3. **Structural / Boundary Trade-off (Medium probability — Alternative):** A distinct architectural trade-off shifting responsibilities across boundaries (e.g., compile-time vs runtime, push vs pull, client-driven vs server-orchestrated, async/event-driven vs synchronous).
+  4. **Unconventional / Long-tail approach (Low probability / Tail-sampled $p < 0.10$ — Contrarian/Tail):** A non-obvious, contrarian solution that challenges a standard assumption (e.g., radical simplification/YAGNI, eliminating an entire layer, inverse data flow, or novel UX paradigm).
 - For each approach, identify assumptions that could change the recommendation and conditions that would make the approach fail.
+- Label each approach with its distribution profile (Conventional Baseline, Conventional Ecosystem/Pattern, Structural Alternative, or Contrarian/Tail) so the trade-offs between safety and innovation remain transparent.
 
 Classify each decision-critical assumption:
 
@@ -145,6 +150,7 @@ Do not silently revive a ruled-out path later. Reconsider it only when new evide
 
 - **Hypothesis Generator** - You generate possibilities, you do not dictate truth.
 - **Minimize False Confidence** - Explicitly state what is an assumption versus a known fact.
+- **Break Mode Collapse** - Force distribution-level exploration across standard, alternative, and long-tail (unconventional) possibilities.
 - **Name the Destination** - Keep exploration anchored to the end state it must enable.
 - **Preserve the Unknown** - Visible uncertainty is safer than an invented default.
 - **Sharpen Before Solving** - Resolve a question only after it can be stated precisely.
@@ -155,7 +161,7 @@ Do not silently revive a ruled-out path later. Reconsider it only when new evide
 - **One question at a time** - Don't overwhelm with multiple questions
 - **Multiple choice preferred** - Easier to answer than open-ended when possible
 - **YAGNI ruthlessly** - Remove unnecessary features from all designs
-- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Explore alternatives** - Always propose 3-4 approaches before settling
 - **Incremental validation** - Present design in sections, validate each
 - **Be flexible** - Go back and clarify when something doesn't make sense
 
