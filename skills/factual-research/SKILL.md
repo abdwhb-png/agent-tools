@@ -1,212 +1,156 @@
 ---
 name: factual-research
-description: Choose the right tool (exa, firecrawl, context7, askUserQuestion, youtube-analysis) for factual research, documentation, and solution comparison. Use when fact-checking, finding current best practices, extracting web content, reading official docs, comparing tools/vendors, analyzing videos, or clarifying ambiguous requests
+description: Conduct factual research, official documentation lookup, solution comparison, web page content extraction, video analysis, and user clarification. Use when verifying facts, finding current best practices, fetching web content, consulting official API docs, or comparing technical solutions.
 ---
 
-# Tools & Resources Handoff
+# Factual Research
 
-This skill guides you on which tools and resources to use for different types of investigation, verification, and decision-making tasks. It's your reference when you need to:
+Select and apply the appropriate research tools to verify facts, extract web data, consult official documentation, compare technical solutions, analyze video content, or clarify ambiguous requirements.
 
-- Find factual information or verify current practices
-- Look up official documentation
-- Compare multiple solutions or vendors
-- Extract and transform data from web pages
-- Analyze video content
-- Clarify ambiguous or incomplete user requests
+## When to Use
+
+- Verifying current best practices, industry benchmarks, or modern implementation patterns.
+- Looking up official package, SDK, framework, or API documentation.
+- Extracting full text, structured data, or markdown from specific web URLs.
+- Conducting buy-versus-build assessments or comparing competing technologies and vendors.
+- Analyzing YouTube videos or multimedia resources for technical information.
+- Clarifying ambiguous, underspecified, or conflicting user requests before research.
+
+## When Not to Use
+
+- Local code refactoring, local bug fixing, or workspace navigation where local files provide sufficient ground truth.
+- Creating skills from scratch (use `writing-skills`).
+- Executing pure implementation tasks without an open research or verification question.
 
 ---
 
 ## Tool Selection Matrix
 
-Use this table to choose the right tool for your task:
+Choose the appropriate tool based on the research objective:
 
-| **Task Type** | **Primary Tool** | **When to Use** | **Complementary Tools** |
+| Research Objective | Primary Tool Capability | When to Use | Complementary Tools |
 |---|---|---|---|
-| **Factual searches** (best practices, current trends, market research, benchmarks, code examples) | `exa` | Whenever you need to find what's currently true about a domain — recent blog posts, benchmarks, user reviews, implementation patterns, comparison articles | Combine with `firecrawl` if highlights are too brief |
-| **Web page content extraction** (reading an article, scraping structured data, getting page markdown) | `firecrawl` | When you have a specific URL and need to extract/transform the full content, or run web searches and need to inspect results in depth | Use after `exa` search results if you need more detail |
-| **Official package/API documentation** | `context7` | Only for finding and reading the official docs of a specific package, library, or framework. **Never use alone for arbitrage or comparisons** | Must pair with `exa` (for external reviews, benchmarks) and `firecrawl` (for product pages) if evaluating buy vs build |
-| **Solution comparison / Buy vs Build** | `exa` + `firecrawl` + external sources | Use `exa` to find comparisons, reviews, and benchmarks; use `firecrawl` to read product pages and detailed articles; cross-reference with external voices (HN, Reddit, GitHub issues) | `context7` only for official docs of options you're comparing |
-| **Clarifying ambiguous requests** | `askUserQuestion` | User's request is vague, missing critical details, or you don't understand the desired output format. Ask before proceeding | Often follows the user clarifying, not replacing other tools |
-| **Video content analysis** | `youtube-analysis` (skill) | Extract key points, citations, timestamps, and external links from YouTube videos relevant to the task | Rarely primary; use when the user references a video or you find one that contains critical info |
+| **Factual Searches & Best Practices** | Web search (`exa`) | Finding current trends, community benchmarks, implementation patterns, and comparison articles. | Web page extraction (`firecrawl`) when search snippets are insufficient. |
+| **Web Page Content Extraction** | Web extraction (`firecrawl` / fetch) | Reading full article text, converting pages to clean markdown, or extracting structured JSON from a known URL. | Web search (`exa`) to discover target URLs first. |
+| **Official Documentation** | Package docs (`context7`) | Reading official API references, setup guides, and framework documentation. | Web search (`exa`) + web extraction (`firecrawl`) for external reviews and benchmarks. |
+| **Solution & Vendor Comparison** | Web search (`exa`) + Web extraction (`firecrawl`) | Comparing tools, evaluating buy-vs-build, or checking real-world developer sentiment. | Package docs (`context7`) for official capability validation. |
+| **Video Content Analysis** | Video analysis tools | Extracting transcripts, timestamps, summaries, or citations from video links. | Web search (`exa`) to cross-reference video claims. |
+| **Ambiguity Resolution** | User question tool (`askUserQuestion`) | User prompt is vague, lacks scale/constraints, or allows multiple contradictory interpretations. | Run before external research to narrow the scope. |
 
 ---
 
-## Decision Flowchart
+## Decision Flow
 
 ```
-Is the user asking for information?
-├─ YES: Do they have a specific URL in mind?
-│  ├─ YES → Use firecrawl (with markdown or JSON format as needed)
-│  └─ NO: What kind of info?
-│     ├─ "What's the current best practice?" → exa
-│     ├─ "Read the official docs for X" → context7
-│     ├─ "Compare tool A vs tool B" → exa + firecrawl (+ external sources)
-│     └─ "Analyze this YouTube video" → youtube-analysis
-├─ NO: Is the request ambiguous or incomplete?
-│  ├─ YES → askUserQuestion
-│  └─ NO: Proceed with the main task
+Is the research task clear and well-scoped?
+├─ NO: Missing critical constraints or ambiguous → Ask clarifying questions (askUserQuestion)
+└─ YES: What is the information source?
+   ├─ Specific known URL → Extract content or structured data (firecrawl / fetch)
+   ├─ Official library or framework API → Consult package docs (context7)
+   ├─ Current practices, benchmarks, or ecosystem status → Run web search (exa)
+   ├─ Comparing competing solutions / Buy vs Build → Combine web search + extraction + package docs
+   └─ Video content or reference → Run video analysis
 ```
 
 ---
 
-## Specific Patterns
+## Research Workflows
 
-### Pattern 1: Finding Current Trends & Best Practices
+### 1. Finding Current Trends and Best Practices
 
-Use `exa` for:
-- "What's the current state of X?" (LLM frameworks, deployment strategies, frontend patterns)
-- Recent blog posts, GitHub trending projects
-- Community benchmarks, real-world comparisons
-- Code examples and implementation patterns from multiple sources
+- **Problem / Goal:** Establish what is currently true in a fast-evolving ecosystem (framework versions, architectural patterns, benchmarks).
+- **Intended Result:** Objective, up-to-date recommendations backed by recent real-world sources.
+- **Why It Matters:** Training data goes stale; architectural patterns and library capabilities change rapidly.
+- **Decision Conditions:** Use web search tools (`exa`) whenever assessing current state-of-the-art, migration patterns, or community consensus.
+- **Procedure:**
+  1. Execute a natural-language query targeting the specific topic or benchmark.
+  2. If search highlights provide sufficient signal, synthesize the findings directly.
+  3. If deeper context is required, extract full content from the most authoritative returned URLs using web extraction tools.
 
-**Example:** "Should we use FastAPI or Django for our new service?" → `exa` to find recent comparisons, benchmarks, and real-world advice.
+### 2. Consulting Official Documentation
 
-### Pattern 2: Reading Official Documentation
+- **Problem / Goal:** Retrieve authoritative API signatures, configuration schemas, or supported options for a library or framework.
+- **Intended Result:** Accurate, syntax-correct usage instructions directly from vendor documentation.
+- **Why It Matters:** Guessing API contracts produces syntax errors and deprecated pattern usage.
+- **Decision Conditions:** Use documentation tools (`context7`) for targeted package or API lookups.
+- **Procedure:**
+  1. Resolve the package identifier and query the official documentation.
+  2. Extract exact parameter names, types, and supported methods.
+  3. For comparison tasks, never rely on official documentation alone.
 
-Use `context7` for:
-- Official API references
-- Package setup guides
-- Framework documentation
+### 3. Extracting Content from Known URLs
 
-**Important:** `context7` only shows official docs. If you're doing a **comparison** (buy vs build, tool A vs tool B), you must supplement with:
-- `exa` (for external benchmarks, reviews, GitHub discussions)
-- `firecrawl` (for product landing pages, pricing pages, detailed blog posts from vendors)
+- **Problem / Goal:** Ingest raw web pages, documentation articles, or API specifications into clean, structured context.
+- **Intended Result:** Clean markdown or schema-validated JSON without HTML boilerplate or navigation noise.
+- **Why It Matters:** Parsing uncleaned HTML wastes context tokens and obscures core content.
+- **Decision Conditions:** Use web extraction tools (`firecrawl` / fetch) when a specific, verified URL is available.
+- **Procedure:**
+  1. Select output format: markdown for reading and synthesis; JSON with schema for structured data extraction.
+  2. Fetch the content and verify response status.
+  3. If extraction fails or URL returns 404, return to discovery rather than guessing alternative URLs.
 
-**Example:** "Should we use Pydantic AI or LangChain?" → 
-1. Use `context7` to read the official docs of each
-2. Use `exa` to find comparisons, GitHub issues, community feedback
-3. Use `firecrawl` to read blog posts or detailed reviews from each vendor
+### 4. Comparing Solutions and Buy-vs-Build Decisions
 
-### Pattern 3: Extracting Data from a Known URL
+- **Problem / Goal:** Evaluate trade-offs between competing technologies, services, or custom implementations.
+- **Intended Result:** Balanced, multi-perspective evaluation covering capabilities, pricing, operational complexity, and developer feedback.
+- **Why It Matters:** Official documentation reflects marketing claims and omits production edge cases, bugs, and hidden costs.
+- **Decision Conditions:** Required whenever selecting between competing frameworks, databases, or cloud vendors.
+- **Procedure:**
+  1. Query official documentation (`context7`) for feature availability and official specs of each candidate.
+  2. Search external sources (`exa`) for independent benchmarks, community post-mortems, and discussions (GitHub issues, Hacker News, Reddit).
+  3. Scrape pricing pages and feature matrices (`firecrawl`) for commercial solutions.
+  4. Cross-reference claims and synthesize verified trade-offs.
 
-Use `firecrawl` with the right format:
-- **Markdown:** for reading articles, understanding page content, summarizing
-- **JSON + prompt:** for structured data extraction (e.g., "extract all features from this pricing page")
-- **HTML:** if you need the raw DOM structure (rare, usually markdown is better)
-- **Screenshot:** if visual inspection matters (e.g., UI changes, layout, branding)
+### 5. Analyzing Video Content
 
-**Example:** "Extract the API endpoints from this OpenAPI spec page" → `firecrawl` with JSON format and a schema describing the endpoints you want.
+- **Problem / Goal:** Extract technical insights, architecture breakdowns, or tutorial steps from video resources.
+- **Intended Result:** Timestamped summaries, key takeaways, and code references extracted from video material.
+- **Why It Matters:** High-value architecture walkthroughs, conference talks, and release demos often exist exclusively in video format.
+- **Decision Conditions:** Use when the user supplies a video link or when the primary authoritative demonstration is hosted on video platforms.
+- **Procedure:**
+  1. Query video analysis tools to retrieve metadata, chapters, and full transcripts.
+  2. Extract key timestamps and referenced external links.
+  3. Cross-reference critical technical claims with official documentation or web search.
 
-### Pattern 4: Comparing Multiple Solutions (Buy vs Build)
+### 6. Clarifying Ambiguity
 
-1. **Don't use `context7` alone** — it only shows official docs, not comparisons or real-world tradeoffs.
-2. **Use `exa`** to find independent comparisons, benchmarks, GitHub discussions, reviews.
-3. **Use `firecrawl`** for detailed product pages, pricing, feature matrices.
-4. **Cross-reference** with external voices (HN, Reddit, GitHub issues) if the choice is critical.
-
-**Example:** "Compare Vercel's deployment platform vs self-hosted options" →
-- `exa` for independent comparisons and cost analyses
-- `firecrawl` for Vercel's pricing page and feature docs
-- `firecrawl` for self-hosted platform pages (Dokploy, Railway, Render, etc.)
-- Cross-check on GitHub and community forums for real-world feedback
-
-### Pattern 5: Clarifying Ambiguous Requests
-
-Use askUserQuestion tool when:
-- The user's request is vague ("research this")
-- You don't understand the desired output format
-- Multiple interpretations are possible
-- Key details are missing (scope, time constraint, budget, use case)
-
-**Example:** User says "Help me choose a database." Ask:
-- Scale? (hobby project vs production at 1M QPS)
-- Data shape? (structured, time-series, documents, graphs)
-- Constraints? (budget, latency, hosting)
-- Replacement cost if you pick wrong?
-
----
-
-## Anti-Patterns — What NOT to Do
-
-### ❌ NEVER invent or guess URLs
-- **This is the most critical rule in this skill.** Fabricating URLs (subdomains, paths, query params) is strictly forbidden.
-- Common mistakes: guessing `docs.<domain>` exists, guessing `/<word>` routes, hallucinating npm package scopes, inventing GitHub org names.
-- **Every URL you fetch MUST first be verified to exist** via one of:
-  - `sitemap.xml` (e.g., `https://<domain>/sitemap.xml`) — the authoritative list of real pages
-  - `robots.txt` (e.g., `https://<domain>/robots.txt`) — often references sitemaps and special sections
-  - `firecrawl map <domain>` — discovers real URLs from a site
-  - A link found inside already-fetched, verified content
-  - An `exa` search result (only the `url` field — never reconstruct it)
-  - The user gave you the exact URL
-- **If a fetch fails** (404, ENOTFOUND, DNS error) → the URL you tried was wrong. Do NOT retry with another guess. Go back to discovery (sitemap/robots/map/exa) to find the real URL.
-- **Verification order for a new domain you've never explored:**
-  1. Fetch `/sitemap.xml` and `/robots.txt` first (cheap, authoritative)
-  2. Read what pages actually exist
-  3. Fetch only those real URLs
-- **Anti-example (real failure):** User says "compare with omp.sh". Wrong: guessing `docs.omp.sh` (subdomain doesn't exist) then `omp.sh/docs` (unverified path). Right: fetch `omp.sh/sitemap.xml` → discover real routes → fetch confirmed URLs.
-- **Subdomains are never free.** `docs.X`, `api.X`, `blog.X` are separate DNS records that may or may not exist. Always verify.
-
-### ❌ Don't use `context7` for arbitrage or comparisons
-- `context7` only covers official docs. To compare solutions, you need `exa` + external sources.
-- Using `context7` alone will give you biased, incomplete information.
-
-### ❌ Don't use `brainstorming` skill outside ideation
-- `brainstorming` is for exploring ideas and requirements before you have a clear direction.
-- **Do not use it** during implementation, research, or decision-making phases.
-- If you catch yourself wanting to brainstorm mid-project, it's a signal to stop, clarify requirements, and then resume execution.
-
-### ❌ Don't skip the user clarification step
-- If a request is ambiguous, using askUserQuestion is faster than guessing and iterating.
-- Three minutes of clarification beats three hours of solving the wrong problem.
-
-### ❌ Don't let `firecrawl` replace `exa` for exploration
-- `firecrawl` requires a specific URL. If you don't know which pages to read, use `exa` first to discover them.
-- `exa` is for "what should I look at?" — `firecrawl` is for "read this specific page."
-
-### ❌ Don't use `youtube-analysis` for general web research
-- YouTube videos are useful for deep dives and educational content, not as a substitute for current news or benchmarks.
-- Only use when the user explicitly references a video or you've found one that contains critical information.
+- **Problem / Goal:** Prevent wasted research execution when the user's objective is underspecified.
+- **Intended Result:** Explicit operating constraints (target scale, platform, budget, latency requirements).
+- **Why It Matters:** Researching the wrong problem wastes tool calls and produces unhelpful recommendations.
+- **Decision Conditions:** Trigger interactive user questions (`askUserQuestion`) when multiple conflicting interpretations exist or key requirements are omitted.
+- **Procedure:**
+  1. Formulate focused, specific questions presenting concrete options.
+  2. Identify the single highest-impact unknown before proceeding with deep research.
 
 ---
 
-## Checklist: Before You Proceed
+## Non-Negotiable Verification Boundaries
 
-Before launching into research, ask yourself:
+### 1. Mandatory URL Verification (Strict Anti-Hallucination)
 
-- [ ] Do I understand what the user is actually asking for?
-  - If no → use askUserQuestion first
-- [ ] Do I have specific URLs to read, or do I need to discover them?
-  - If discover → start with `exa`
-  - If specific → start with `firecrawl`
-- [ ] Is this a comparison or arbitrage task?
-  - If yes → use `exa` + `firecrawl` + external sources (never `context7` alone)
-- [ ] Am I about to use `brainstorming` outside of ideation?
-  - If yes → stop, reconsider the phase you're in
+Fabricating, guessing, or reconstructing URLs is strictly prohibited. Subdomains (`docs.example.com`), path structures (`/api/v1`), and package registry routes must be confirmed before fetching.
 
----
+**Verified URL sources only:**
+- Direct `sitemap.xml` entries (e.g. `https://<domain>/sitemap.xml`).
+- Verified `robots.txt` paths (e.g. `https://<domain>/robots.txt`).
+- Site discovery mappings (e.g. `firecrawl map <domain>`).
+- Direct links extracted from previously fetched, verified web pages.
+- Exact `url` fields returned in search tool results (`exa`).
+- Exact URLs explicitly provided by the user.
 
-## Examples in Action
+**Discovery protocol for unexplored domains:**
+1. Fetch `/sitemap.xml` and `/robots.txt` first.
+2. Identify real paths from sitemap contents.
+3. Fetch only confirmed URLs.
+4. If a fetch returns 404 or DNS resolution fails, do not guess alternative subdomains or paths; return to discovery.
 
-### Example 1: "What's the best way to structure a FastAPI project?"
+### 2. Multi-Source Rule for Arbitrage and Comparisons
 
-1. Use `exa` to find current best practices, blog posts, GitHub repos with good examples
-2. Read 2–3 of the most useful articles with `firecrawl` if the highlights are insufficient
-3. Synthesize into advice
+Official documentation tools (`context7`) must never be used in isolation for comparative evaluation or buy-vs-build recommendations. All comparisons require multi-source verification:
+- Official documentation for capability claims.
+- Independent search results for operational trade-offs and developer experience.
+- Verified pricing and specification pages for vendor cost structures.
 
-### Example 2: "Should we migrate from our custom auth to OAuth2?"
+### 3. Discovery Before Extraction
 
-1. Use `askUserQuestion` to clarify: scale, compliance needs, team capacity
-2. Use `exa` to find comparisons, migration guides, cost estimates
-3. Use `context7` to read OAuth2 official specs if needed for technical details
-4. Use `firecrawl` to read your current provider's migration docs
-
-### Example 3: "Compare Anthropic Claude API vs OpenAI GPT-4 for our use case"
-
-1. Use `exa` to find independent comparisons, benchmarks, cost analyses, GitHub discussions
-2. Use `context7` to read official API docs for both
-3. Use `firecrawl` for pricing pages, feature matrices, and detailed comparisons from each vendor
-4. Do a test call to each API (outside this skill's scope) for real-world latency/quality comparison
-
-### Example 4: "Clarify what the user needs from a new feature"
-
-- User says: "Make the dashboard better."
-- You: askUserQuestion → "What specific pain point?" / "Who's the user?" / "What metric matters most?"
-- After clarification, proceed with the real research or design task
-
----
-
-## When Not to Use This Skill
-
-This skill is **context and guidance only** — it doesn't produce files, code, or direct outputs. Once you've chosen your tool(s), invoke them directly. This skill's job is just to help you pick the right one.
-
-If you're doing something that doesn't involve research, tool selection, or clarification, you probably don't need this skill.
+Never use single-page web extractors (`firecrawl`) as a replacement for search tools (`exa`). Use search tools to discover relevant pages across the web; use extractors only once target URLs are identified.
