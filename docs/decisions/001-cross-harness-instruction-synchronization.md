@@ -24,9 +24,9 @@ VS Code Copilot. Each harness uses a different loading mechanism:
 
 The repository already contains the two cross-harness sources:
 
-- `instructions/evidence-led.instructions.md` is the canonical source for
+- `instructions/evidence-led.md` is the canonical source for
   durable operating invariants.
-- `instructions/user-indications.instructions.md` is the canonical source for
+- `instructions/user-indications.md` is the canonical source for
   general coding and collaboration preferences.
 
 At the time of this decision, the evidence-led source matches the active Pi
@@ -64,8 +64,8 @@ release flow, and source-of-truth boundary.
 Preserve the existing source filenames in version 1:
 
 ```text
-instructions/evidence-led.instructions.md
-instructions/user-indications.instructions.md
+instructions/evidence-led.md
+instructions/user-indications.md
 ```
 
 The filenames describe their purpose but do not confer instruction priority.
@@ -136,8 +136,8 @@ Use the following semantic mapping:
 
 | Canonical source | Pi | Codex | VS Code |
 | --- | --- | --- | --- |
-| `evidence-led.instructions.md` | `SYSTEM.md` | managed `developer_instructions` block in `config.toml` | invariants section of one combined instruction file |
-| `user-indications.instructions.md` | global `agent/AGENTS.md` | global `AGENTS.md` | preferences section of the same combined instruction file |
+| `evidence-led.md` | `SYSTEM.md` | managed `developer_instructions` block in `config.toml` | invariants section of one combined instruction file |
+| `user-indications.md` | global `agent/AGENTS.md` | global `AGENTS.md` | preferences section of the same combined instruction file |
 | `pi/append-system.md` | `APPEND_SYSTEM.md` | not applicable | not applicable |
 
 The Pi repository-level `.pi/AGENTS.md` is not generated because it describes

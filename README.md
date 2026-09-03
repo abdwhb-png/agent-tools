@@ -14,9 +14,9 @@ outputs.
 The [`instructions/`](instructions/) directory contains the canonical global
 instruction sources:
 
-- [`evidence-led.instructions.md`](instructions/evidence-led.instructions.md)
+- [`evidence-led.md`](instructions/evidence-led.md)
   defines durable, evidence-led operating invariants.
-- [`user-indications.instructions.md`](instructions/user-indications.instructions.md)
+- [`user-indications.md`](instructions/user-indications.md)
   defines general coding and collaboration preferences that project-level
   instructions may refine or override.
 
