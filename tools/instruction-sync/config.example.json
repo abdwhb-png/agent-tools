@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "harnesses": {
+    "pi": {
+      "enabled": true,
+      "agentDir": "/absolute/path/to/.pi/agent"
+    },
+    "codex": {
+      "enabled": true,
+      "home": "/absolute/path/to/.codex"
+    },
+    "vscode": {
+      "enabled": true,
+      "targets": [
+        "/absolute/path/to/Code/User/instructions/agent-policy.instructions.md",
+        "/absolute/path/to/.copilot/instructions/agent-policy.instructions.md"
+      ]
+    }
+  }
+}

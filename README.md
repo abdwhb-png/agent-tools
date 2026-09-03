@@ -65,7 +65,33 @@ boundary.
 - Canonical instruction sources: available
 - Reusable skills: available
 - Cross-harness instruction synchronizer: architecture accepted, implementation
-  pending
+  available at [`tools/instruction-sync/`](tools/instruction-sync/)
+
+## Instruction synchronization
+
+The synchronizer is a self-contained Node 24+ CLI. A clone can run the checked
+in artifact without installing dependencies:
+
+```bash
+node tools/instruction-sync/dist/agent-policy.mjs configure --apply
+node tools/instruction-sync/dist/agent-policy.mjs doctor
+node tools/instruction-sync/dist/agent-policy.mjs check
+node tools/instruction-sync/dist/agent-policy.mjs sync
+```
+
+`configure` is optional. You may instead copy
+[`config.example.json`](tools/instruction-sync/config.example.json) to any
+machine-local path, edit its absolute target paths, and provide it through
+`--config /path/to/config.json`. The file supports enabling or disabling each
+harness and a list of VS Code instruction destinations.
+
+`check` never writes and returns non-zero for stale, missing, untracked, or
+conflicted targets. Existing divergent targets require explicit
+`adopt --target <id> --apply` (or `--all`); adoption writes a recovery backup.
+Use `bun run typecheck`, `bun test`, `bun run build`, and `bun run verify:dist`
+from `tools/instruction-sync/` when maintaining the tool. Source maintenance
+requires Bun 1.3.14 and a locally available TypeScript compiler; the committed
+CLI itself requires only Node 24+.
 
 ## Contributing
 
