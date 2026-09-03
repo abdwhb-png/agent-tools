@@ -1,9 +1,9 @@
 ---
-name: tdd-v2
+name: tdd
 description: Drive production features, bug fixes, behavior changes, and refactors with focused executable coverage. For behavior changes, use a verified RED -> GREEN -> REFACTOR loop; for behavior-preserving refactors, establish mutation-sensitive characterization tests and keep them green.
 ---
 
-# Test-Driven Development v2
+# Test-Driven Development
 
 TDD turns a requested behavior into an executable contract before implementation biases the design. The result is a focused test that can catch a realistic regression, not a test that merely reflects the current implementation.
 
