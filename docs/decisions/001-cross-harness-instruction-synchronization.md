@@ -24,10 +24,13 @@ VS Code Copilot. Each harness uses a different loading mechanism:
 
 The repository already contains the two cross-harness sources:
 
-- `instructions/evidence-led.md` is the canonical source for
+- `instructions/invariant.md` is the canonical source for
   durable operating invariants.
-- `instructions/user-indications.md` is the canonical source for
+- `instructions/preferences.md` is the canonical source for
   general coding and collaboration preferences.
+
+> Historical note: at decision time these files were named `evidence-led.md` and `user-indications.md`.
+> They were renamed to `invariant.md` and `preferences.md` afterward.
 
 At the time of this decision, the evidence-led source matches the active Pi
 `SYSTEM.md`. The user-indications source matches the active Codex global
@@ -64,9 +67,11 @@ release flow, and source-of-truth boundary.
 Preserve the existing source filenames in version 1:
 
 ```text
-instructions/evidence-led.md
-instructions/user-indications.md
+instructions/invariant.md
+instructions/preferences.md
 ```
+
+> Historical note: originally `instructions/evidence-led.md` and `instructions/user-indications.md`.
 
 The filenames describe their purpose but do not confer instruction priority.
 They are retained because the repository cannot establish whether external
@@ -137,8 +142,8 @@ Use the following semantic mapping:
 
 | Canonical source | Pi | Codex | VS Code |
 | --- | --- | --- | --- |
-| `evidence-led.md` | `SYSTEM.md` | managed `developer_instructions` block in `config.toml` | invariants section of one combined instruction file |
-| `user-indications.md` | global `agent/AGENTS.md` | global `AGENTS.md` | preferences section of the same combined instruction file |
+| `invariant.md` | `SYSTEM.md` | managed `developer_instructions` block in `config.toml` | invariants section of one combined instruction file |
+| `preferences.md` | global `agent/AGENTS.md` | global `AGENTS.md` | preferences section of the same combined instruction file |
 | `pi/append-system.md` | `APPEND_SYSTEM.md` | not applicable | not applicable |
 
 The Pi repository-level `.pi/AGENTS.md` is not generated because it describes

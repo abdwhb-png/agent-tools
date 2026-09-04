@@ -489,8 +489,8 @@ async function canonicalSources() {
   const root = repositoryRoot();
   const read = async (...parts) => normalizeInstruction(await fs2.readFile(path4.join(root, ...parts), "utf8"));
   return {
-    invariants: await read("instructions", "evidence-led.md"),
-    preferences: await read("instructions", "user-indications.md"),
+    invariants: await read("instructions", "invariant.md"),
+    preferences: await read("instructions", "preferences.md"),
     piAppend: await read("instructions", "pi", "append-system.md")
   };
 }

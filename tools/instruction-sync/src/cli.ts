@@ -2,12 +2,22 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { currentEnvironment, defaultConfigPath, defaultPolicyConfig, defaultStatePath, parsePolicyConfig } from "./config.js";
+import {
+  currentEnvironment,
+  defaultConfigPath,
+  defaultPolicyConfig,
+  defaultStatePath,
+  parsePolicyConfig,
+} from "./config.js";
 import { normalizeInstruction } from "./renderers.js";
 import { assessTargets, loadState, synchronize } from "./sync.js";
 import type { PolicyConfig } from "./types.js";
 
-type Arguments = { positional: string[]; values: Map<string, string[]>; flags: Set<string> };
+type Arguments = {
+  positional: string[];
+  values: Map<string, string[]>;
+  flags: Set<string>;
+};
 
 function parseArguments(argv: string[]): Arguments {
   const positional: string[] = [];
@@ -69,14 +79,23 @@ async function readOptional(filePath: string): Promise<string | undefined> {
   }
 }
 
-async function atomicWrite(destination: string, content: string): Promise<void> {
+async function atomicWrite(
+  destination: string,
+  content: string,
+): Promise<void> {
   await fs.mkdir(path.dirname(destination), { recursive: true });
-  const temporary = path.join(path.dirname(destination), `.${path.basename(destination)}.agent-policy-${process.pid}.tmp`);
+  const temporary = path.join(
+    path.dirname(destination),
+    `.${path.basename(destination)}.agent-policy-${process.pid}.tmp`,
+  );
   await fs.writeFile(temporary, content, "utf8");
   await fs.rename(temporary, destination);
 }
 
-function configuredPolicy(base: PolicyConfig, arguments_: Arguments): PolicyConfig {
+function configuredPolicy(
+  base: PolicyConfig,
+  arguments_: Arguments,
+): PolicyConfig {
   const result: PolicyConfig = structuredClone(base);
   const pi = value(arguments_, "--pi-agent-dir");
   const codex = value(arguments_, "--codex-home");
@@ -85,11 +104,15 @@ function configuredPolicy(base: PolicyConfig, arguments_: Arguments): PolicyConf
   if (codex) result.harnesses.codex.home = codex;
   if (vscode.length > 0) result.harnesses.vscode.targets = vscode;
   if (arguments_.flags.has("--enable-pi")) result.harnesses.pi.enabled = true;
-  if (arguments_.flags.has("--enable-codex")) result.harnesses.codex.enabled = true;
-  if (arguments_.flags.has("--enable-vscode")) result.harnesses.vscode.enabled = true;
+  if (arguments_.flags.has("--enable-codex"))
+    result.harnesses.codex.enabled = true;
+  if (arguments_.flags.has("--enable-vscode"))
+    result.harnesses.vscode.enabled = true;
   if (arguments_.flags.has("--disable-pi")) result.harnesses.pi.enabled = false;
-  if (arguments_.flags.has("--disable-codex")) result.harnesses.codex.enabled = false;
-  if (arguments_.flags.has("--disable-vscode")) result.harnesses.vscode.enabled = false;
+  if (arguments_.flags.has("--disable-codex"))
+    result.harnesses.codex.enabled = false;
+  if (arguments_.flags.has("--disable-vscode"))
+    result.harnesses.vscode.enabled = false;
   return parsePolicyConfig(JSON.stringify(result));
 }
 
@@ -103,16 +126,22 @@ function toolDirectory(): string {
 
 async function canonicalSources() {
   const root = repositoryRoot();
-  const read = async (...parts: string[]) => normalizeInstruction(await fs.readFile(path.join(root, ...parts), "utf8"));
+  const read = async (...parts: string[]) =>
+    normalizeInstruction(await fs.readFile(path.join(root, ...parts), "utf8"));
   return {
-    invariants: await read("instructions", "evidence-led.md"),
-    preferences: await read("instructions", "user-indications.md"),
+    invariants: await read("instructions", "invariant.md"),
+    preferences: await read("instructions", "preferences.md"),
     piAppend: await read("instructions", "pi", "append-system.md"),
   };
 }
 
-function printAssessments(items: Awaited<ReturnType<typeof assessTargets>>): void {
-  for (const item of items) console.log(`${item.status.padEnd(10)} ${item.target.id.padEnd(18)} ${item.target.path} — ${item.detail}`);
+function printAssessments(
+  items: Awaited<ReturnType<typeof assessTargets>>,
+): void {
+  for (const item of items)
+    console.log(
+      `${item.status.padEnd(10)} ${item.target.id.padEnd(18)} ${item.target.path} — ${item.detail}`,
+    );
 }
 
 async function main(): Promise<void> {
@@ -123,16 +152,23 @@ async function main(): Promise<void> {
     return;
   }
   const environment = currentEnvironment();
-  const configPath = value(arguments_, "--config") || defaultConfigPath(environment, toolDirectory());
-  const statePath = value(arguments_, "--state") || defaultStatePath(environment);
+  const configPath =
+    value(arguments_, "--config") ||
+    defaultConfigPath(environment, toolDirectory());
+  const statePath =
+    value(arguments_, "--state") || defaultStatePath(environment);
   if (command === "configure") {
     const existing = await readOptional(configPath);
-    const base = existing ? parsePolicyConfig(existing) : defaultPolicyConfig(environment);
+    const base = existing
+      ? parsePolicyConfig(existing)
+      : defaultPolicyConfig(environment);
     const next = configuredPolicy(base, arguments_);
     const rendered = `${JSON.stringify(next, null, 2)}\n`;
     console.log(`Configuration: ${configPath}\n${rendered}`);
     if (!arguments_.flags.has("--apply")) {
-      console.log("Dry run only. Re-run with --apply to write this configuration.");
+      console.log(
+        "Dry run only. Re-run with --apply to write this configuration.",
+      );
       return;
     }
     await atomicWrite(configPath, rendered);
@@ -140,7 +176,10 @@ async function main(): Promise<void> {
     return;
   }
   const rawConfig = await readOptional(configPath);
-  if (!rawConfig) throw new Error(`configuration does not exist: ${configPath}; run configure or provide --config`);
+  if (!rawConfig)
+    throw new Error(
+      `configuration does not exist: ${configPath}; run configure or provide --config`,
+    );
   const config = parsePolicyConfig(rawConfig);
   const sources = await canonicalSources();
   const state = await loadState(statePath);
@@ -148,24 +187,45 @@ async function main(): Promise<void> {
     const assessments = await assessTargets(config, state, sources);
     console.log(`Config: ${configPath}\nState:  ${statePath}`);
     printAssessments(assessments);
-    if (assessments.some((item) => item.status !== "current")) process.exitCode = 1;
+    if (assessments.some((item) => item.status !== "current"))
+      process.exitCode = 1;
     return;
   }
   if (command === "sync") {
     printAssessments(await assessTargets(config, state, sources));
     const result = await synchronize(config, state, statePath, sources);
-    console.log(result.changed.length ? `Updated: ${result.changed.join(", ")}` : "No target files changed.");
+    console.log(
+      result.changed.length
+        ? `Updated: ${result.changed.join(", ")}`
+        : "No target files changed.",
+    );
     return;
   }
   if (command === "adopt") {
-    if (!arguments_.flags.has("--apply")) throw new Error("adopt requires --apply");
-    const preliminary = await assessTargets(config, state, sources, undefined, true);
+    if (!arguments_.flags.has("--apply"))
+      throw new Error("adopt requires --apply");
+    const preliminary = await assessTargets(
+      config,
+      state,
+      sources,
+      undefined,
+      true,
+    );
     printAssessments(preliminary);
-    const selected = arguments_.flags.has("--all") ? new Set(preliminary.map((item) => item.target.id)) : new Set(values(arguments_, "--target"));
-    if (selected.size === 0) throw new Error("adopt requires --target or --all");
-    const result = await synchronize(config, state, statePath, sources, { adopt: true, adoptTargets: selected });
-    console.log(`Adopted: ${result.changed.join(", ") || "no changed target files"}`);
-    if (result.backups.length) console.log(`Backups: ${result.backups.join(", ")}`);
+    const selected = arguments_.flags.has("--all")
+      ? new Set(preliminary.map((item) => item.target.id))
+      : new Set(values(arguments_, "--target"));
+    if (selected.size === 0)
+      throw new Error("adopt requires --target or --all");
+    const result = await synchronize(config, state, statePath, sources, {
+      adopt: true,
+      adoptTargets: selected,
+    });
+    console.log(
+      `Adopted: ${result.changed.join(", ") || "no changed target files"}`,
+    );
+    if (result.backups.length)
+      console.log(`Backups: ${result.backups.join(", ")}`);
     return;
   }
   throw new Error(`unknown command: ${command}\n\n${usage()}`);
