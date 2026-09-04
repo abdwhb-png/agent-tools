@@ -97,6 +97,10 @@ function repositoryRoot(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 }
 
+function toolDirectory(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+}
+
 async function canonicalSources() {
   const root = repositoryRoot();
   const read = async (...parts: string[]) => normalizeInstruction(await fs.readFile(path.join(root, ...parts), "utf8"));
@@ -119,7 +123,7 @@ async function main(): Promise<void> {
     return;
   }
   const environment = currentEnvironment();
-  const configPath = value(arguments_, "--config") || defaultConfigPath(environment);
+  const configPath = value(arguments_, "--config") || defaultConfigPath(environment, toolDirectory());
   const statePath = value(arguments_, "--state") || defaultStatePath(environment);
   if (command === "configure") {
     const existing = await readOptional(configPath);

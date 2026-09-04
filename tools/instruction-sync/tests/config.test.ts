@@ -29,6 +29,11 @@ test("resolves Linux XDG paths without reading the test host", () => {
   ]);
 });
 
+test("prefers an explicit instruction-sync directory for the default configuration", () => {
+  const environment = { home: "/home/agent", platform: "linux", env: { XDG_CONFIG_HOME: "/config" } };
+  expect(defaultConfigPath(environment, "/repo/tools/instruction-sync")).toBe("/repo/tools/instruction-sync/config.json");
+});
+
 test("rejects unsupported configuration keys and relative target paths", () => {
   expect(() => parsePolicyConfig(JSON.stringify({ schemaVersion: 1, harnesses: {}, extra: true }))).toThrow("unsupported key");
   expect(() => parsePolicyConfig(JSON.stringify({

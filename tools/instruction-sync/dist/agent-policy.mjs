@@ -47,7 +47,9 @@ function defaultCodeProfile(environment) {
 function currentEnvironment() {
   return { home: os.homedir(), platform: process.platform, env: process.env };
 }
-function defaultConfigPath(environment = currentEnvironment()) {
+function defaultConfigPath(environment = currentEnvironment(), toolDirectory) {
+  if (toolDirectory)
+    return platformPath(environment.platform).join(toolDirectory, "config.json");
   if (environment.platform === WINDOWS) {
     return environment.env.APPDATA ? path.win32.join(environment.env.APPDATA, "agent-policy", "config.json") : homePath(environment, "AppData", "Roaming", "agent-policy", "config.json");
   }
@@ -274,7 +276,7 @@ function ownedContent(target, existing) {
 async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnmanaged = false) {
   const codexPath = config.harnesses.codex.enabled ? path3.join(config.harnesses.codex.home, "config.toml") : undefined;
   const codexConfig = codexPath ? await readOptional(io, codexPath) : undefined;
-  const targets = renderTargets(config, sources, codexConfig, adoptUnmanaged);
+  const targets = renderTargets(config, sources, codexConfig, true);
   const assessments = [];
   for (const target of targets) {
     const existing = target.path === codexPath ? codexConfig : await readOptional(io, target.path);
@@ -480,6 +482,9 @@ function configuredPolicy(base, arguments_) {
 function repositoryRoot() {
   return path4.resolve(path4.dirname(fileURLToPath(import.meta.url)), "../../..");
 }
+function toolDirectory() {
+  return path4.resolve(path4.dirname(fileURLToPath(import.meta.url)), "..");
+}
 async function canonicalSources() {
   const root = repositoryRoot();
   const read = async (...parts) => normalizeInstruction(await fs2.readFile(path4.join(root, ...parts), "utf8"));
@@ -501,7 +506,7 @@ async function main() {
     return;
   }
   const environment = currentEnvironment();
-  const configPath = value(arguments_, "--config") || defaultConfigPath(environment);
+  const configPath = value(arguments_, "--config") || defaultConfigPath(environment, toolDirectory());
   const statePath = value(arguments_, "--state") || defaultStatePath(environment);
   if (command === "configure") {
     const existing = await readOptional2(configPath);

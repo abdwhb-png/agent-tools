@@ -37,7 +37,8 @@ export function currentEnvironment(): RuntimeEnvironment {
   return { home: os.homedir(), platform: process.platform, env: process.env };
 }
 
-export function defaultConfigPath(environment = currentEnvironment()): string {
+export function defaultConfigPath(environment = currentEnvironment(), toolDirectory?: string): string {
+  if (toolDirectory) return platformPath(environment.platform).join(toolDirectory, "config.json");
   if (environment.platform === WINDOWS) {
     return environment.env.APPDATA
       ? path.win32.join(environment.env.APPDATA, "agent-policy", "config.json")

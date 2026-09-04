@@ -1,2 +1,7 @@
 *-workspace/
 *-baseline/
+
+.agents
+skills-lock.json
+tools/instruction-sync/node_modules/
+tools/instruction-sync/config.json

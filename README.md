@@ -79,11 +79,13 @@ node tools/instruction-sync/dist/agent-policy.mjs check
 node tools/instruction-sync/dist/agent-policy.mjs sync
 ```
 
-`configure` is optional. You may instead copy
-[`config.example.json`](tools/instruction-sync/config.example.json) to any
-machine-local path, edit its absolute target paths, and provide it through
-`--config /path/to/config.json`. The file supports enabling or disabling each
-harness and a list of VS Code instruction destinations.
+The default configuration is
+[`tools/instruction-sync/config.json`](tools/instruction-sync/config.json),
+next to the executable. `configure` is optional: you may instead copy
+[`config.example.json`](tools/instruction-sync/config.example.json) there,
+edit its absolute target paths, or use `--config /path/to/config.json` to
+override the default. The file supports enabling or disabling each harness and
+a list of VS Code instruction destinations.
 
 `check` never writes and returns non-zero for stale, missing, untracked, or
 conflicted targets. Existing divergent targets require explicit

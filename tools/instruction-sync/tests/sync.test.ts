@@ -77,3 +77,23 @@ test("adopt explicitly replaces an unmanaged target and records a recovery backu
   expect(result.backups).toHaveLength(1);
   expect((await loadState(statePath)).targets["pi-agents"]).toBeDefined();
 });
+
+test("assessment reports an unmanaged Codex value as a conflict without throwing", async () => {
+  const root = await sandbox();
+  const codexHome = path.join(root, "codex");
+  await fs.mkdir(codexHome, { recursive: true });
+  await fs.writeFile(path.join(codexHome, "config.toml"), 'developer_instructions = """\nexisting\n"""\n');
+  const config: PolicyConfig = {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: true, home: codexHome },
+      vscode: { enabled: false },
+    },
+  };
+  const assessments = await assessTargets(config, emptyState(), source);
+  expect(assessments.find((item) => item.target.id === "codex-config")).toMatchObject({
+    status: "conflict",
+    detail: expect.stringContaining("unmanaged"),
+  });
+});

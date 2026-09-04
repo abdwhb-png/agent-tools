@@ -53,7 +53,10 @@ export async function assessTargets(
 ): Promise<TargetAssessment[]> {
   const codexPath = config.harnesses.codex.enabled ? path.join(config.harnesses.codex.home!, "config.toml") : undefined;
   const codexConfig = codexPath ? await readOptional(io, codexPath) : undefined;
-  const targets = renderTargets(config, sources, codexConfig, adoptUnmanaged);
+  // Rendering the adoption form here lets read-only commands classify an
+  // unmanaged Codex value as a conflict. synchronize still rejects that
+  // conflict unless the caller selected it through explicit adoption.
+  const targets = renderTargets(config, sources, codexConfig, true);
   const assessments: TargetAssessment[] = [];
   for (const target of targets) {
     const existing = target.path === codexPath ? codexConfig : await readOptional(io, target.path);

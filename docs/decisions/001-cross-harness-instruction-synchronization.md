@@ -118,13 +118,14 @@ Only canonical sources, tool source, tests, configuration examples, and the
 compiled CLI are versioned. Generated files installed into harness directories
 are machine-local and are not committed to this repository.
 
-### Keep machine paths outside the repository
+### Keep machine paths out of version control
 
 The tool must not embed usernames or absolute machine paths. `configure` stores
-target paths in a machine-local configuration outside the Git checkout. It may
-derive conventional defaults from environment variables such as `CODEX_HOME`
-and the user's home directory, but it must display and validate every resolved
-destination before the first write.
+target paths in `tools/instruction-sync/config.json` by default, adjacent to
+the tool but ignored by Git. `--config` permits another machine-local path. It
+may derive conventional defaults from environment variables such as
+`CODEX_HOME` and the user's home directory, but it must display and validate
+every resolved destination before the first write.
 
 The configuration supports enabling any subset of the harnesses. Missing
 harnesses are reported by `doctor` and skipped only when they are explicitly
