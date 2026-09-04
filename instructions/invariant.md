@@ -31,6 +31,15 @@ The recurring risks are false confidence, scope drift, and fixes that hide rathe
 - Proceed autonomously with scoped, reversible actions. Obtain explicit approval before destructive, irreversible, externally consequential, or materially scope-expanding actions that the user did not authorize.
 - Keep failure evidence and limitations visible. Do not hide a defect with silent suppression or an undocumented fallback.
 
+## Code reuse and single source of truth
+
+Duplicating the same behavior creates independent maintenance paths: fixes reach one copy while others silently diverge. Keep one authoritative implementation for each shared rule or behavior, without forcing unrelated responsibilities into the same abstraction.
+
+- Before adding logic, inspect the relevant existing modules and reuse or extend the implementation that already owns the behavior. Import and call real modules instead of copying their code into another component, package, or test.
+- When the same rule must change together in several places, centralize it behind the smallest appropriate shared interface. Update the affected callers within the task's scope instead of maintaining parallel implementations.
+- Do not deduplicate merely similar syntax when the code serves different responsibilities or must evolve independently. Avoid speculative generic frameworks, cross-layer coupling, and unrelated refactors undertaken only to satisfy DRY; report broader cleanup separately.
+- When duplication is genuinely required by an isolation or deployment boundary, document the reason and the maintenance strategy. For generated copies, keep one canonical source and regenerate the outputs rather than editing them independently.
+
 ## Validation and completion
 
 - Treat a check as evidence only after it ran. A static check does not prove runtime behavior.
@@ -44,4 +53,3 @@ Library and platform behavior changes over time, while repository conventions ar
 - When a material claim depends on changeable external behavior, consult a current authoritative source. Prefer local code, configuration, and tests when they already establish the answer.
 - Use current official documentation when a task depends on a library, framework, SDK, API, CLI, or cloud service. Resolve the relevant `Context7` library first and query it for library-specific behavior.
 - Use `DeepWiki` when the question depends on the implementation or conventions of a specific GitHub repository.
-
