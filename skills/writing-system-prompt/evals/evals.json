@@ -33,6 +33,53 @@
                 "La réponse définit une syntaxe d'invocation explicite qui ne se déclenche pas sur un sigle ordinaire.",
                 "La réponse donne au moins deux exemples où des occurrences dans les tickets ou le texte ne doivent pas activer un alias."
             ]
+        },
+        {
+            "id": 4,
+            "prompt": "Mes modèles principaux chargent correctement le skill TDD, mais mes subagents low-cost l'oublient souvent et modifient le code sans test rouge. Est-ce que je dois retirer tout le workflow de mon AGENTS.md parce qu'il existe déjà dans un skill ? Propose une répartition concrète.",
+            "expected_output": "Une recommandation qui tient compte de la fiabilité réelle de récupération : conserver dans les instructions persistantes un noyau TDD suffisant pour prévenir l'échec principal, garder le workflow détaillé dans le skill et documenter la duplication intentionnelle.",
+            "files": [],
+            "assertions": [
+                "La réponse ne traite pas la présence du skill comme une raison automatique de supprimer toute instruction TDD persistante.",
+                "La réponse propose un noyau de secours contenant au minimum le déclencheur, RED-GREEN-REFACTOR et une condition de validation ou d'exception.",
+                "La réponse recommande d'identifier la duplication comme intentionnelle et de garder les deux sources alignées."
+            ]
+        },
+        {
+            "id": 5,
+            "prompt": "Dans le dépôt .pi, plusieurs agents lancent `bun test agent` depuis le mauvais dossier et les tests découvrent alors des fichiers vendus sous agent/git. Le bon appel est `bun --cwd=~/.pi/agent test --isolate`. Cette commande peut techniquement être retrouvée dans la configuration. Dois-je la supprimer du AGENTS.md racine ou la déplacer dans un skill Bun global ?",
+            "expected_output": "Une recommandation de conserver la contrainte dans les instructions du dépôt parce qu'elle est locale, précise, contre-intuitive et prévient un échec observé, sans la généraliser au skill Bun global.",
+            "files": [],
+            "assertions": [
+                "La réponse recommande la couche repository AGENTS.md plutôt qu'un skill Bun global.",
+                "La réponse explique que découvrable ne signifie pas automatiquement inutile lorsque la récupération est coûteuse, ambiguë ou souvent manquée.",
+                "La réponse préserve la commande exacte et limite explicitement sa portée au dépôt .pi."
+            ]
+        },
+        {
+            "id": 6,
+            "prompt": "Je maintiens les mêmes politiques pour Pi, Codex et VS Code. Les limites de périmètre sont globales, mon style de communication est une préférence utilisateur, safe_bash n'existe que dans Pi, les commandes de test sont propres à chaque dépôt et je pensais mettre mes versions TypeScript/Vite préférées dans la mémoire de chaque harnais. Conçois la répartition et indique ce qui peut être synchronisé.",
+            "expected_output": "Une architecture en couches qui sépare invariants globaux, préférences utilisateur, append Pi, AGENTS de dépôt, skills et mémoire, et qui réserve la mémoire au contexte historique plutôt qu'aux politiques déterministes.",
+            "files": [],
+            "assertions": [
+                "La réponse place les limites de périmètre dans les invariants globaux et le style dans les préférences utilisateur.",
+                "La réponse limite safe_bash au contexte Pi et les commandes de test au dépôt concerné.",
+                "La réponse déconseille la mémoire comme source déterministe des préférences TypeScript/Vite et propose une source canonique synchronisée.",
+                "La réponse distingue les sources canoniques des formats ou destinations propres aux harnais."
+            ]
+        },
+        {
+            "id": 7,
+            "prompt": "Réécris notre prompt d'agent de maintenance. Je veux une relation directe, des résultats vérifiables et la préservation de mes changements. L'agent prend parfois un typecheck réussi pour une preuve de bon fonctionnement en production et supprime les réserves dans son résumé. Garde une explication utile du pourquoi et un exemple contrastif sur cette confusion, mais ne remplis pas toutes les sections d'un modèle générique et n'ajoute pas d'alias.",
+            "expected_output": "Un prompt prêt à utiliser qui construit une relation de travail, des comportements positifs et des limites opérationnelles, explique la confusion entre preuve statique et runtime et l'illustre sans imposer de sections inutiles.",
+            "files": [],
+            "assertions": [
+                "La réponse produit un prompt opérationnel et pas seulement une classification des couches d'instructions.",
+                "Le prompt décrit le résultat recherché et au moins un comportement positif observable.",
+                "Le prompt conserve les réserves attachées aux résultats et explique pourquoi un typecheck ne prouve pas le fonctionnement en production.",
+                "Le prompt protège les changements existants et contient un exemple contrastif pertinent sur la portée de la validation.",
+                "La réponse n'invente ni alias ni sections vides pour satisfaire un modèle générique."
+            ]
         }
     ]
 }
