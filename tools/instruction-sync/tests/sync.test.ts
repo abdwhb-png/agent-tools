@@ -21,7 +21,12 @@ function piOnly(agentDir: string): PolicyConfig {
   };
 }
 
-const source = { invariants: "invariants\n", preferences: "preferences\n", piAppend: "append\n" };
+const source = {
+  invariants: "invariants\n",
+  preferences: "preferences\n",
+  technologyDefaults: "technology defaults\n",
+  piAppend: "append\n",
+};
 
 test("sync creates missing targets, records state, and becomes idempotent", async () => {
   const root = await sandbox();
@@ -60,7 +65,7 @@ test("a write failure rolls back targets already replaced and retains backups", 
       await nodeFileOps.rename(from, to);
     },
   };
-  await expect(synchronize(config, await loadState(statePath), statePath, { invariants: "new\n", preferences: "new\n", piAppend: "new\n" }, {}, failingIo)).rejects.toThrow("changed targets were rolled back");
+  await expect(synchronize(config, await loadState(statePath), statePath, { invariants: "new\n", preferences: "new\n", technologyDefaults: "new defaults\n", piAppend: "new\n" }, {}, failingIo)).rejects.toThrow("changed targets were rolled back");
   expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "SYSTEM.md"), "utf8")).toBe("invariants\n");
   expect((await fs.readdir(path.join(root, "state", "backups"))).length).toBe(1);
 });
@@ -73,7 +78,7 @@ test("adopt explicitly replaces an unmanaged target and records a recovery backu
   await fs.writeFile(path.join(config.harnesses.pi.agentDir!, "AGENTS.md"), "unmanaged preference\n");
   const result = await synchronize(config, emptyState(), statePath, source, { adopt: true, adoptTargets: new Set(["pi-agents"]) });
   expect(result.changed).toEqual(["pi-agents"]);
-  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "AGENTS.md"), "utf8")).toBe("preferences\n");
+  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "AGENTS.md"), "utf8")).toBe("preferences\n\ntechnology defaults\n");
   expect(result.backups).toHaveLength(1);
   expect((await loadState(statePath)).targets["pi-agents"]).toBeDefined();
 });

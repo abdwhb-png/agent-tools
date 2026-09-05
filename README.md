@@ -19,10 +19,15 @@ instruction sources:
 - [`preferences.md`](instructions/preferences.md)
   defines general coding and collaboration preferences that project-level
   instructions may refine or override.
+- [`technology-defaults.md`](instructions/technology-defaults.md)
+  defines conditional technology choices used only when a project has not
+  already established its own stack or tooling.
 
 These files intentionally contain plain Markdown. Pi, Codex, and VS Code use
 different configuration formats and precedence rules, so a source file should
-not be copied blindly to every destination.
+not be copied blindly to every destination. The synchronizer deterministically
+appends `technology-defaults.md` to `preferences.md` before rendering each
+harness's preferences target.
 
 ### Skills
 

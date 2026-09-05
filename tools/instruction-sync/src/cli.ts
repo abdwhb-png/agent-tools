@@ -131,6 +131,10 @@ async function canonicalSources() {
   return {
     invariants: await read("instructions", "invariant.md"),
     preferences: await read("instructions", "preferences.md"),
+    technologyDefaults: await read(
+      "instructions",
+      "technology-defaults.md",
+    ),
     piAppend: await read("instructions", "pi", "append-system.md"),
   };
 }

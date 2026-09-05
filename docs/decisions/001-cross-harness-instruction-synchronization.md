@@ -22,12 +22,14 @@ VS Code Copilot. Each harness uses a different loading mechanism:
   through instruction files, custom agents, and other customization layers.
   Multiple instruction files may be combined without a guaranteed order.
 
-The repository already contains the two cross-harness sources:
+The repository contains three cross-harness sources:
 
 - `instructions/invariant.md` is the canonical source for
   durable operating invariants.
 - `instructions/preferences.md` is the canonical source for
   general coding and collaboration preferences.
+- `instructions/technology-defaults.md` is the canonical source for conditional
+  technology choices applied when a project has not established its own.
 
 > Historical note: at decision time these files were named `evidence-led.md` and `user-indications.md`.
 > They were renamed to `invariant.md` and `preferences.md` afterward.
@@ -60,18 +62,20 @@ Relevant platform documentation:
 ### Use `agent-tools` as the canonical repository
 
 Do not create a separate repository. `agent-tools` already owns reusable agent
-instructions and skills, and already contains the two required global sources.
+instructions and skills, and already contains the required global sources.
 Keeping synchronization tooling beside those sources avoids another repository,
 release flow, and source-of-truth boundary.
 
-Preserve the existing source filenames in version 1:
+Use these canonical source filenames:
 
 ```text
 instructions/invariant.md
 instructions/preferences.md
+instructions/technology-defaults.md
 ```
 
-> Historical note: originally `instructions/evidence-led.md` and `instructions/user-indications.md`.
+> Historical note: the first two sources were originally
+> `instructions/evidence-led.md` and `instructions/user-indications.md`.
 
 The filenames describe their purpose but do not confer instruction priority.
 They are retained because the repository cannot establish whether external
@@ -144,7 +148,13 @@ Use the following semantic mapping:
 | --- | --- | --- | --- |
 | `invariant.md` | `SYSTEM.md` | managed `developer_instructions` block in `config.toml` | invariants section of one combined instruction file |
 | `preferences.md` | global `agent/AGENTS.md` | global `AGENTS.md` | preferences section of the same combined instruction file |
+| `technology-defaults.md` | appended to global `agent/AGENTS.md` | appended to global `AGENTS.md` | appended to the preferences section of the same combined instruction file |
 | `pi/append-system.md` | `APPEND_SYSTEM.md` | not applicable | not applicable |
+
+The synchronizer composes `preferences.md` followed by
+`technology-defaults.md`. They remain separate canonical sources because
+general collaboration policy and technology defaults evolve independently, but
+they deliberately share one rendered preferences layer in every harness.
 
 The Pi repository-level `.pi/AGENTS.md` is not generated because it describes
 the Pi configuration project rather than a global user preference.

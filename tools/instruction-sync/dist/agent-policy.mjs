@@ -236,17 +236,20 @@ import process2 from "node:process";
 import path2 from "node:path";
 function renderTargets(config, sources, codexConfig, adoptUnmanaged = false) {
   const targets = [];
+  const preferences = normalizeInstruction(`${sources.preferences.trimEnd()}
+
+${sources.technologyDefaults.trimEnd()}`);
   if (config.harnesses.pi.enabled) {
     const agentDir = config.harnesses.pi.agentDir;
-    targets.push({ id: "pi-system", kind: "file", path: path2.join(agentDir, "SYSTEM.md"), desired: sources.invariants, owned: sources.invariants }, { id: "pi-agents", kind: "file", path: path2.join(agentDir, "AGENTS.md"), desired: sources.preferences, owned: sources.preferences }, { id: "pi-append-system", kind: "file", path: path2.join(agentDir, "APPEND_SYSTEM.md"), desired: sources.piAppend, owned: sources.piAppend });
+    targets.push({ id: "pi-system", kind: "file", path: path2.join(agentDir, "SYSTEM.md"), desired: sources.invariants, owned: sources.invariants }, { id: "pi-agents", kind: "file", path: path2.join(agentDir, "AGENTS.md"), desired: preferences, owned: preferences }, { id: "pi-append-system", kind: "file", path: path2.join(agentDir, "APPEND_SYSTEM.md"), desired: sources.piAppend, owned: sources.piAppend });
   }
   if (config.harnesses.codex.enabled) {
     const target = renderCodexConfig(codexConfig, sources.invariants, adoptUnmanaged);
     targets.push({ id: "codex-config", kind: "codex", path: path2.join(config.harnesses.codex.home, "config.toml"), ...target });
-    targets.push({ id: "codex-agents", kind: "file", path: path2.join(config.harnesses.codex.home, "AGENTS.md"), desired: sources.preferences, owned: sources.preferences });
+    targets.push({ id: "codex-agents", kind: "file", path: path2.join(config.harnesses.codex.home, "AGENTS.md"), desired: preferences, owned: preferences });
   }
   if (config.harnesses.vscode.enabled) {
-    const output = renderVsCode(sources.invariants, sources.preferences);
+    const output = renderVsCode(sources.invariants, preferences);
     for (const [index, target] of config.harnesses.vscode.targets.entries()) {
       targets.push({ id: `vscode-${index}`, kind: "file", path: target, desired: output, owned: output });
     }
@@ -491,6 +494,7 @@ async function canonicalSources() {
   return {
     invariants: await read("instructions", "invariant.md"),
     preferences: await read("instructions", "preferences.md"),
+    technologyDefaults: await read("instructions", "technology-defaults.md"),
     piAppend: await read("instructions", "pi", "append-system.md")
   };
 }
@@ -553,7 +557,10 @@ State:  ${statePath}`);
     const selected = arguments_.flags.has("--all") ? new Set(preliminary.map((item) => item.target.id)) : new Set(values(arguments_, "--target"));
     if (selected.size === 0)
       throw new Error("adopt requires --target or --all");
-    const result = await synchronize(config, state, statePath, sources, { adopt: true, adoptTargets: selected });
+    const result = await synchronize(config, state, statePath, sources, {
+      adopt: true,
+      adoptTargets: selected
+    });
     console.log(`Adopted: ${result.changed.join(", ") || "no changed target files"}`);
     if (result.backups.length)
       console.log(`Backups: ${result.backups.join(", ")}`);
