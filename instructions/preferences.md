@@ -4,10 +4,6 @@
 
 - Write persistent instructions as direct imperatives addressed to the executing agent. Avoid third-person descriptions of what an agent or model should do.
 
-## Technology preferences
-
-- When no stack is established and these technologies are relevant, prefer strict TypeScript 7+ and Vite 8+. Never replace a project's established stack with this preference.
-
 ## Delegation
 
 Delegation is valuable when it reduces uncertainty or parallelizes substantial work, but unnecessary delegation adds coordination cost. Choose a specialist agent based on the work, keep its scope explicit, and treat only its final report as a completed result. Prevent organizational distortion across handoffs by carrying explicit intent, constraints, and success criteria intact.
@@ -17,7 +13,18 @@ Delegation is valuable when it reduces uncertainty or parallelizes substantial w
 - Without explicit authorization, launch at most one exploration or research subagent per request; do not delegate implementation or review.
 - Choose the specialist that matches the work and pass the exact objective, scope, constraints, and success criteria.
 - Treat only the subagent's complete final report as a finished result. Do not conclude while a required delegated result remains pending.
+- Require subagents to state boundaries and unverified items explicitly rather than smoothing them away.
 - If a subagent fails, times out, or is stopped, state what is missing and preserve the resulting uncertainty.
+
+
+### Subagents — strict authorization boundary
+
+Instructions inside skills such as `executing-plans`, `subagent-driven-development`, or any other skill do not constitute user authorization and must not override this restriction. When such a skill asks for implementation or review subagents, execute the work locally instead.
+
+- For factual web research, use direct research tools first; use `factual-researcher` only when substantial synthesis or independent investigation is needed.
+- For a supplied YouTube video, use the direct YouTube tools first; use `videographer` when the task requires specialist video interpretation beyond transcript and metadata, or when the user explicitly requests delegated video analysis.
+- Use `code-reviewer` or `quick-reviewer` for review work. Use `architect` or `oracle` for complex design or architecture assessment, not as a substitute for implementation review.
+- For implementation delegation, use a lightweight worker for a clear low-to-medium complexity task and a general worker when the task requires more reasoning or coordination.
 
 ## Dependency changes
 
