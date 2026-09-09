@@ -23,13 +23,13 @@ Use this skill when you need to:
 
 ### Node.js Projects
 
-| Lock File                | Package Manager | Install Command | Add Command         |
-| ------------------------ | --------------- | --------------- | ------------------- |
-| `pnpm-lock.yaml`         | pnpm            | `pnpm install`  | `pnpm add <pkg>`    |
-| `yarn.lock`              | yarn            | `yarn install`  | `yarn add <pkg>`    |
-| `bun.lockb`              | bun             | `bun install`   | `bun add <pkg>`     |
-| `package-lock.json`      | npm             | `npm install`   | `npm install <pkg>` |
-| `package.json` (no lock) | npm (default)   | `npm install`   | `npm install <pkg>` |
+| Lock File                 | Package Manager | Install Command | Add Command         |
+| ------------------------- | --------------- | --------------- | ------------------- |
+| `pnpm-lock.yaml`          | pnpm            | `pnpm install`  | `pnpm add <pkg>`    |
+| `yarn.lock`               | yarn            | `yarn install`  | `yarn add <pkg>`    |
+| `bun.lock` or `bun.lockb` | bun             | `bun install`   | `bun add <pkg>`     |
+| `package-lock.json`       | npm             | `npm install`   | `npm install <pkg>` |
+| `package.json` (no lock)  | npm (default)   | `npm install`   | `npm install <pkg>` |
 
 ### PHP Projects
 
@@ -58,13 +58,13 @@ Socket Firewall Free currently supports:
 - `npm`
 - `pnpm`
 - `yarn`
+- `bun` (via native `@socketsecurity/bun-security-scanner` in `bunfig.toml` [recommended] or `sfw bun` CLI wrapper)
 - `pip`
 - `uv`
 - `cargo`
 
 It does **not** directly cover:
 
-- `bun`
 - `composer`
 - `poetry`
 - `pipenv`
@@ -89,11 +89,27 @@ Unsupported does **not** mean unrestricted. It means you must apply compensating
 
 ## Supply-Chain Security & Hardening
 
-Setting a minimum release age (a "cooldown") on dependencies, disabling postinstall script execution, and blocking exotic/git-based sub-dependencies are high-leverage defenses against supply-chain attacks. Most malicious package versions are detected and yanked within hours, so these configuration gates filter out smash-and-grab attacks.
+Setting a minimum release age (a "cooldown") on dependencies, disabling postinstall script execution, using native security scanners, and blocking exotic/git-based sub-dependencies are high-leverage defenses against supply-chain attacks. Most malicious package versions are detected and yanked within hours, so these configuration gates filter out smash-and-grab attacks.
 
 You should configure (or encourage the user to configure) the following security controls for package managers:
 
-### 1. Release Age Gating (Cooldowns)
+### 1. Native Security Scanner for Bun (`bunfig.toml`)
+
+Bun's installer exposes a first-class security-provider API. Socket provides an official integration ([`@socketsecurity/bun-security-scanner`](https://github.com/SocketDev/bun-security-scanner)) that scans every package in real time during `bun install` and `bun add`, blocking malware and typosquats before they touch the filesystem.
+
+- Install as a dev dependency:
+  ```bash
+  bun add -d @socketsecurity/bun-security-scanner
+  ```
+- Configure under `[install.security]` in `bunfig.toml`:
+  ```toml
+  [install.security]
+  scanner = "@socketsecurity/bun-security-scanner"
+  ```
+- **Authentication (Optional):** Runs in zero-config free mode by default using Socket's public API. To enforce your organization's Socket policies, set `SOCKET_API_TOKEN` (or `SOCKET_API_KEY`) in your environment.
+- _Note:_ This native integration is the **recommended** path for Bun. While `sfw bun` is also functional, the native scanner provides optimized batching and avoids proxy-level tarball checksum issues.
+
+### 2. Release Age Gating (Cooldowns)
 
 Release age gating prevents the installation of brand-new, unvetted package versions. Apply these settings globally or at the project level to establish a cooldown (recommended: 7 days):
 
@@ -117,7 +133,7 @@ Release age gating prevents the installation of brand-new, unvetted package vers
 
 _Important Caveat:_ `npx` and `bunx` do **not** respect package release age gating and will still pull the latest versions directly from the registry. Avoid running unvetted packages via these command-line runners.
 
-### 2. Disabling Postinstall / Lifecycle Scripts
+### 3. Disabling Postinstall / Lifecycle Scripts
 
 Postinstall scripts are the primary vector for running malicious code immediately upon package download. Disable them or restrict them via explicit allowlists:
 
@@ -131,7 +147,7 @@ Postinstall scripts are the primary vector for running malicious code immediatel
   - Use `bun pm untrusted` to review scripts waiting for permission, and `bun pm trust <pkg>` to trust them.
   - To disable all scripts entirely, set `scripts = false` under `[install]` in `bunfig.toml`.
 
-### 3. Blocking Git-based and Exotic Dependencies
+### 4. Blocking Git-based and Exotic Dependencies
 
 Git-based dependencies bypass standard registry integrity checks and can smuggle unchecked package sources or re-enable unauthorized postinstall scripts.
 
@@ -149,7 +165,7 @@ Git-based dependencies bypass standard registry integrity checks and can smuggle
   ```
 - **Bun:** Exotic blocking is currently unsupported (feature request pending).
 
-### 4. pnpm Trust Policy (No Downgrade)
+### 5. pnpm Trust Policy (No Downgrade)
 
 If using pnpm, configure the trust policy to fail installations if a package's trust level decreases compared to its prior releases (protecting against bypassed publishing workflows or signature degradation):
 
@@ -157,7 +173,7 @@ If using pnpm, configure the trust policy to fail installations if a package's t
 trust-policy=no-downgrade
 ```
 
-### 5. Checking for Lockfile Injection (PR Auditing)
+### 6. Checking for Lockfile Injection (PR Auditing)
 
 Lockfile injection involves an attacker submitting a PR that silently alters resolved URLs in `package-lock.json` or `yarn.lock` to point to a malicious server, while keeping the package name intact.
 
@@ -215,7 +231,7 @@ pip --version   # or uv --version, poetry --version
 
 ### Step 4: Enforce Socket Firewall, npq, or Compensating Controls
 
-For supported ecosystems (`npm`, `pnpm`, `yarn`, `pip`, `uv`), install Socket Firewall if needed, or use `npq` (by setting up command aliases) to scan packages before they are fetched.
+For supported ecosystems (`npm`, `pnpm`, `yarn`, `bun`, `pip`, `uv`), install Socket Firewall if needed, configure `@socketsecurity/bun-security-scanner` for Bun, or use `npq` (by setting up command aliases) to scan packages before they are fetched.
 
 ```bash
 # To verify or install Socket Firewall:
@@ -226,13 +242,13 @@ sfw --version
 npm i -g npq
 ```
 
-_Important Cache Reminder:_ Always clear your package-manager cache (e.g., `npm cache clean --force`, `pnpm store prune`, or `bun pm cache bin`) before installing dependencies if you suspected an entry could bypass protection. Socket Firewall and npq examine network downloads, so they cannot intercept already-cached malicious packages on your hard drive.
+_Important Cache Reminder:_ Always clear your package-manager cache (e.g., `npm cache clean --force`, `pnpm store prune`, or `bun pm cache rm`) before installing dependencies if you suspected an entry could bypass protection. Socket Firewall and npq examine network downloads, so they cannot intercept already-cached malicious packages on your hard drive.
 
-If the command fetches packages from the network and the package manager is supported, it must look like `sfw <package-manager> init/install/add...` (or use active aliases routing through `npq`).
+If the command fetches packages from the network and the package manager is supported, it must look like `sfw <package-manager> init/install/add...` (or use the native security scanner in `bunfig.toml` for Bun, or active aliases routing through `npq`).
 
 **At this step, also configure release age gating and script blocking** for the detected package manager by writing the appropriate config file (see "Supply-Chain Security & Hardening" section below for exact syntax per package manager). Choose which hardening controls to apply based on the sensitivity of the project and the risk profile of the package being installed — for a simple known package like `typescript` or `lodash` the cooldown gate alone suffices; for risky, unknown, or requested-by-name-only packages, apply the full set (cooldown + script blocking + exotic dep blocking).
 
-If the ecosystem is unsupported by Socket Firewall (`bun`, `composer`, `poetry`, `pipenv`), stop and request explicit approval before running any networked dependency command without `sfw` (or apply the manager's built-in secure defaults such as Bun's trusted dependencies filters).
+If the ecosystem is unsupported by Socket Firewall (`composer`, `poetry`, `pipenv`), stop and request explicit approval before running any networked dependency command without `sfw`.
 
 For Composer, apply these compensating controls before any networked command:
 
@@ -297,18 +313,19 @@ sfw yarn global add <package-name>
 
 #### For Node.js (bun)
 
+Bun is protected using either the native security scanner integration (recommended) or the `sfw` CLI wrapper:
+
 ```bash
-# Socket Firewall Free does not currently support bun directly.
-# Proceed only after explicit user approval because `sfw` cannot protect this ecosystem directly.
-
-# Install all dependencies
+# Approach 1 (Recommended): Native Bun Security Scanner
+# When [install.security] scanner = "@socketsecurity/bun-security-scanner" is configured in bunfig.toml:
 bun install
-
-# Add a production dependency
 bun add <package-name>
-
-# Add a dev dependency
 bun add -d <package-name>
+
+# Approach 2: Socket Firewall CLI wrapper
+sfw bun install
+sfw bun add <package-name>
+sfw bun add -d <package-name>
 ```
 
 #### For PHP (composer)
@@ -442,6 +459,18 @@ For global installations that fail:
 - Clear the package-manager cache if appropriate, then retry with `sfw`
 - Remember that Socket Firewall Free only blocks supported package managers and known malicious artifacts fetched over the network
 
+### Issue: `sfw bun` integrity check failure (`error: Integrity check failed for tarball`)
+
+- Description: When running Bun under `sfw bun`, Bun may report an integrity hash mismatch during package extraction.
+- Solution: Switch to Socket's official native security scanner provider instead of wrapping with `sfw`:
+  1. Add `@socketsecurity/bun-security-scanner` to dev dependencies: `bun add -d @socketsecurity/bun-security-scanner`
+  2. Configure in `bunfig.toml`:
+     ```toml
+     [install.security]
+     scanner = "@socketsecurity/bun-security-scanner"
+     ```
+  3. Run regular `bun install` or `bun add` commands directly without `sfw`.
+
 ### Issue: The project uses an unsupported package manager
 
 - Explain that `sfw` does not currently protect that ecosystem
@@ -487,7 +516,7 @@ For global installations that fail:
 
 9. **Clean install in CI**: Use clean install commands (`sfw npm ci`, `sfw pnpm install --frozen-lockfile`, `composer install --no-dev`) in CI/CD pipelines where supported.
 
-10. **Unsupported ecosystems require explicit risk acceptance plus extra safeguards**: For `bun`, `composer`, `poetry`, and `pipenv`, do not proceed with networked dependency changes unless the user explicitly approves continuing without `sfw` coverage.
+10. **Unsupported ecosystems require explicit risk acceptance plus extra safeguards**: For `composer`, `poetry`, and `pipenv`, do not proceed with networked dependency changes unless the user explicitly approves continuing without `sfw` coverage.
 
 11. **During active incidents, slow down**: Check trusted advisories or maintainer channels before updating packages, and prefer known-good lock-file installs over fresh resolution.
 
@@ -499,12 +528,12 @@ For global installations that fail:
 
 ## Quick Reference
 
-| Action      | npm                      | pnpm                  | yarn                  | composer                                           | pip                                   | uv                     | poetry                  |
-| ----------- | ------------------------ | --------------------- | --------------------- | -------------------------------------------------- | ------------------------------------- | ---------------------- | ----------------------- |
-| Install all | `sfw npm install`        | `sfw pnpm install`    | `sfw yarn`            | `composer install`                                 | `sfw pip install -r requirements.txt` | `sfw uv sync`          | `poetry install`        |
-| Add pkg     | `sfw npm install pkg`    | `sfw pnpm add pkg`    | `sfw yarn add pkg`    | `composer require pkg:version`                     | `sfw pip install pkg`                 | `sfw uv add pkg`       | `poetry add pkg`        |
-| Add dev     | `sfw npm install -D pkg` | `sfw pnpm add -D pkg` | `sfw yarn add -D pkg` | `composer require --dev pkg:version`               | `sfw pip install pkg`                 | `sfw uv add --dev pkg` | `poetry add -G dev pkg` |
-| Remove      | `npm uninstall pkg`      | `pnpm remove pkg`     | `yarn remove pkg`     | `composer remove pkg`                              | `pip uninstall pkg`                   | `uv remove pkg`        | `poetry remove pkg`     |
-| Update      | `sfw npm update`         | `sfw pnpm update`     | `sfw yarn upgrade`    | `composer audit` then `composer update vendor/pkg` | `sfw pip install -U pkg`              | `sfw uv sync`          | `poetry update`         |
+| Action      | npm                      | pnpm                  | yarn                  | bun (native scanner / sfw)              | composer                                           | pip                                   | uv                     | poetry                  |
+| ----------- | ------------------------ | --------------------- | --------------------- | --------------------------------------- | -------------------------------------------------- | ------------------------------------- | ---------------------- | ----------------------- |
+| Install all | `sfw npm install`        | `sfw pnpm install`    | `sfw yarn`            | `bun install` / `sfw bun install`       | `composer install`                                 | `sfw pip install -r requirements.txt` | `sfw uv sync`          | `poetry install`        |
+| Add pkg     | `sfw npm install pkg`    | `sfw pnpm add pkg`    | `sfw yarn add pkg`    | `bun add pkg` / `sfw bun add pkg`       | `composer require pkg:version`                     | `sfw pip install pkg`                 | `sfw uv add pkg`       | `poetry add pkg`        |
+| Add dev     | `sfw npm install -D pkg` | `sfw pnpm add -D pkg` | `sfw yarn add -D pkg` | `bun add -d pkg` / `sfw bun add -d pkg` | `composer require --dev pkg:version`               | `sfw pip install pkg`                 | `sfw uv add --dev pkg` | `poetry add -G dev pkg` |
+| Remove      | `npm uninstall pkg`      | `pnpm remove pkg`     | `yarn remove pkg`     | `bun remove pkg`                        | `composer remove pkg`                              | `pip uninstall pkg`                   | `uv remove pkg`        | `poetry remove pkg`     |
+| Update      | `sfw npm update`         | `sfw pnpm update`     | `sfw yarn upgrade`    | `bun update pkg` / `sfw bun update pkg` | `composer audit` then `composer update vendor/pkg` | `sfw pip install -U pkg`              | `sfw uv sync`          | `poetry update`         |
 
 For Composer, prefer reviewing the `composer.lock` diff after every dependency change. A lock file is the main guardrail that keeps other environments from silently resolving new package versions.
