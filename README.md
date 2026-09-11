@@ -22,12 +22,27 @@ instruction sources:
 - [`technology-defaults.md`](instructions/technology-defaults.md)
   defines conditional technology choices used only when a project has not
   already established its own stack or tooling.
+- [`codex/async-question-wait.md`](instructions/codex/async-question-wait.md)
+  defines Codex-only waiting behavior for unanswered asynchronous questions.
 
 These files intentionally contain plain Markdown. Pi, Codex, and VS Code use
 different configuration formats and precedence rules, so a source file should
 not be copied blindly to every destination. The synchronizer deterministically
 appends `technology-defaults.md` to `preferences.md` before rendering each
 harness's preferences target.
+
+For Codex, it composes `invariant.md` followed by every regular `*.md` file in
+`instructions/codex/`, sorted by filename, in the same managed
+`developer_instructions` TOML string. It normalizes each source to LF, trims
+trailing whitespace, and separates sources with one blank line. A TOML
+multiline-string delimiter (`"""`) in any composed source blocks
+synchronization. The Codex directory is optional, so removing its last file
+leaves the generic extension point intact and renders only the invariants. Pi
+and VS Code do not receive these Codex policies.
+
+The current waiting policy is an instruction-based mitigation. It does not
+modify the Codex server or guarantee model behavior. Validate generated files
+separately from observed behavior in a new Codex session after synchronization.
 
 ### Skills
 

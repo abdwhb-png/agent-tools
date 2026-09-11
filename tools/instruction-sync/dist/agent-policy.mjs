@@ -177,10 +177,10 @@ function renderVsCode(invariants, preferences) {
 }
 var CODEX_BEGIN = "# >>> agent-policy developer_instructions >>>";
 var CODEX_END = "# <<< agent-policy developer_instructions <<<";
-function renderCodexBlock(invariants) {
-  const normalized = normalizeInstruction(invariants).trimEnd();
+function renderCodexBlock(instructions) {
+  const normalized = normalizeInstruction(instructions).trimEnd();
   if (normalized.includes('"""'))
-    throw new Error("canonical invariants cannot contain a TOML multiline-string delimiter");
+    throw new Error("canonical Codex instructions cannot contain a TOML multiline-string delimiter");
   return `${CODEX_BEGIN}
 developer_instructions = """
 ${normalized}
@@ -202,8 +202,8 @@ function managedCodexBlock(config) {
     return normalized.slice(start, trailing + 1);
   return normalized.slice(start, trailing);
 }
-function renderCodexConfig(existing, invariants, adoptUnmanaged = false) {
-  const block = renderCodexBlock(invariants);
+function renderCodexConfig(existing, instructions, adoptUnmanaged = false) {
+  const block = renderCodexBlock(instructions);
   if (existing === undefined)
     return { desired: block, owned: block };
   const normalized = normalizeInstruction(existing);
@@ -244,7 +244,10 @@ ${sources.technologyDefaults.trimEnd()}`);
     targets.push({ id: "pi-system", kind: "file", path: path2.join(agentDir, "SYSTEM.md"), desired: sources.invariants, owned: sources.invariants }, { id: "pi-agents", kind: "file", path: path2.join(agentDir, "AGENTS.md"), desired: preferences, owned: preferences }, { id: "pi-append-system", kind: "file", path: path2.join(agentDir, "APPEND_SYSTEM.md"), desired: sources.piAppend, owned: sources.piAppend });
   }
   if (config.harnesses.codex.enabled) {
-    const target = renderCodexConfig(codexConfig, sources.invariants, adoptUnmanaged);
+    const instructions = [sources.invariants, ...sources.codexInstructions].map((source) => normalizeInstruction(source).trimEnd()).join(`
+
+`);
+    const target = renderCodexConfig(codexConfig, instructions, adoptUnmanaged);
     targets.push({ id: "codex-config", kind: "codex", path: path2.join(config.harnesses.codex.home, "config.toml"), ...target });
     targets.push({ id: "codex-agents", kind: "file", path: path2.join(config.harnesses.codex.home, "AGENTS.md"), desired: preferences, owned: preferences });
   }
@@ -491,11 +494,21 @@ function toolDirectory() {
 async function canonicalSources() {
   const root = repositoryRoot();
   const read = async (...parts) => normalizeInstruction(await fs2.readFile(path4.join(root, ...parts), "utf8"));
+  const codexDirectory = path4.join(root, "instructions", "codex");
+  let codexEntries = [];
+  try {
+    codexEntries = await fs2.readdir(codexDirectory, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code !== "ENOENT")
+      throw error;
+  }
+  const codexFiles = codexEntries.filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => entry.name).sort();
   return {
     invariants: await read("instructions", "invariant.md"),
     preferences: await read("instructions", "preferences.md"),
     technologyDefaults: await read("instructions", "technology-defaults.md"),
-    piAppend: await read("instructions", "pi", "append-system.md")
+    piAppend: await read("instructions", "pi", "append-system.md"),
+    codexInstructions: await Promise.all(codexFiles.map((file) => read("instructions", "codex", file)))
   };
 }
 function printAssessments(items) {

@@ -26,6 +26,7 @@ const source = {
   preferences: "preferences\n",
   technologyDefaults: "technology defaults\n",
   piAppend: "append\n",
+  codexInstructions: ["Codex only\n"],
 };
 
 test("sync creates missing targets, records state, and becomes idempotent", async () => {
@@ -65,7 +66,7 @@ test("a write failure rolls back targets already replaced and retains backups", 
       await nodeFileOps.rename(from, to);
     },
   };
-  await expect(synchronize(config, await loadState(statePath), statePath, { invariants: "new\n", preferences: "new\n", technologyDefaults: "new defaults\n", piAppend: "new\n" }, {}, failingIo)).rejects.toThrow("changed targets were rolled back");
+  await expect(synchronize(config, await loadState(statePath), statePath, { ...source, invariants: "new\n", preferences: "new\n", technologyDefaults: "new defaults\n", piAppend: "new\n" }, {}, failingIo)).rejects.toThrow("changed targets were rolled back");
   expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "SYSTEM.md"), "utf8")).toBe("invariants\n");
   expect((await fs.readdir(path.join(root, "state", "backups"))).length).toBe(1);
 });

@@ -20,9 +20,9 @@ export function renderVsCode(invariants: string, preferences: string): string {
 export const CODEX_BEGIN = "# >>> agent-policy developer_instructions >>>";
 export const CODEX_END = "# <<< agent-policy developer_instructions <<<";
 
-export function renderCodexBlock(invariants: string): string {
-  const normalized = normalizeInstruction(invariants).trimEnd();
-  if (normalized.includes('"""')) throw new Error("canonical invariants cannot contain a TOML multiline-string delimiter");
+export function renderCodexBlock(instructions: string): string {
+  const normalized = normalizeInstruction(instructions).trimEnd();
+  if (normalized.includes('"""')) throw new Error("canonical Codex instructions cannot contain a TOML multiline-string delimiter");
   return `${CODEX_BEGIN}\ndeveloper_instructions = \"\"\"\n${normalized}\n\"\"\"\n${CODEX_END}\n`;
 }
 
@@ -37,8 +37,8 @@ export function managedCodexBlock(config: string): string | undefined {
   return normalized.slice(start, trailing);
 }
 
-export function renderCodexConfig(existing: string | undefined, invariants: string, adoptUnmanaged = false): { desired: string; owned: string } {
-  const block = renderCodexBlock(invariants);
+export function renderCodexConfig(existing: string | undefined, instructions: string, adoptUnmanaged = false): { desired: string; owned: string } {
+  const block = renderCodexBlock(instructions);
   if (existing === undefined) return { desired: block, owned: block };
   const normalized = normalizeInstruction(existing);
   const managed = managedCodexBlock(normalized);

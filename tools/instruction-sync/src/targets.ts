@@ -11,6 +11,7 @@ export interface CanonicalSources {
   preferences: string;
   technologyDefaults: string;
   piAppend: string;
+  codexInstructions: string[];
 }
 
 export function renderTargets(config: PolicyConfig, sources: CanonicalSources, codexConfig?: string, adoptUnmanaged = false): RenderedTarget[] {
@@ -27,7 +28,10 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
     );
   }
   if (config.harnesses.codex.enabled) {
-    const target = renderCodexConfig(codexConfig, sources.invariants, adoptUnmanaged);
+    const instructions = [sources.invariants, ...sources.codexInstructions]
+      .map((source) => normalizeInstruction(source).trimEnd())
+      .join("\n\n");
+    const target = renderCodexConfig(codexConfig, instructions, adoptUnmanaged);
     targets.push({ id: "codex-config", kind: "codex", path: path.join(config.harnesses.codex.home!, "config.toml"), ...target });
     targets.push({ id: "codex-agents", kind: "file", path: path.join(config.harnesses.codex.home!, "AGENTS.md"), desired: preferences, owned: preferences });
   }
