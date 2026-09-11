@@ -22,8 +22,12 @@ instruction sources:
 - [`technology-defaults.md`](instructions/technology-defaults.md)
   defines conditional technology choices used only when a project has not
   already established its own stack or tooling.
-- [`codex/async-question-wait.md`](instructions/codex/async-question-wait.md)
-  defines Codex-only waiting behavior for unanswered asynchronous questions.
+- [`pi/`](instructions/pi/) contains Pi-only instruction modules, including
+  `append-system.md`.
+- [`codex/`](instructions/codex/) contains Codex-only instruction modules,
+  including `async-question-wait.md`.
+- `instructions/vscode/` is the optional location for VS Code-only instruction
+  modules.
 
 These files intentionally contain plain Markdown. Pi, Codex, and VS Code use
 different configuration formats and precedence rules, so a source file should
@@ -31,14 +35,19 @@ not be copied blindly to every destination. The synchronizer deterministically
 appends `technology-defaults.md` to `preferences.md` before rendering each
 harness's preferences target.
 
-For Codex, it composes `invariant.md` followed by every regular `*.md` file in
-`instructions/codex/`, sorted by filename, in the same managed
-`developer_instructions` TOML string. It normalizes each source to LF, trims
-trailing whitespace, and separates sources with one blank line. A TOML
-multiline-string delimiter (`"""`) in any composed source blocks
-synchronization. The Codex directory is optional, so removing its last file
-leaves the generic extension point intact and renders only the invariants. Pi
-and VS Code do not receive these Codex policies.
+The central source loader discovers every regular `*.md` file in
+`instructions/pi/`, `instructions/codex/`, and `instructions/vscode/`, sorted
+by filename within each directory. It normalizes each source to LF, trims
+trailing whitespace, and separates modules with one blank line. Every harness
+directory is optional, so removing its last file leaves the extension point
+intact without requiring a code change.
+
+The renderers keep these modules isolated. Pi writes its modules to
+`APPEND_SYSTEM.md`. Codex appends its modules after `invariant.md` in the managed
+`developer_instructions` TOML string. VS Code adds its modules in a dedicated
+section of the combined instruction file between invariants and preferences. A
+TOML multiline-string delimiter (`"""`) in any Codex-composed source blocks
+synchronization.
 
 The current waiting policy is an instruction-based mitigation. It does not
 modify the Codex server or guarantee model behavior. Validate generated files

@@ -9,9 +9,8 @@ import {
   defaultStatePath,
   parsePolicyConfig,
 } from "./config.js";
-import { normalizeInstruction } from "./renderers.js";
+import { loadCanonicalSources } from "./sources.js";
 import { assessTargets, loadState, synchronize } from "./sync.js";
-import type { CanonicalSources } from "./targets.js";
 import type { PolicyConfig } from "./types.js";
 
 type Arguments = {
@@ -125,37 +124,6 @@ function toolDirectory(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 }
 
-async function canonicalSources(): Promise<CanonicalSources> {
-  const root = repositoryRoot();
-  const read = async (...parts: string[]) =>
-    normalizeInstruction(await fs.readFile(path.join(root, ...parts), "utf8"));
-  const codexDirectory = path.join(root, "instructions", "codex");
-  let codexEntries: Array<{ isFile(): boolean; name: string }> = [];
-  try {
-    codexEntries = await fs.readdir(codexDirectory, { withFileTypes: true });
-  } catch (error: any) {
-    if (error?.code !== "ENOENT") throw error;
-  }
-  const codexFiles = codexEntries
-    .filter((entry: { isFile(): boolean; name: string }) =>
-      entry.isFile() && entry.name.endsWith(".md"),
-    )
-    .map((entry: { name: string }) => entry.name)
-    .sort();
-  return {
-    invariants: await read("instructions", "invariant.md"),
-    preferences: await read("instructions", "preferences.md"),
-    technologyDefaults: await read(
-      "instructions",
-      "technology-defaults.md",
-    ),
-    piAppend: await read("instructions", "pi", "append-system.md"),
-    codexInstructions: await Promise.all(
-      codexFiles.map((file) => read("instructions", "codex", file)),
-    ),
-  };
-}
-
 function printAssessments(
   items: Awaited<ReturnType<typeof assessTargets>>,
 ): void {
@@ -202,7 +170,7 @@ async function main(): Promise<void> {
       `configuration does not exist: ${configPath}; run configure or provide --config`,
     );
   const config = parsePolicyConfig(rawConfig);
-  const sources = await canonicalSources();
+  const sources = await loadCanonicalSources(repositoryRoot());
   const state = await loadState(statePath);
   if (command === "doctor" || command === "check") {
     const assessments = await assessTargets(config, state, sources);

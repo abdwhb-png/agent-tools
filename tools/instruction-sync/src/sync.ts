@@ -3,8 +3,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { emptyState } from "./config.js";
-import { managedCodexBlock, normalizeInstruction } from "./renderers.js";
-import { renderTargets, type CanonicalSources } from "./targets.js";
+import { managedCodexBlock } from "./renderers.js";
+import { normalizeInstruction, type CanonicalSources } from "./sources.js";
+import { renderTargets } from "./targets.js";
 import type { PolicyConfig, PolicyState, RenderedTarget } from "./types.js";
 
 export interface FileOps {

@@ -81,25 +81,27 @@ The filenames describe their purpose but do not confer instruction priority.
 They are retained because the repository cannot establish whether external
 consumers already reference their paths.
 
-Add the Pi-specific source during implementation:
+Keep harness-specific instruction modules under matching optional directories:
+
+```text
+instructions/pi/*.md
+instructions/codex/*.md
+instructions/vscode/*.md
+```
+
+The initial modules are:
 
 ```text
 instructions/pi/append-system.md
-```
-
-Keep optional Codex-specific policies as independent Markdown sources. The
-initial source is:
-
-```text
 instructions/codex/async-question-wait.md
 ```
 
-Load every regular `*.md` file in `instructions/codex/` in filename order and
-use these sources only for Codex. Keep the directory optional so an obsolete
-policy can be removed without removing the extension point or requiring a code
-change. Keep the asynchronous-question mitigation in instructions without
-building a custom Codex server. Treat observed model behavior as a separate
-validation concern from deterministic instruction generation.
+Use one central loader to discover every regular `*.md` file in each harness
+directory in filename order. Keep each directory optional so an obsolete policy
+can be removed without removing the extension point or requiring a code change.
+Keep the asynchronous-question mitigation in instructions without building a
+custom Codex server. Treat observed model behavior as a separate validation
+concern from deterministic instruction generation.
 
 Project and repository `AGENTS.md` files remain outside this synchronization
 model. They belong to the project instruction layer and may refine or override
@@ -116,6 +118,7 @@ tools/instruction-sync/
 │   ├── cli.ts
 │   ├── config.ts
 │   ├── renderers.ts
+│   ├── sources.ts
 │   └── sync.ts
 ├── tests/
 ├── dist/
@@ -163,14 +166,22 @@ Use the following semantic mapping:
 | `invariant.md` | `SYSTEM.md` | managed `developer_instructions` block in `config.toml` | invariants section of one combined instruction file |
 | `preferences.md` | global `agent/AGENTS.md` | global `AGENTS.md` | preferences section of the same combined instruction file |
 | `technology-defaults.md` | appended to global `agent/AGENTS.md` | appended to global `AGENTS.md` | appended to the preferences section of the same combined instruction file |
-| `pi/append-system.md` | `APPEND_SYSTEM.md` | not applicable | not applicable |
+| `pi/*.md` | composed in filename order into `APPEND_SYSTEM.md` | not applicable | not applicable |
 | `codex/*.md` | not applicable | each file appended after invariants in filename order in the same managed `developer_instructions` string | not applicable |
+| `vscode/*.md` | not applicable | not applicable | composed in filename order into a harness-specific section between invariants and preferences |
 
 The synchronizer composes `preferences.md` followed by
 `technology-defaults.md`. They remain separate canonical sources because
 general collaboration policy and technology defaults evolve independently, but
 they deliberately share one rendered preferences layer in every harness.
 
+The central source module owns directory discovery, filename ordering, LF
+normalization, and deterministic composition for Pi, Codex, and VS Code. Target
+renderers only adapt the composed content to each harness's native instruction
+layer.
+
+For Pi, compose every `instructions/pi/*.md` module into `APPEND_SYSTEM.md` in
+filename order. An absent or empty directory produces an empty managed file.
 The Pi repository-level `.pi/AGENTS.md` is not generated because it describes
 the Pi configuration project rather than a global user preference.
 
@@ -189,6 +200,9 @@ For VS Code, generate one combined `*.instructions.md` file with `applyTo: "**"`
 Place invariants before preferences inside that file to avoid relying on ordering
 between multiple instruction files. The generated file remains a user-level
 instruction, not a replacement for VS Code's built-in system instructions.
+When `instructions/vscode/*.md` modules exist, place their composed section
+between invariants and preferences. Omit the section when the directory is
+absent, empty, or contains no regular Markdown files.
 
 VS Code destinations are a configurable list. A machine may target its local VS
 Code profile, `~/.copilot/instructions` for Agent Host, or both. This accounts
@@ -335,7 +349,9 @@ behaviors:
    developer-instructions region.
 4. The VS Code renderer emits valid frontmatter followed by invariants and then
    preferences in one file.
-5. Pi-specific content appears only in `APPEND_SYSTEM.md`.
+5. Pi-specific content appears only in `APPEND_SYSTEM.md`, Codex-specific
+   content only in its managed developer instructions, and VS Code-specific
+   content only in the combined VS Code instruction file.
 6. A failed preflight produces no target writes.
 7. A failure after writes begin leaves backups sufficient to restore every
    changed target.
@@ -343,11 +359,11 @@ behaviors:
    path-resolution tests without depending on the test host's real home path.
 9. The committed `dist/agent-policy.mjs` matches a clean build and runs with the
    documented minimum Node version without installing runtime dependencies.
-10. The CLI loads every `instructions/codex/*.md` source after invariants in
-    filename order in the same TOML value. Adding, changing, or removing these
-    sources leaves Pi, VS Code, and Codex preferences unchanged. An absent or
-    empty Codex directory is valid. A TOML delimiter in any composed source
-    prevents target and state writes.
+10. One source loader discovers every regular `*.md` module in the optional
+    `instructions/pi/`, `instructions/codex/`, and `instructions/vscode/`
+    directories in filename order. Adding, changing, or removing modules affects
+    only the matching harness layer. Empty or absent directories are valid. A
+    TOML delimiter in any Codex-composed source prevents target and state writes.
 
 Perform three end-to-end acceptance checks on a temporary directory before
 syncing a real profile:

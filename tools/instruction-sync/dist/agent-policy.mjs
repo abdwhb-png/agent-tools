@@ -149,28 +149,84 @@ var init_config = () => {};
 
 // src/cli.ts
 init_config();
-import fs2 from "node:fs/promises";
-import path4 from "node:path";
+import fs3 from "node:fs/promises";
+import path5 from "node:path";
 import process3 from "node:process";
 import { fileURLToPath } from "node:url";
 
-// src/renderers.ts
+// src/sources.ts
+import fs from "node:fs/promises";
+import path2 from "node:path";
+var HARNESS_NAMES = ["pi", "codex", "vscode"];
 function normalizeInstruction(source) {
-  return source.replace(/^\uFEFF/, "").replace(/\r\n?/g, `
-`).replace(/\n*$/, `
+  const normalized = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, `
+`);
+  return normalized === "" ? "" : normalized.replace(/\n*$/, `
 `);
 }
-function renderVsCode(invariants, preferences) {
+function composeInstructions(sources) {
+  const content = sources.map((source) => normalizeInstruction(source).trimEnd()).filter(Boolean);
+  return content.length === 0 ? "" : `${content.join(`
+
+`)}
+`;
+}
+async function readInstruction(filePath) {
+  return normalizeInstruction(await fs.readFile(filePath, "utf8"));
+}
+async function loadHarnessInstructions(root, harness) {
+  const directory = path2.join(root, "instructions", harness);
+  let entries = [];
+  try {
+    entries = await fs.readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code !== "ENOENT")
+      throw error;
+  }
+  const filenames = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => entry.name).sort();
+  return Promise.all(filenames.map((filename) => readInstruction(path2.join(directory, filename))));
+}
+async function loadCanonicalSources(root) {
+  const instructionPath = (...parts) => path2.join(root, "instructions", ...parts);
+  const harnessInstructions = Object.fromEntries(await Promise.all(HARNESS_NAMES.map(async (harness) => [
+    harness,
+    await loadHarnessInstructions(root, harness)
+  ])));
+  return {
+    invariants: await readInstruction(instructionPath("invariant.md")),
+    preferences: await readInstruction(instructionPath("preferences.md")),
+    technologyDefaults: await readInstruction(instructionPath("technology-defaults.md")),
+    harnessInstructions
+  };
+}
+
+// src/sync.ts
+init_config();
+import crypto from "node:crypto";
+import fs2 from "node:fs/promises";
+import path4 from "node:path";
+import process2 from "node:process";
+
+// src/renderers.ts
+function renderVsCode(invariants, preferences, harnessInstructions = "") {
+  const sections = [
+    `<!-- agent-policy: invariants -->
+${normalizeInstruction(invariants).trimEnd()}`
+  ];
+  if (harnessInstructions.trim()) {
+    sections.push(`<!-- agent-policy: vscode -->
+${normalizeInstruction(harnessInstructions).trimEnd()}`);
+  }
+  sections.push(`<!-- agent-policy: preferences -->
+${normalizeInstruction(preferences).trimEnd()}`);
   return [
     "---",
     'applyTo: "**"',
     "---",
     "",
-    "<!-- agent-policy: invariants -->",
-    normalizeInstruction(invariants).trimEnd(),
-    "",
-    "<!-- agent-policy: preferences -->",
-    normalizeInstruction(preferences).trimEnd(),
+    sections.join(`
+
+`),
     ""
   ].join(`
 `);
@@ -225,34 +281,30 @@ function renderCodexConfig(existing, instructions, adoptUnmanaged = false) {
 ${block}`, owned: block };
 }
 
-// src/sync.ts
-init_config();
-import crypto from "node:crypto";
-import fs from "node:fs/promises";
-import path3 from "node:path";
-import process2 from "node:process";
-
 // src/targets.ts
-import path2 from "node:path";
+import path3 from "node:path";
 function renderTargets(config, sources, codexConfig, adoptUnmanaged = false) {
   const targets = [];
-  const preferences = normalizeInstruction(`${sources.preferences.trimEnd()}
-
-${sources.technologyDefaults.trimEnd()}`);
+  const preferences = composeInstructions([
+    sources.preferences,
+    sources.technologyDefaults
+  ]);
   if (config.harnesses.pi.enabled) {
     const agentDir = config.harnesses.pi.agentDir;
-    targets.push({ id: "pi-system", kind: "file", path: path2.join(agentDir, "SYSTEM.md"), desired: sources.invariants, owned: sources.invariants }, { id: "pi-agents", kind: "file", path: path2.join(agentDir, "AGENTS.md"), desired: preferences, owned: preferences }, { id: "pi-append-system", kind: "file", path: path2.join(agentDir, "APPEND_SYSTEM.md"), desired: sources.piAppend, owned: sources.piAppend });
+    const piInstructions = composeInstructions(sources.harnessInstructions.pi);
+    targets.push({ id: "pi-system", kind: "file", path: path3.join(agentDir, "SYSTEM.md"), desired: sources.invariants, owned: sources.invariants }, { id: "pi-agents", kind: "file", path: path3.join(agentDir, "AGENTS.md"), desired: preferences, owned: preferences }, { id: "pi-append-system", kind: "file", path: path3.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions });
   }
   if (config.harnesses.codex.enabled) {
-    const instructions = [sources.invariants, ...sources.codexInstructions].map((source) => normalizeInstruction(source).trimEnd()).join(`
-
-`);
+    const instructions = composeInstructions([
+      sources.invariants,
+      ...sources.harnessInstructions.codex
+    ]);
     const target = renderCodexConfig(codexConfig, instructions, adoptUnmanaged);
-    targets.push({ id: "codex-config", kind: "codex", path: path2.join(config.harnesses.codex.home, "config.toml"), ...target });
-    targets.push({ id: "codex-agents", kind: "file", path: path2.join(config.harnesses.codex.home, "AGENTS.md"), desired: preferences, owned: preferences });
+    targets.push({ id: "codex-config", kind: "codex", path: path3.join(config.harnesses.codex.home, "config.toml"), ...target });
+    targets.push({ id: "codex-agents", kind: "file", path: path3.join(config.harnesses.codex.home, "AGENTS.md"), desired: preferences, owned: preferences });
   }
   if (config.harnesses.vscode.enabled) {
-    const output = renderVsCode(sources.invariants, preferences);
+    const output = renderVsCode(sources.invariants, preferences, composeInstructions(sources.harnessInstructions.vscode));
     for (const [index, target] of config.harnesses.vscode.targets.entries()) {
       targets.push({ id: `vscode-${index}`, kind: "file", path: target, desired: output, owned: output });
     }
@@ -261,7 +313,7 @@ ${sources.technologyDefaults.trimEnd()}`);
 }
 
 // src/sync.ts
-var nodeFileOps = fs;
+var nodeFileOps = fs2;
 function hash(content) {
   return crypto.createHash("sha256").update(content).digest("hex");
 }
@@ -280,7 +332,7 @@ function ownedContent(target, existing) {
   return target.kind === "codex" ? managedCodexBlock(existing) : existing;
 }
 async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnmanaged = false) {
-  const codexPath = config.harnesses.codex.enabled ? path3.join(config.harnesses.codex.home, "config.toml") : undefined;
+  const codexPath = config.harnesses.codex.enabled ? path4.join(config.harnesses.codex.home, "config.toml") : undefined;
   const codexConfig = codexPath ? await readOptional(io, codexPath) : undefined;
   const targets = renderTargets(config, sources, codexConfig, true);
   const assessments = [];
@@ -317,9 +369,9 @@ function backupName(id) {
   return `${id.replace(/[^a-z0-9-]/gi, "_")}.bak`;
 }
 async function atomicWrite(io, destination, content) {
-  const directory = path3.dirname(destination);
+  const directory = path4.dirname(destination);
   await io.mkdir(directory, { recursive: true });
-  const temporary = path3.join(directory, `.${path3.basename(destination)}.agent-policy-${process2.pid}-${Date.now()}.tmp`);
+  const temporary = path4.join(directory, `.${path4.basename(destination)}.agent-policy-${process2.pid}-${Date.now()}.tmp`);
   await io.writeFile(temporary, content, "utf8");
   await io.rename(temporary, destination);
 }
@@ -354,12 +406,12 @@ async function synchronize(config, state, statePath, sources, options = {}, io =
       return selected?.has(item.target.id) === true && item.status !== "missing" && item.existing !== item.target.desired;
     return item.status === "missing" || item.status === "stale";
   });
-  const backupRoot = path3.join(path3.dirname(statePath), "backups", timestamp());
+  const backupRoot = path4.join(path4.dirname(statePath), "backups", timestamp());
   const backups = [];
   for (const item of writes) {
     if (item.existing !== undefined) {
-      const backupPath = path3.join(backupRoot, backupName(item.target.id));
-      await io.mkdir(path3.dirname(backupPath), { recursive: true });
+      const backupPath = path4.join(backupRoot, backupName(item.target.id));
+      await io.mkdir(path4.dirname(backupPath), { recursive: true });
       await io.writeFile(backupPath, item.existing, "utf8");
       backups.push(backupPath);
     }
@@ -447,7 +499,7 @@ adopt options:
 }
 async function readOptional2(filePath) {
   try {
-    return await fs2.readFile(filePath, "utf8");
+    return await fs3.readFile(filePath, "utf8");
   } catch (error) {
     if (error?.code === "ENOENT")
       return;
@@ -455,10 +507,10 @@ async function readOptional2(filePath) {
   }
 }
 async function atomicWrite2(destination, content) {
-  await fs2.mkdir(path4.dirname(destination), { recursive: true });
-  const temporary = path4.join(path4.dirname(destination), `.${path4.basename(destination)}.agent-policy-${process3.pid}.tmp`);
-  await fs2.writeFile(temporary, content, "utf8");
-  await fs2.rename(temporary, destination);
+  await fs3.mkdir(path5.dirname(destination), { recursive: true });
+  const temporary = path5.join(path5.dirname(destination), `.${path5.basename(destination)}.agent-policy-${process3.pid}.tmp`);
+  await fs3.writeFile(temporary, content, "utf8");
+  await fs3.rename(temporary, destination);
 }
 function configuredPolicy(base, arguments_) {
   const result = structuredClone(base);
@@ -486,30 +538,10 @@ function configuredPolicy(base, arguments_) {
   return parsePolicyConfig(JSON.stringify(result));
 }
 function repositoryRoot() {
-  return path4.resolve(path4.dirname(fileURLToPath(import.meta.url)), "../../..");
+  return path5.resolve(path5.dirname(fileURLToPath(import.meta.url)), "../../..");
 }
 function toolDirectory() {
-  return path4.resolve(path4.dirname(fileURLToPath(import.meta.url)), "..");
-}
-async function canonicalSources() {
-  const root = repositoryRoot();
-  const read = async (...parts) => normalizeInstruction(await fs2.readFile(path4.join(root, ...parts), "utf8"));
-  const codexDirectory = path4.join(root, "instructions", "codex");
-  let codexEntries = [];
-  try {
-    codexEntries = await fs2.readdir(codexDirectory, { withFileTypes: true });
-  } catch (error) {
-    if (error?.code !== "ENOENT")
-      throw error;
-  }
-  const codexFiles = codexEntries.filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => entry.name).sort();
-  return {
-    invariants: await read("instructions", "invariant.md"),
-    preferences: await read("instructions", "preferences.md"),
-    technologyDefaults: await read("instructions", "technology-defaults.md"),
-    piAppend: await read("instructions", "pi", "append-system.md"),
-    codexInstructions: await Promise.all(codexFiles.map((file) => read("instructions", "codex", file)))
-  };
+  return path5.resolve(path5.dirname(fileURLToPath(import.meta.url)), "..");
 }
 function printAssessments(items) {
   for (const item of items)
@@ -545,7 +577,7 @@ ${rendered}`);
   if (!rawConfig)
     throw new Error(`configuration does not exist: ${configPath}; run configure or provide --config`);
   const config = parsePolicyConfig(rawConfig);
-  const sources = await canonicalSources();
+  const sources = await loadCanonicalSources(repositoryRoot());
   const state = await loadState(statePath);
   if (command === "doctor" || command === "check") {
     const assessments = await assessTargets(config, state, sources);

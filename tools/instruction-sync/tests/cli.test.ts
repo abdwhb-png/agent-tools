@@ -86,7 +86,7 @@ test("CLI sync discovers ordered Codex instructions without changing other harne
   const repeated = f.run("sync");
   expect(repeated.code).toBe(0);
   expect(repeated.stdout).toContain("No target files changed.");
-  expect(f.run("check").code).toBe(0);
+  expect(f.run("check")).toMatchObject({ code: 0 });
 });
 
 test("CLI sync supports removing every optional Codex instruction", async () => {
@@ -97,7 +97,46 @@ test("CLI sync supports removing every optional Codex instruction", async () => 
   expect(await fs.readFile(f.codexConfig, "utf8")).toBe(
     '# >>> agent-policy developer_instructions >>>\ndeveloper_instructions = """\nInvariant\n"""\n# <<< agent-policy developer_instructions <<<\n',
   );
-  expect(f.run("check").code).toBe(0);
+  expect(f.run("check")).toMatchObject({ code: 0 });
+});
+
+test("CLI sync discovers ordered Pi and VS Code instruction modules", async () => {
+  const f = await fixture();
+  await fs.writeFile(
+    path.join(f.instructions, "pi", "later-policy.md"),
+    "Later Pi policy.\n",
+  );
+  await fs.mkdir(path.join(f.instructions, "vscode"));
+  await fs.writeFile(
+    path.join(f.instructions, "vscode", "10-first.md"),
+    "First VS Code policy.\n",
+  );
+  await fs.writeFile(
+    path.join(f.instructions, "vscode", "20-second.md"),
+    "Second VS Code policy.\n",
+  );
+
+  expect(f.run("sync").code).toBe(0);
+  expect(
+    await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8"),
+  ).toBe("Pi only\n\nLater Pi policy.\n");
+  expect(await fs.readFile(path.join(f.output, "vscode.instructions.md"), "utf8"))
+    .toContain(
+      "<!-- agent-policy: vscode -->\nFirst VS Code policy.\n\nSecond VS Code policy.\n",
+    );
+  const codexConfig = await fs.readFile(f.codexConfig, "utf8");
+  expect(codexConfig).not.toContain("Later Pi policy.");
+  expect(codexConfig).not.toContain("First VS Code policy.");
+
+  await fs.rm(path.join(f.instructions, "pi"), { recursive: true });
+  await fs.rm(path.join(f.instructions, "vscode"), { recursive: true });
+  expect(f.run("sync").code).toBe(0);
+  expect(
+    await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8"),
+  ).toBe("");
+  expect(await fs.readFile(path.join(f.output, "vscode.instructions.md"), "utf8"))
+    .not.toContain("<!-- agent-policy: vscode -->");
+  expect(f.run("check")).toMatchObject({ code: 0 });
 });
 
 test.each(["invariant.md", "codex/async-question-wait.md"])(

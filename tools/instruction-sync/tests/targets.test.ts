@@ -20,8 +20,11 @@ test("merges technology defaults into every preferences target", () => {
       invariants: "Invariant\n",
       preferences: "General preference\n",
       technologyDefaults: "Technology default\n",
-      piAppend: "Pi only\n",
-      codexInstructions: ["Codex only\n"],
+      harnessInstructions: {
+        pi: ["Pi only\n"],
+        codex: ["Codex only\n"],
+        vscode: [],
+      },
     },
     "",
   );
