@@ -63,8 +63,10 @@ Duplicating the same behavior creates independent maintenance paths: fixes reach
 
 ## External information
 
-Library and platform behavior changes over time, while repository conventions are local facts. Use the narrowest authoritative source that resolves the question, and do not add research overhead when local code and tests already establish the answer.
+Library and platform behavior changes over time, while repository conventions are local facts. Match each claim to the source that directly owns it, and do not add research overhead when local code and tests already establish the answer. Treat aggregators, documentation indexes, AI summaries, and search snippets as discovery aids rather than authoritative evidence.
 
-- When a material claim depends on changeable external behavior, consult a current authoritative source. Prefer local code, configuration, and tests when they already establish the answer.
-- Use current official documentation when a task depends on a library, framework, SDK, API, CLI, or cloud service. Resolve the relevant `Context7` library first and query it for library-specific behavior.
-- Use `DeepWiki` when the question depends on the implementation or conventions of a specific GitHub repository.
+- Prefer local manifests, lockfiles, installed metadata, configuration, source, and tests for current project facts.
+- For package versions, release status, dist-tags, publication dates, peer dependencies, engines, and package compatibility, query the live official package registry or vendor release API immediately before recommending, editing, or installing. Never derive these facts from `Context7`, `DeepWiki`, documentation examples, migration guides, search snippets, or model memory.
+- Use current, version-matched official documentation for API signatures, configuration, and supported behavior. For libraries hosted on GitHub, prefer `DeepWiki` over `Context7` for documentation, implementation, and repository conventions, then verify decision-critical claims against repository source at an identified tag or commit.
+- Use `Context7` only when `DeepWiki` is unavailable, the relevant project is not hosted on GitHub, or `Context7` better exposes the needed official documentation. Verify the returned source URL, target version, and freshness before relying on it for material recommendations. Treat `Context7` library version lists as index metadata only, never as complete or current release data.
+- If required live authoritative evidence is unavailable, report the fact as unknown and stop before making a compatibility recommendation or dependency change.

@@ -75,10 +75,12 @@ Unsupported does **not** mean unrestricted. It means you must apply compensating
 
 1. **Before any supported install command, check for `sfw`** with `sfw --version`.
 2. **If `sfw` is missing, install it first** using the official recommended path:
+
    ```bash
    npm i -g sfw
    sfw --version
    ```
+
 3. **Prefix every supported package-manager command with `sfw`**.
 4. **Do not silently bypass Socket Firewall** for supported package managers.
 5. **If the ecosystem is unsupported by Socket Firewall, explain the coverage gap before any networked command.**
@@ -98,14 +100,18 @@ You should configure (or encourage the user to configure) the following security
 Bun's installer exposes a first-class security-provider API. Socket provides an official integration ([`@socketsecurity/bun-security-scanner`](https://github.com/SocketDev/bun-security-scanner)) that scans every package in real time during `bun install` and `bun add`, blocking malware and typosquats before they touch the filesystem.
 
 - Install as a dev dependency:
+
   ```bash
   bun add -d @socketsecurity/bun-security-scanner
   ```
+
 - Configure under `[install.security]` in `bunfig.toml`:
+
   ```toml
   [install.security]
   scanner = "@socketsecurity/bun-security-scanner"
   ```
+
 - **Authentication (Optional):** Runs in zero-config free mode by default using Socket's public API. To enforce your organization's Socket policies, set `SOCKET_API_TOKEN` (or `SOCKET_API_KEY`) in your environment.
 - _Note:_ This native integration is the **recommended** path for Bun. While `sfw bun` is also functional, the native scanner provides optimized batching and avoids proxy-level tarball checksum issues.
 
@@ -114,19 +120,26 @@ Bun's installer exposes a first-class security-provider API. Socket provides an 
 Release age gating prevents the installation of brand-new, unvetted package versions. Apply these settings globally or at the project level to establish a cooldown (recommended: 7 days):
 
 - **npm (v11.10.0+):** Set in `.npmrc` (defined in days):
+
   ```ini
   min-release-age=7
   ```
+
 - **pnpm (v10.16+):** Set in `.npmrc` / `.pnpm.config.yaml` / global config (defined in minutes. Note: pnpm 11+ defaults to 1 day/1440 minutes):
+
   ```ini
   minimum-release-age=10080
   ```
+
 - **Bun (v1.3+):** Set under `[install]` in global or project-level `bunfig.toml` (defined in seconds):
+
   ```toml
   [install]
   minimumReleaseAge = 604800  # 7 days in seconds
   ```
+
 - **Yarn (v4.10.0+):** Set in `.yarnrc.yml` (supports string formats):
+
   ```yaml
   npmMinimalAgeGate: "7d"
   ```
@@ -152,17 +165,23 @@ Postinstall scripts are the primary vector for running malicious code immediatel
 Git-based dependencies bypass standard registry integrity checks and can smuggle unchecked package sources or re-enable unauthorized postinstall scripts.
 
 - **npm:** Block git dependencies by setting the following in `.npmrc`:
+
   ```ini
   allow-git=none
   ```
+
   Or allow them only if explicitly defined in your root package-lock/JSON file:
+
   ```ini
   allow-git=root
   ```
+
 - **pnpm:** Prevent nested sub-dependencies from using exotic sources (like git URLs or tarball links) by adding this to `.npmrc`:
+
   ```ini
   block-exotic-subdependencies=true
   ```
+
 - **Bun:** Exotic blocking is currently unsupported (feature request pending).
 
 ### 5. pnpm Trust Policy (No Downgrade)
@@ -179,6 +198,7 @@ Lockfile injection involves an attacker submitting a PR that silently alters res
 
 - **pnpm** is natively immune: It does not keep remote tarball URLs in its lockfile and ignores entries in the lockfile that are not declared in `package.json`.
 - For **npm**, **Yarn**, and **Bun**, configure `lockfile-lint` as a dev dependency to validate resolved URLs against trusted registries (e.g., `registry.npmjs.org`), ensure resolved names match package names, and verify integrity hashes in CI:
+
   ```json
   "scripts": {
     "lint:lockfile": "lockfile-lint --path package-lock.json --type npm --validate-https --allowed-hosts npm"
@@ -200,7 +220,7 @@ Follow these steps when installing dependencies:
 
 ### Step 2: Verify Package & Version (MANDATORY)
 
-**Before any install/add/sync command, you MUST verify the package name and version.**
+**Before recommending, editing, installing, adding, syncing, or updating a dependency, verify its package name and exact candidate version against live metadata owned by the official package registry or vendor release API.**
 
 1. **Typosquatting detection — HARD STOP required**: Compare the requested package name against the well-known alternative (e.g., `expres` → `express`). If you detect a name mismatch, unusual variant, or low-download-count package with a name similar to a popular library:
    - **You MUST stop and present evidence** to the user: the suspicious name, the legitimate alternative, download counts, publisher, and description.
@@ -208,9 +228,19 @@ Follow these steps when installing dependencies:
    - **Do NOT proceed** without an explicit affirmative response from the user.
    - Even with user confirmation, still apply full `sfw` and hardening controls to the install.
 
-2. **Version pinning**: Retrieve the _exact_ stable version number from the registry.
+2. **Live release verification**: Query the official registry or vendor release API immediately before making the recommendation or change.
+   - Retrieve current dist-tags or release channels, complete relevant version data, publication time, deprecation status, and the exact candidate version.
+   - Query the exact candidate separately for peer dependencies, runtime or engine requirements, and other compatibility metadata.
+   - For npm, use read-only registry queries such as `npm view <package> dist-tags version time deprecated --json` and `npm view <package>@<version> peerDependencies engines deprecated --json`. Follow any project policy that requires wrapping metadata commands.
+   - Compare this live metadata with local manifests, lockfiles, installed metadata, the resolved dependency graph, and runtime versions.
+   - Never derive latest versions, complete version lists, dist-tags, publication dates, peer dependencies, engines, or current compatibility from `Context7`, `DeepWiki`, documentation examples, migration guides, search snippets, or model memory.
+   - Re-query after a long delay, session compaction, or evidence that registry state may have changed.
+   - If live authoritative metadata is unavailable, report the required fact as unknown and stop before recommending or changing the dependency.
+
+3. **Version pinning**: Use the exact verified candidate version.
    - Do NOT run an unversioned `install <package>` blindly. Use `packagename@X.Y.Z`.
-   - Check the release age. Packages published under 7 days ago are highly volatile — verify cooldown filters are active.
+   - Check release age. Packages published under 7 days ago are highly volatile; verify cooldown filters are active.
+   - Do not silently replace a requested prerelease, release channel, or constrained version with latest stable. Resolve the user's intended channel, then verify that exact candidate.
    - Pinning to an exact version makes updates a deliberate, documented choice.
 
 ### Step 3: Verify Package Manager Availability
@@ -465,10 +495,12 @@ For global installations that fail:
 - Solution: Switch to Socket's official native security scanner provider instead of wrapping with `sfw`:
   1. Add `@socketsecurity/bun-security-scanner` to dev dependencies: `bun add -d @socketsecurity/bun-security-scanner`
   2. Configure in `bunfig.toml`:
+
      ```toml
      [install.security]
      scanner = "@socketsecurity/bun-security-scanner"
      ```
+
   3. Run regular `bun install` or `bun add` commands directly without `sfw`.
 
 ### Issue: The project uses an unsupported package manager
