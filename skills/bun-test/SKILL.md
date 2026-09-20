@@ -240,6 +240,15 @@ const mockFn = mock();
 
 ## Common Test Patterns
 
+### Assertion Ownership and Stable Fixtures
+
+Do not make tests a second source of truth for labels, status text, widget copy, formatting separators, or mutable configuration.
+
+- Test a formatter or renderer through semantic values, ordering, visibility, and styling roles. Assert exact text only when wording or syntax is a deliberate contract, such as a protocol token, security warning, actionable error, accessibility label, or CLI grammar.
+- In wiring and integration tests, import the production-owned formatter, builder, or constant instead of restating its copy. Separately assert the semantic state or arguments passed to it so the test can still detect broken wiring. Do not use the formatter to generate the expectation in its own unit test.
+- Keep configuration fixtures minimal and scenario-specific. Do not mirror personal configuration, complete default catalogs, or unrelated mutable values.
+- Use broad snapshots only when the complete output is intentionally stable. Otherwise prefer targeted assertions for data, structure, visibility, and roles.
+
 ### Testing Functions
 
 ```typescript
@@ -277,6 +286,8 @@ test("should reject promises", async () => {
 ```
 
 ### Snapshot Testing
+
+Snapshot the complete value only when that complete value is the contract. Do not freeze incidental user-facing copy or a whole mutable configuration object merely to detect changes.
 
 ```typescript
 test("should match snapshot", () => {

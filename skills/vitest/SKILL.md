@@ -26,10 +26,17 @@ Before writing any test code, you **must** load the [ai-testing](references/ai-t
 - What context to gather before generating tests
 - How to structure test code and choose Vitest APIs
 - What pitfalls to avoid (Jest API bleed, mock cleanup, verbose names, watch mode)
+- How to avoid duplicating mutable presentation text and configuration in fixtures
 - How to review and iterate on the tests you produce
 - Your required output format when generating test files
 
 Ignoring these instructions will produce low-quality, brittle, or non-functional tests.
+
+## Assertion Ownership
+
+Keep each mutable value owned in one place. Test a formatter or renderer through semantic values, ordering, visibility, and styling roles; require exact copy only when the wording itself is a contract. In wiring and integration tests, import the production-owned formatter, builder, or constant instead of repeating its labels or status text, and assert the supplied semantic state separately so the test is not circular.
+
+Keep configuration fixtures minimal and scenario-specific. Avoid broad snapshots of user-facing copy or complete configuration objects unless the entire output is intentionally stable.
 
 ---
 

@@ -29,13 +29,24 @@ When the user gives a vague request, fill in the gaps yourself:
 - **Keep test names short.** Bad: `'should correctly return the formatted price string when given a valid positive number and a supported currency code'`. Good: `'formats USD prices'`, `'throws for negative amounts'`.
 - **Use parameterized tests** with `test.each` instead of duplicating test blocks for similar inputs.
 
-## 3. Mocking Rules
+## 3. Keep Mutable Presentation Out of Fixtures
+
+Do not make a test fixture a second source of truth for labels, status text, widget copy, separators, or mutable configuration.
+
+- **Formatter and renderer unit tests:** Assert semantic values, ordering, visibility, and styling roles. Assert exact text only when wording or syntax is a deliberate contract, such as a protocol token, security warning, actionable error, accessibility label, or CLI grammar.
+- **Wiring and integration tests:** Import the formatter, builder, or constant owned by production code instead of restating its copy. Separately assert the semantic state or arguments passed to that boundary so broken wiring still fails. This test does not replace the formatter's own unit tests.
+- **Configuration fixtures:** Use the smallest values that express the scenario. Do not mirror a user's current configuration, a complete default catalog, or unrelated mutable defaults.
+- **Snapshots:** Snapshot the complete output only when that complete output is intentionally stable. Prefer targeted assertions for data, roles, visibility, and structure when copy may evolve.
+
+Never calculate a formatter's unit-test expectation with that same formatter. Expectations for the behavior under test must be independently capable of disagreeing with its implementation.
+
+## 4. Mocking Rules
 
 - **Use `vi.mock(import('./module.js'))`** (the import() form) for type-safe, refactorable module mocking. Avoid the string-path form `vi.mock('./module.js')`.
 - **Restore mocks.** Either enable `restoreMocks: true` in the vitest config, or call `vi.restoreAllMocks()` in `afterEach`. Never let spies leak between tests.
 - **Don't mock everything.** If the test can work against the real implementation, let it. Over-mocking produces brittle tests.
 
-## 4. Your Output Format
+## 5. Your Output Format
 
 When generating a test file, ALWAYS:
 
@@ -45,7 +56,7 @@ When generating a test file, ALWAYS:
 4. Name each `test`/`it` with a short behavior-descriptive label (imperative style).
 5. Assert on output/behavior, not on implementation internals.
 
-## 5. Review Checklist (Run This on Every Test File You Generate)
+## 6. Review Checklist (Run This on Every Test File You Generate)
 
 Before finishing, verify each of these:
 
@@ -55,9 +66,11 @@ Before finishing, verify each of these:
 - [ ] Are mocks properly cleaned up? (No leaked spies between tests.)
 - [ ] Are test names short and scannable? (No verbose "should correctly..." style.)
 - [ ] Are edge cases covered? (Null, empty, error, boundary, network failure.)
+- [ ] Do fixtures avoid duplicating mutable presentation text and current configuration?
+- [ ] If production presentation is reused in a wiring test, is the supplied semantic state asserted independently?
 - [ ] Would this file actually **run** without import errors? (Verify imports match the project's export names.)
 
-## 6. When Running Tests
+## 7. When Running Tests
 
 When executing tests, use:
 

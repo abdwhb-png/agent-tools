@@ -106,6 +106,8 @@ describe("Async operations", () => {
 
 ## Snapshot Testing
 
+Use a snapshot only when the complete output is intentionally stable. For mutable presentation or configuration, prefer semantic assertions. In wiring tests, reuse the production-owned formatter, builder, or constant and assert the semantic input separately; never use a formatter to produce its own unit-test expectation.
+
 ### Component Snapshots
 
 ```typescript
