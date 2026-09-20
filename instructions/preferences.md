@@ -1,9 +1,5 @@
 # User preferences indications
 
-## Persistent instruction style
-
-- Write persistent instructions as direct imperatives addressed to the executing agent. Avoid third-person descriptions of what an agent or model should do.
-
 # Philosophies and paradigms user subscribe to:
 
 - Highly believe that token-maxing is not the right way to use ai so systems must be deterministic as much as possible and have llm behave deterministically. One should not be tied to a single provider but route models for the right task.

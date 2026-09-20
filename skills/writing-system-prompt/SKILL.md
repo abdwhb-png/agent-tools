@@ -132,7 +132,7 @@ Add a preferred/avoid example only when the abstract rule stays ambiguous or a s
 
 ### Compose and refine
 
-- Write instructions as direct imperatives addressed to the executing agent.
+- Write instructions as direct imperatives addressed to the executing agent. Avoid third-person descriptions of what an agent or model should do; state the required action instead.
 - State the intended outcome or rationale once when it improves judgment. Do not require every section or bullet to repeat its problem, result, reason, and conditions.
 - Put the condition and its boundary in the same rule so the agent cannot retain the capability while dropping its limit.
 - Use observable behavior: specify what the agent should inspect, preserve, ask, execute, report, or avoid claiming.
