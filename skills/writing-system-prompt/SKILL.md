@@ -70,17 +70,17 @@ Do not impose a universal line limit. Use file size and repeated tokens as diagn
 
 Choose the narrowest layer that can enforce or communicate the rule reliably, not merely the theoretically narrowest layer.
 
-| Layer | Put here | Keep out |
-| --- | --- | --- |
-| Global system or developer instructions | Stable cross-task operating invariants, evidence standards, authority boundaries | Repository commands, transient facts, full specialist workflows without a fallback justification |
-| Global user preferences | Durable communication, collaboration, coding, delegation, and technology preferences | Facts that apply to only one repository or harness |
-| Harness-specific append instructions | Tools, paths, loading behavior, or workflow rules unique to that harness | General preferences already shared across harnesses |
-| Repository or directory instructions | Local architecture, exact commands, package boundaries, test traps, conventions, and hard-won constraints | Generic advice that every project already receives |
-| Skill | Detailed reusable workflow triggered by a class of tasks | Behavior that must apply even when the skill is not retrieved |
-| Code, configuration, hook, or permission system | Deterministic enforcement, generated values, machine-verifiable policy | Judgment that genuinely requires task context |
-| Documentation or reference | Detailed explanations, architecture overviews, large examples, infrequent procedures | Critical rules the agent routinely fails to retrieve |
-| Memory | Historical context, prior decisions, and experiential preferences that tolerate probabilistic retrieval | Safety boundaries or deterministic policy required on every relevant task |
-| Current user prompt | Immediate goal, inputs, acceptance criteria, and one-off exceptions | Durable rules that would otherwise be repeated manually |
+| Layer                                           | Put here                                                                                                  | Keep out                                                                                         |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Global system or developer instructions         | Stable cross-task operating invariants, evidence standards, authority boundaries                          | Repository commands, transient facts, full specialist workflows without a fallback justification |
+| Global user preferences                         | Durable communication, collaboration, coding, delegation, and technology preferences                      | Facts that apply to only one repository or harness                                               |
+| Harness-specific append instructions            | Tools, paths, loading behavior, or workflow rules unique to that harness                                  | General preferences already shared across harnesses                                              |
+| Repository or directory instructions            | Local architecture, exact commands, package boundaries, test traps, conventions, and hard-won constraints | Generic advice that every project already receives                                               |
+| Skill                                           | Detailed reusable workflow triggered by a class of tasks                                                  | Behavior that must apply even when the skill is not retrieved                                    |
+| Code, configuration, hook, or permission system | Deterministic enforcement, generated values, machine-verifiable policy                                    | Judgment that genuinely requires task context                                                    |
+| Documentation or reference                      | Detailed explanations, architecture overviews, large examples, infrequent procedures                      | Critical rules the agent routinely fails to retrieve                                             |
+| Memory                                          | Historical context, prior decisions, and experiential preferences that tolerate probabilistic retrieval   | Safety boundaries or deterministic policy required on every relevant task                        |
+| Current user prompt                             | Immediate goal, inputs, acceptance criteria, and one-off exceptions                                       | Durable rules that would otherwise be repeated manually                                          |
 
 Project-specific information does not need to move into a global skill merely because it is detailed. Keep exact commands and local failure-prevention rules in repository instructions when they are important, difficult to infer correctly, or repeatedly missed.
 
@@ -98,40 +98,39 @@ Prefer deterministic enforcement when it is available and proportionate, but do 
 
 Turn the selected rules into a coherent operating contract, not just a list of correctly placed instructions. Explain enough of the intended outcome and reasoning for the agent to generalize, while preserving the conditions and limits that make each rule safe.
 
-Use the following dimensions when they solve an established need. They are construction tools, not mandatory output sections: combine or omit them when the target prompt does not need them. Preserve useful user-approved rationale and examples rather than deleting them solely to meet a size target.
+Derive the structure from the observed failures and the user's actual needs. The concerns below are prompts for deriving content, not output sections and not a template to fill: skip any concern the target prompt does not need, and never emit an empty or invented section to satisfy the shape of this list. Preserve useful user-approved rationale and examples rather than deleting them solely to meet a size target.
 
-### 1. Purpose And Working Relationship
+Illustrative rule wording, boundary considerations, and validation situations live in `references/examples.md`. Load that file only when the user's reported failures match it and you need concrete phrasing.
 
-State the practical role, audience, intended outcome, and working relationship. Explain what success looks like and why the relationship matters when that context changes the agent's decisions. Prefer a concrete purpose such as producing reviewable engineering results over claims of exceptional expertise or a theatrical persona.
+### Derive purpose and working relationship
 
-### 2. Positive Patterns
+State the practical role, audience, intended outcome, and working relationship when that context changes the agent's decisions. Prefer a concrete purpose such as producing reviewable engineering results over claims of exceptional expertise or a theatrical persona.
 
-Describe the behavior to reproduce, not only the behavior to avoid. Translate goals such as clarity, accuracy, or collaboration into observable actions: surface the result, calibrate detail to risk, challenge an incorrect premise with evidence, or distinguish a verified fact from an inference.
+### Derive positive patterns
+
+For each behavior the user wants, describe the behavior to reproduce, not only the behavior to avoid, and name the observable action that demonstrates it. The actions follow from the goal: clarity, accuracy, and collaboration translate into different observations, such as surfacing the result, calibrating detail to risk, challenging an incorrect premise with evidence, or distinguishing a verified fact from an inference.
 
 Select patterns from the user's needs and observed successful outputs. Explain their purpose where it helps the agent handle unfamiliar cases; do not copy a generic style checklist into every prompt. Adapt presentation to the actual interface and user preference rather than universally requiring the conclusion first or last.
 
-### 3. Failure Modes, Reasons, And Conditions
+### Derive failure modes, reasons, and conditions
 
-Identify the recurring failure, its consequence, and the judgment that should replace it. Preserve meaningful explanations of why a rule exists, especially when a weaker model needs that context to apply it beyond the example.
+For each recurring failure the user reports, identify its consequence and the judgment that should replace it. Preserve meaningful explanations of why a rule exists, especially when a weaker model needs that context to apply it beyond the example. Keep a negative pattern only when it addresses a real failure or an explicit user preference, and pair it with the desired alternative when the prohibition alone leaves behavior ambiguous.
 
-- Prevent over-claiming by keeping findings attached to their scope, evidence, caveats, and test conditions. Do not turn a narrow observation into an unrestricted guarantee.
-- Make missing evidence, unavailable checks, and residual uncertainty visible instead of smoothing them into confident prose.
-- Require visible failure handling rather than silent suppression or fallbacks that conceal the defect.
-- Keep a negative pattern only when it addresses a real failure or an explicit user preference. Pair it with the desired alternative when the prohibition alone leaves behavior ambiguous.
+Write each rule from the failure you observed rather than from a category of failures you could imagine. When the user's failures match a situation in `references/examples.md`, adapt that wording to the reported case instead of pasting it unchanged.
 
-### 4. Operational Boundaries
+### Derive operational boundaries
 
-Define which actions the agent may take autonomously, which require evidence or approval, and what constitutes completion. Attach permissions to their limits in the same rule so the agent cannot retain the action while dropping its boundary.
+Define which actions the agent may take autonomously, which require evidence or approval, and what constitutes completion. Attach permissions to their limits in the same rule so the agent cannot retain the action while dropping its boundary. Distinguish a missing check from a confirmed failure and a static result from runtime evidence. Keep hard boundaries explicit; explain judgment-dependent exceptions without accidentally broadening authority.
 
-For a coding agent, consider requested scope, preservation of existing changes, destructive or external effects, unresolved trade-offs, and truthful validation claims. Distinguish a missing check from a confirmed failure and a static result from runtime evidence. Keep hard boundaries explicit; explain judgment-dependent exceptions without accidentally broadening authority.
+Choose the boundaries from the user's actual risks and non-negotiable constraints. `references/examples.md` lists considerations that commonly matter for coding agents; use it as a prompt for asking the user, not as a list to include.
 
-### 5. Shared Conventions And Contrastive Examples
+### Derive shared conventions and examples only when needed
 
 Preserve shared labels and aliases when the user has requested or approved them. Do not invent them merely because repeated work could benefit from shortcuts. Define each alias's expansion and an unambiguous invocation rule so ordinary text cannot trigger it accidentally.
 
-Use a small number of preferred/avoid examples when they clarify a meaningful behavioral difference or support a model that struggles with abstract guidance. Keep the inputs comparable and show the consequence of the difference. Remove incidental detail and private information; do not let examples contradict the rules, their limits, or the user's current request.
+Add a preferred/avoid example only when the abstract rule stays ambiguous or a smaller model needs the demonstrated pattern, and omit examples entirely when the rule is already unambiguous. Keep the inputs comparable and show the consequence of the difference. Remove incidental detail and private information; do not let examples contradict the rules, their limits, or the user's current request.
 
-### 6. Compose And Refine
+### Compose and refine
 
 - Write instructions as direct imperatives addressed to the executing agent.
 - State the intended outcome or rationale once when it improves judgment. Do not require every section or bullet to repeat its problem, result, reason, and conditions.
@@ -142,7 +141,7 @@ Use a small number of preferred/avoid examples when they clarify a meaningful be
 - Make tool and harness rules conditional when the capability may not exist in every target environment.
 - Remove decorative personas, generic repository summaries, repeated facts, and examples that do not change behavior.
 - Use contrastive examples only when abstract wording remains ambiguous or smaller models need the demonstrated pattern.
-- Follow the target file's native structure and precedence rules. Do not force every format into `Purpose` and `Instructions` headings when another structure is clearer or already established.
+- Follow the target file's native structure and precedence rules. Do not force another format into the headings this skill happens to use.
 - Keep canonical source content independent of harness syntax when a renderer owns the target-specific wrapper.
 
 ## Audit and revision workflow
@@ -158,7 +157,7 @@ Use a small number of preferred/avoid examples when they clarify a meaningful be
 
 ## Validate the revision proportionally
 
-For a substantial revision, test representative situations selected from the actual risks:
+For a substantial revision, test representative situations selected from the actual risks. The situations below are illustrative starting points, not a required suite; select the ones that match the target's real failure modes.
 
 - a short low-risk request that should not trigger excessive ceremony;
 - a high-risk or ambiguous action that should preserve authority and uncertainty;
@@ -170,11 +169,6 @@ Check that the revised stack produces observable improvements, does not block le
 
 ## Present the result
 
-Lead with the recommended instruction architecture or completed change. Then provide only what the user needs to evaluate it:
-
-1. Identify which rules stayed, moved, became conditional, were embedded as fallbacks, or were removed.
-2. Explain the important trade-offs, especially retrieval reliability versus repeated context cost.
-3. Provide copy-ready content or exact file changes when requested.
-4. Report validations performed, destinations not synchronized, and unresolved harness assumptions.
+Lead with the recommended instruction architecture or completed change. Then provide only what the user needs to evaluate it, such as which rules stayed, moved, became conditional, were embedded as fallbacks, or were removed; the important trade-offs, especially retrieval reliability versus repeated context cost; copy-ready content or exact file changes when requested; and validations performed, destinations not synchronized, and unresolved harness assumptions.
 
 Do not claim that a prompt guarantees behavior. Treat persistent instructions as a reliability mechanism whose value must be judged against observed model behavior, retrieval quality, maintenance cost, and context consumption.
