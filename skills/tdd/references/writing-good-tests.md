@@ -31,10 +31,11 @@ A mutation no test detects indicates an uncovered behavior or a test that is ins
 Revisit a test when:
 
 - Setup computes the assertion's expected value.
+- A fixture restates mutable presentation copy or mirrors current production configuration.
 - The test fails on refactors that preserve module behavior.
 - The test checks a mock's presence rather than a product effect.
 - A test-only production method is required for observation or cleanup.
 - A dependency mock hides a side effect needed by the test.
 - Setup is larger or more complex than the behavior being specified.
 
-The remedy is usually to choose a better module interface, use a more realistic collaborator, or narrow the behavior under test.
+The remedy is usually to choose a better module interface, use a more realistic collaborator, narrow the behavior under test, or import the separately owned production formatter in a wiring test. Never use a formatter to calculate its own unit-test expectation.

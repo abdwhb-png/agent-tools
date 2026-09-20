@@ -7,6 +7,12 @@ description: Snapshot testing with file, inline, and file snapshots
 
 Snapshot tests capture output and compare against stored references.
 
+## When a Snapshot Is the Right Contract
+
+Use a snapshot when the complete serialized or rendered output is intentionally stable and reviewing the whole value is useful. Do not use a broad snapshot merely to notice changes in labels, widget copy, separators, or complete configuration defaults.
+
+For mutable presentation, assert semantic values, ordering, visibility, and styling roles. In a wiring test, reuse the production-owned formatter, builder, or constant and independently assert the state supplied to it. Test the formatter itself with independent expectations; never use it to generate its own expected snapshot.
+
 ## Basic Snapshot
 
 ```ts
@@ -193,6 +199,8 @@ defineConfig({
 
 ## Key Points
 
+- Keep snapshots narrow and tied to an intentional complete-output contract
+- Prefer semantic assertions when user-facing copy or configuration may evolve
 - Commit snapshot files to version control
 - Review snapshot changes in code review
 - Use hints for multiple snapshots in one test

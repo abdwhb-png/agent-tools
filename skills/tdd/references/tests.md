@@ -29,6 +29,17 @@ expect(calculateTotal([{ price: 10 }, { price: 5 }])).toBe(15);
 
 Do not create change detectors that only assert constants, exact private text, removed symbols, or source files. Test the caller-visible behavior that depends on the decision.
 
+## Separate Presentation Ownership from Wiring
+
+Do not duplicate mutable labels, widget text, status copy, separators, or full configuration defaults in fixtures. First identify which module owns the behavior:
+
+- Test an owning formatter or renderer with independently known semantic expectations. Prefer structured segments, values, order, visibility, and style roles over incidental prose.
+- Test a consumer or integration by importing the production-owned formatter, builder, or constant, then separately asserting the semantic state or input passed across the seam. This proves the wiring without making the test another owner of the copy.
+
+Exact text remains appropriate when wording or syntax is the contract, including protocol values, security warnings, actionable errors, accessibility labels, and CLI grammar. Broad snapshots are appropriate only when the complete output is intentionally stable.
+
+Do not use a formatter to compute the expected value in that formatter's own unit test. That comparison cannot detect a broken formatter.
+
 ## Choose the Right Scope
 
 Prefer the narrowest existing interface that expresses the requested behavior. A test that needs to reach past the interface is evidence that either the test surface or the module design needs reconsideration.
@@ -42,6 +53,6 @@ Before committing a test, ask:
 1. What realistic defect should make this fail?
 2. Does it observe a behavior a caller relies on?
 3. Can a correct internal refactor keep it green?
-4. Is the expected value independent of the code under test?
+4. Is the expected value independent of the behavior under test, or intentionally sourced from a separately owned presentation boundary?
 
 If any answer is no, redesign the test before implementing production code.
