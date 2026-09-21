@@ -26,7 +26,7 @@ test("merges technology defaults into every preferences target", () => {
         vscode: [],
       },
     },
-    "",
+    {},
   );
   const merged = "General preference\n\nTechnology default\n";
 

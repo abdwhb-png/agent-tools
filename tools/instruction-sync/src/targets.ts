@@ -9,7 +9,7 @@ import {
   type CanonicalSources,
 } from "./sources.js";
 
-export function renderTargets(config: PolicyConfig, sources: CanonicalSources, codexConfig?: string, adoptUnmanaged = false): RenderedTarget[] {
+export function renderTargets(config: PolicyConfig, sources: CanonicalSources, codexConfigs: Record<string, string | undefined> = {}, adoptUnmanaged = false): RenderedTarget[] {
   const targets: RenderedTarget[] = [];
   const preferences = composeInstructions([
     sources.preferences,
@@ -31,9 +31,15 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
       sources.invariants,
       ...sources.harnessInstructions.codex,
     ]);
-    const target = renderCodexConfig(codexConfig, instructions, adoptUnmanaged);
-    targets.push({ id: "codex-config", kind: "codex", path: path.join(config.harnesses.codex.home!, "config.toml"), ...target });
-    targets.push({ id: "codex-agents", kind: "file", path: path.join(config.harnesses.codex.home!, "AGENTS.md"), desired: preferences, owned: preferences });
+    const homes = [
+      { id: "codex", home: config.harnesses.codex.home! },
+      ...(config.harnesses.codex.additionalHomes || []).map(({ id, home }) => ({ id: `codex-${id}`, home })),
+    ];
+    for (const { id, home } of homes) {
+      const target = renderCodexConfig(codexConfigs[id], instructions, adoptUnmanaged);
+      targets.push({ id: `${id}-config`, kind: "codex", path: path.join(home, "config.toml"), ...target });
+      targets.push({ id: `${id}-agents`, kind: "file", path: path.join(home, "AGENTS.md"), desired: preferences, owned: preferences });
+    }
   }
   if (config.harnesses.vscode.enabled) {
     const output = renderVsCode(

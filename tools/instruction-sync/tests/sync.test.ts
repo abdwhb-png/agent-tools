@@ -106,3 +106,46 @@ test("assessment reports an unmanaged Codex value as a conflict without throwing
     detail: expect.stringContaining("unmanaged"),
   });
 });
+
+test("sync manages primary and named Codex homes independently", async () => {
+  const root = await sandbox();
+  const wsl = path.join(root, "wsl");
+  const windows = path.join(root, "windows");
+  const statePath = path.join(root, "state.json");
+  const config: PolicyConfig = {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: true, home: wsl, additionalHomes: [{ id: "windows", home: windows }] },
+      vscode: { enabled: false },
+    },
+  };
+  const result = await synchronize(config, emptyState(), statePath, source);
+  expect(result.changed).toEqual(["codex-config", "codex-agents", "codex-windows-config", "codex-windows-agents"]);
+  await fs.appendFile(path.join(windows, "config.toml"), 'model = "windows-model"\n');
+  expect(await fs.readFile(path.join(windows, "config.toml"), "utf8")).toContain('model = "windows-model"');
+  expect((await assessTargets(config, await loadState(statePath), source)).every((item) => item.status === "current")).toBe(true);
+});
+
+test("adding a named Codex home preserves primary target state", async () => {
+  const root = await sandbox();
+  const statePath = path.join(root, "state.json");
+  const primary = path.join(root, "wsl");
+  const config: PolicyConfig = {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: true, home: primary },
+      vscode: { enabled: false },
+    },
+  };
+  await synchronize(config, emptyState(), statePath, source);
+  config.harnesses.codex.additionalHomes = [{ id: "windows", home: path.join(root, "windows") }];
+  const assessment = await assessTargets(config, await loadState(statePath), source);
+  expect(assessment.map(({ target, status }) => [target.id, status])).toEqual([
+    ["codex-config", "current"],
+    ["codex-agents", "current"],
+    ["codex-windows-config", "missing"],
+    ["codex-windows-agents", "missing"],
+  ]);
+});

@@ -7,7 +7,10 @@
     },
     "codex": {
       "enabled": true,
-      "home": "/absolute/path/to/.codex"
+      "home": "/absolute/path/to/.codex",
+      "additionalHomes": [
+        { "id": "windows", "home": "/mnt/c/Users/example/.codex" }
+      ]
     },
     "vscode": {
       "enabled": true,

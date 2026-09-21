@@ -114,7 +114,7 @@ function parsePolicyConfig(raw) {
   const codex = assertHarness(parsed.harnesses.codex, "codex");
   const vscode = assertHarness(parsed.harnesses.vscode, "vscode");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
-  assertKeys(codex, ["enabled", "home"], "harnesses.codex");
+  assertKeys(codex, ["enabled", "home", "additionalHomes"], "harnesses.codex");
   assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
   if (pi.enabled && typeof pi.agentDir !== "string")
     throw new Error("enabled Pi harness requires agentDir");
@@ -127,6 +127,27 @@ function parsePolicyConfig(raw) {
     assertAbsolute(pi.agentDir, "harnesses.pi.agentDir");
   if (typeof codex.home === "string")
     assertAbsolute(codex.home, "harnesses.codex.home");
+  if (codex.additionalHomes !== undefined) {
+    if (!Array.isArray(codex.additionalHomes))
+      throw new Error("harnesses.codex.additionalHomes must be an array");
+    const ids = new Set;
+    const homes = new Set(typeof codex.home === "string" ? [codex.home] : []);
+    for (const entry of codex.additionalHomes) {
+      if (!isObject(entry))
+        throw new Error("each additional Codex home must be an object");
+      assertKeys(entry, ["id", "home"], "harnesses.codex.additionalHomes entry");
+      if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.home !== "string") {
+        throw new Error("each additional Codex home requires a lowercase id and absolute home path");
+      }
+      assertAbsolute(entry.home, `harnesses.codex.additionalHomes.${entry.id}.home`);
+      if (ids.has(entry.id))
+        throw new Error(`duplicate additional Codex id: ${entry.id}`);
+      if (homes.has(entry.home))
+        throw new Error(`duplicate Codex home: ${entry.home}`);
+      ids.add(entry.id);
+      homes.add(entry.home);
+    }
+  }
   if (Array.isArray(vscode.targets))
     vscode.targets.forEach((target) => assertAbsolute(target, "harnesses.vscode.targets"));
   return parsed;
@@ -283,7 +304,7 @@ ${block}`, owned: block };
 
 // src/targets.ts
 import path3 from "node:path";
-function renderTargets(config, sources, codexConfig, adoptUnmanaged = false) {
+function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = false) {
   const targets = [];
   const preferences = composeInstructions([
     sources.preferences,
@@ -299,9 +320,15 @@ function renderTargets(config, sources, codexConfig, adoptUnmanaged = false) {
       sources.invariants,
       ...sources.harnessInstructions.codex
     ]);
-    const target = renderCodexConfig(codexConfig, instructions, adoptUnmanaged);
-    targets.push({ id: "codex-config", kind: "codex", path: path3.join(config.harnesses.codex.home, "config.toml"), ...target });
-    targets.push({ id: "codex-agents", kind: "file", path: path3.join(config.harnesses.codex.home, "AGENTS.md"), desired: preferences, owned: preferences });
+    const homes = [
+      { id: "codex", home: config.harnesses.codex.home },
+      ...(config.harnesses.codex.additionalHomes || []).map(({ id, home }) => ({ id: `codex-${id}`, home }))
+    ];
+    for (const { id, home } of homes) {
+      const target = renderCodexConfig(codexConfigs[id], instructions, adoptUnmanaged);
+      targets.push({ id: `${id}-config`, kind: "codex", path: path3.join(home, "config.toml"), ...target });
+      targets.push({ id: `${id}-agents`, kind: "file", path: path3.join(home, "AGENTS.md"), desired: preferences, owned: preferences });
+    }
   }
   if (config.harnesses.vscode.enabled) {
     const output = renderVsCode(sources.invariants, preferences, composeInstructions(sources.harnessInstructions.vscode));
@@ -332,12 +359,17 @@ function ownedContent(target, existing) {
   return target.kind === "codex" ? managedCodexBlock(existing) : existing;
 }
 async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnmanaged = false) {
-  const codexPath = config.harnesses.codex.enabled ? path4.join(config.harnesses.codex.home, "config.toml") : undefined;
-  const codexConfig = codexPath ? await readOptional(io, codexPath) : undefined;
-  const targets = renderTargets(config, sources, codexConfig, true);
+  const codexHomes = config.harnesses.codex.enabled ? [
+    { id: "codex", home: config.harnesses.codex.home },
+    ...(config.harnesses.codex.additionalHomes || []).map(({ id, home }) => ({ id: `codex-${id}`, home }))
+  ] : [];
+  const codexConfigs = {};
+  for (const { id, home } of codexHomes)
+    codexConfigs[id] = await readOptional(io, path4.join(home, "config.toml"));
+  const targets = renderTargets(config, sources, codexConfigs, true);
   const assessments = [];
   for (const target of targets) {
-    const existing = target.path === codexPath ? codexConfig : await readOptional(io, target.path);
+    const existing = target.kind === "codex" ? codexConfigs[target.id.slice(0, -"-config".length)] : await readOptional(io, target.path);
     const owned = ownedContent(target, existing);
     const prior = state.targets[target.id];
     if (prior) {
@@ -487,7 +519,9 @@ Global options:
 
 configure options:
   --apply             Write the displayed configuration
-  --pi-agent-dir PATH --codex-home PATH --vscode-target PATH (repeatable)
+  --pi-agent-dir PATH --codex-home PATH
+  --codex-additional-home ID=PATH (repeatable)
+  --vscode-target PATH (repeatable)
   --enable-pi --enable-codex --enable-vscode
   --disable-pi --disable-codex --disable-vscode
 
@@ -516,11 +550,25 @@ function configuredPolicy(base, arguments_) {
   const result = structuredClone(base);
   const pi = value(arguments_, "--pi-agent-dir");
   const codex = value(arguments_, "--codex-home");
+  const additionalCodex = values(arguments_, "--codex-additional-home");
   const vscode = values(arguments_, "--vscode-target");
   if (pi)
     result.harnesses.pi.agentDir = pi;
   if (codex)
     result.harnesses.codex.home = codex;
+  for (const entry of additionalCodex) {
+    const separator = entry.indexOf("=");
+    if (separator < 1)
+      throw new Error("--codex-additional-home requires ID=PATH");
+    const id = entry.slice(0, separator);
+    const home = entry.slice(separator + 1);
+    result.harnesses.codex.additionalHomes ||= [];
+    const existing = result.harnesses.codex.additionalHomes.find((item) => item.id === id);
+    if (existing)
+      existing.home = home;
+    else
+      result.harnesses.codex.additionalHomes.push({ id, home });
+  }
   if (vscode.length > 0)
     result.harnesses.vscode.targets = vscode;
   if (arguments_.flags.has("--enable-pi"))

@@ -209,6 +209,14 @@ Code profile, `~/.copilot/instructions` for Agent Host, or both. This accounts
 for local extension-host and Agent Host sessions without hard-coding one user
 directory layout.
 
+Codex also supports named additional homes alongside its original primary
+`home`. The primary keeps its existing target IDs so adding a Windows home from
+WSL does not invalidate existing sync state. Additional homes use stable IDs
+derived from configured names, rather than list positions, so reordering them
+does not change their state identity. Each home is read and rendered separately
+to preserve unrelated settings in its own `config.toml`. A single preflight
+checks every enabled destination before any write.
+
 Normalize canonical sources and generated outputs to UTF-8 without a byte-order
 mark and with LF line endings. Do not add timestamps or other volatile content
 to generated files.

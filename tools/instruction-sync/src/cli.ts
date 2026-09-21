@@ -59,7 +59,9 @@ Global options:
 
 configure options:
   --apply             Write the displayed configuration
-  --pi-agent-dir PATH --codex-home PATH --vscode-target PATH (repeatable)
+  --pi-agent-dir PATH --codex-home PATH
+  --codex-additional-home ID=PATH (repeatable)
+  --vscode-target PATH (repeatable)
   --enable-pi --enable-codex --enable-vscode
   --disable-pi --disable-codex --disable-vscode
 
@@ -99,9 +101,20 @@ function configuredPolicy(
   const result: PolicyConfig = structuredClone(base);
   const pi = value(arguments_, "--pi-agent-dir");
   const codex = value(arguments_, "--codex-home");
+  const additionalCodex = values(arguments_, "--codex-additional-home");
   const vscode = values(arguments_, "--vscode-target");
   if (pi) result.harnesses.pi.agentDir = pi;
   if (codex) result.harnesses.codex.home = codex;
+  for (const entry of additionalCodex) {
+    const separator = entry.indexOf("=");
+    if (separator < 1) throw new Error("--codex-additional-home requires ID=PATH");
+    const id = entry.slice(0, separator);
+    const home = entry.slice(separator + 1);
+    result.harnesses.codex.additionalHomes ||= [];
+    const existing = result.harnesses.codex.additionalHomes.find((item) => item.id === id);
+    if (existing) existing.home = home;
+    else result.harnesses.codex.additionalHomes.push({ id, home });
+  }
   if (vscode.length > 0) result.harnesses.vscode.targets = vscode;
   if (arguments_.flags.has("--enable-pi")) result.harnesses.pi.enabled = true;
   if (arguments_.flags.has("--enable-codex"))

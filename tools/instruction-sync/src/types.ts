@@ -8,7 +8,7 @@ export interface PolicyConfig {
   schemaVersion: 1;
   harnesses: {
     pi: HarnessConfig & { agentDir?: string };
-    codex: HarnessConfig & { home?: string };
+    codex: HarnessConfig & { home?: string; additionalHomes?: { id: string; home: string }[] };
     vscode: HarnessConfig & { targets?: string[] };
   };
 }

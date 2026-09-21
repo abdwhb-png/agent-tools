@@ -119,7 +119,7 @@ export function parsePolicyConfig(raw: string): PolicyConfig {
   const codex = assertHarness(parsed.harnesses.codex, "codex");
   const vscode = assertHarness(parsed.harnesses.vscode, "vscode");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
-  assertKeys(codex, ["enabled", "home"], "harnesses.codex");
+  assertKeys(codex, ["enabled", "home", "additionalHomes"], "harnesses.codex");
   assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
   if (pi.enabled && typeof pi.agentDir !== "string") throw new Error("enabled Pi harness requires agentDir");
   if (codex.enabled && typeof codex.home !== "string") throw new Error("enabled Codex harness requires home");
@@ -128,6 +128,23 @@ export function parsePolicyConfig(raw: string): PolicyConfig {
   }
   if (typeof pi.agentDir === "string") assertAbsolute(pi.agentDir, "harnesses.pi.agentDir");
   if (typeof codex.home === "string") assertAbsolute(codex.home, "harnesses.codex.home");
+  if (codex.additionalHomes !== undefined) {
+    if (!Array.isArray(codex.additionalHomes)) throw new Error("harnesses.codex.additionalHomes must be an array");
+    const ids = new Set<string>();
+    const homes = new Set<string>(typeof codex.home === "string" ? [codex.home] : []);
+    for (const entry of codex.additionalHomes) {
+      if (!isObject(entry)) throw new Error("each additional Codex home must be an object");
+      assertKeys(entry, ["id", "home"], "harnesses.codex.additionalHomes entry");
+      if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.home !== "string") {
+        throw new Error("each additional Codex home requires a lowercase id and absolute home path");
+      }
+      assertAbsolute(entry.home, `harnesses.codex.additionalHomes.${entry.id}.home`);
+      if (ids.has(entry.id)) throw new Error(`duplicate additional Codex id: ${entry.id}`);
+      if (homes.has(entry.home)) throw new Error(`duplicate Codex home: ${entry.home}`);
+      ids.add(entry.id);
+      homes.add(entry.home);
+    }
+  }
   if (Array.isArray(vscode.targets)) vscode.targets.forEach((target) => assertAbsolute(target, "harnesses.vscode.targets"));
   return parsed as unknown as PolicyConfig;
 }

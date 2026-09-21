@@ -172,3 +172,16 @@ test("CLI Codex conflict blocks all writes without implicit adoption", async () 
   expect(await fs.readFile(f.statePath, "utf8")).toBe(priorState);
   expect(await fs.exists(path.join(f.root, "backups"))).toBe(false);
 });
+
+test("configure accepts a named additional Codex home", async () => {
+  const f = await fixture();
+  const result = Bun.spawnSync([
+    process.execPath,
+    path.join(f.root, "tools", "instruction-sync", "src", "cli.ts"),
+    "configure", "--config", path.join(f.root, "tools", "instruction-sync", "config.json"),
+    "--codex-additional-home", `windows=${path.join(f.output, "windows")}`,
+  ]);
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout.toString()).toContain('"id": "windows"');
+  expect(result.stdout.toString()).toContain(path.join(f.output, "windows"));
+});

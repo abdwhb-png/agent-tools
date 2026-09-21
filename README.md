@@ -116,6 +116,23 @@ edit its absolute target paths, or use `--config /path/to/config.json` to
 override the default. The file supports enabling or disabling each harness and
 a list of VS Code instruction destinations.
 
+Codex can have a primary home plus named additional homes. From WSL, point an
+additional home at the Windows Codex directory using its mounted path (for
+example `/mnt/c/Users/<you>/.codex`). Confirm the actual Windows `CODEX_HOME`
+first if it is customized. Add it to the machine-local configuration with:
+
+```bash
+node tools/instruction-sync/dist/agent-policy.mjs configure --codex-additional-home windows=/mnt/c/Users/<you>/.codex
+node tools/instruction-sync/dist/agent-policy.mjs configure --codex-additional-home windows=/mnt/c/Users/<you>/.codex --apply
+node tools/instruction-sync/dist/agent-policy.mjs doctor
+```
+
+The first command previews the configuration. The existing Codex home retains
+its target IDs and sync state; the new home uses `codex-windows-config` and
+`codex-windows-agents`. If its `config.toml` already has unmanaged
+`developer_instructions`, `sync` reports a conflict until that target is
+explicitly adopted.
+
 `check` never writes and returns non-zero for stale, missing, untracked, or
 conflicted targets. Existing divergent targets require explicit
 `adopt --target <id> --apply` (or `--all`); adoption writes a recovery backup.

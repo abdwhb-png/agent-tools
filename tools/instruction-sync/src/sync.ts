@@ -52,15 +52,19 @@ export async function assessTargets(
   io: FileOps = nodeFileOps,
   adoptUnmanaged = false,
 ): Promise<TargetAssessment[]> {
-  const codexPath = config.harnesses.codex.enabled ? path.join(config.harnesses.codex.home!, "config.toml") : undefined;
-  const codexConfig = codexPath ? await readOptional(io, codexPath) : undefined;
+  const codexHomes = config.harnesses.codex.enabled ? [
+    { id: "codex", home: config.harnesses.codex.home! },
+    ...(config.harnesses.codex.additionalHomes || []).map(({ id, home }) => ({ id: `codex-${id}`, home })),
+  ] : [];
+  const codexConfigs: Record<string, string | undefined> = {};
+  for (const { id, home } of codexHomes) codexConfigs[id] = await readOptional(io, path.join(home, "config.toml"));
   // Rendering the adoption form here lets read-only commands classify an
   // unmanaged Codex value as a conflict. synchronize still rejects that
   // conflict unless the caller selected it through explicit adoption.
-  const targets = renderTargets(config, sources, codexConfig, true);
+  const targets = renderTargets(config, sources, codexConfigs, true);
   const assessments: TargetAssessment[] = [];
   for (const target of targets) {
-    const existing = target.path === codexPath ? codexConfig : await readOptional(io, target.path);
+    const existing = target.kind === "codex" ? codexConfigs[target.id.slice(0, -"-config".length)] : await readOptional(io, target.path);
     const owned = ownedContent(target, existing);
     const prior = state.targets[target.id];
     if (prior) {

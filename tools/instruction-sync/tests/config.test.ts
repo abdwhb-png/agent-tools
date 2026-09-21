@@ -45,3 +45,11 @@ test("rejects unsupported configuration keys and relative target paths", () => {
     },
   }))).toThrow("absolute path");
 });
+
+test("accepts named additional Codex homes and rejects duplicate identities", () => {
+  const config = defaultPolicyConfig({ home: "/home/agent", platform: "linux", env: {} });
+  config.harnesses.codex.additionalHomes = [{ id: "windows", home: "/mnt/c/Users/agent/.codex" }];
+  expect(parsePolicyConfig(JSON.stringify(config)).harnesses.codex.additionalHomes).toEqual(config.harnesses.codex.additionalHomes);
+  config.harnesses.codex.additionalHomes.push({ id: "windows", home: "/other" });
+  expect(() => parsePolicyConfig(JSON.stringify(config))).toThrow("duplicate additional Codex id");
+});
