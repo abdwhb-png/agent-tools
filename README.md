@@ -28,15 +28,18 @@ instruction sources:
   including `async-question-wait.md`.
 - `instructions/vscode/` is the optional location for VS Code-only instruction
   modules.
+- `instructions/zed/` is the optional location for Zed-only instruction
+  modules.
 
-These files intentionally contain plain Markdown. Pi, Codex, and VS Code use
+These files intentionally contain plain Markdown. Pi, Codex, VS Code, and Zed use
 different configuration formats and precedence rules, so a source file should
 not be copied blindly to every destination. The synchronizer deterministically
 appends `technology-defaults.md` to `preferences.md` before rendering each
 harness's preferences target.
 
 The central source loader discovers every regular `*.md` file in
-`instructions/pi/`, `instructions/codex/`, and `instructions/vscode/`, sorted
+`instructions/pi/`, `instructions/codex/`, `instructions/vscode/`, and
+`instructions/zed/`, sorted
 by filename within each directory. It normalizes each source to LF, trims
 trailing whitespace, and separates modules with one blank line. Every harness
 directory is optional, so removing its last file leaves the extension point
@@ -48,6 +51,9 @@ The renderers keep these modules isolated. Pi writes its modules to
 section of the combined instruction file between invariants and preferences. A
 TOML multiline-string delimiter (`"""`) in any Codex-composed source blocks
 synchronization.
+
+Zed writes one personal `AGENTS.md` per configured home, composing invariants,
+Zed modules, preferences, and technology defaults in that order.
 
 The current waiting policy is an instruction-based mitigation. It does not
 modify the Codex server or guarantee model behavior. Validate generated files
@@ -78,7 +84,7 @@ may have their own documented requirements.
 
 The accepted architecture introduces a portable TypeScript synchronizer under
 `tools/instruction-sync/`. It will render the canonical instructions into the
-native formats expected by Pi, Codex, and VS Code while preserving each
+native formats expected by Pi, Codex, VS Code, and Zed while preserving each
 harness's instruction layering.
 
 Version 1 uses explicit manual synchronization. Startup hooks are deliberately
@@ -132,6 +138,21 @@ its target IDs and sync state; the new home uses `codex-windows-config` and
 `codex-windows-agents`. If its `config.toml` already has unmanaged
 `developer_instructions`, `sync` reports a conflict until that target is
 explicitly adopted.
+
+Zed's native agent reads personal `AGENTS.md` from `%APPDATA%\Zed` on Windows
+and `~/.config/zed` on Linux. From WSL, configure the Windows home as the
+primary target with its mounted absolute path, then add the Linux home by name:
+
+```bash
+node tools/instruction-sync/dist/agent-policy.mjs configure --zed-home /mnt/c/Users/<you>/AppData/Roaming/Zed --zed-additional-home linux=/home/<you>/.config/zed --enable-zed
+node tools/instruction-sync/dist/agent-policy.mjs configure --zed-home /mnt/c/Users/<you>/AppData/Roaming/Zed --zed-additional-home linux=/home/<you>/.config/zed --enable-zed --apply
+node tools/instruction-sync/dist/agent-policy.mjs doctor
+```
+
+The first command previews the paths. Existing configs without `zed` remain
+valid, and the Zed target is disabled until configured. The targets are
+`zed-agents` and `zed-linux-agents`. Zed's external agents use their own
+instruction mechanisms; these files target the native Zed Agent.
 
 `check` never writes and returns non-zero for stale, missing, untracked, or
 conflicted targets. Existing divergent targets require explicit

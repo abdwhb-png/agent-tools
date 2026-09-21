@@ -18,6 +18,13 @@
         "/absolute/path/to/Code/User/instructions/agent-policy.instructions.md",
         "/absolute/path/to/.copilot/instructions/agent-policy.instructions.md"
       ]
+    },
+    "zed": {
+      "enabled": true,
+      "home": "/mnt/c/Users/example/AppData/Roaming/Zed",
+      "additionalHomes": [
+        { "id": "linux", "home": "/home/example/.config/zed" }
+      ]
     }
   }
 }

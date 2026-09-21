@@ -391,3 +391,19 @@ modify active Pi, Codex, or VS Code configuration. Implementation should begin
 with executable renderer and conflict-detection tests, then add the CLI and
 machine-local configuration flow. Startup hooks remain out of scope for version
 1.
+
+## Extension: Zed personal instructions (2026-09-21)
+
+Zed's native agent loads personal `AGENTS.md` from its configuration directory:
+`~/.config/zed` on Linux and `%APPDATA%\Zed` on Windows. It loads project
+instructions separately, and external agents launched in Zed follow their own
+instruction rules. See [Zed's instruction documentation](https://zed.dev/docs/ai/instructions).
+
+The synchronizer now treats Zed as an optional harness. It composes invariants,
+optional `instructions/zed/*.md` modules, preferences, and technology defaults
+into plain Markdown for each configured Zed home. The primary home retains the
+stable `zed-agents` state ID; named additional homes use `zed-<id>-agents`.
+This follows the existing Codex named-home configuration and the existing file
+target conflict and backup behavior. WSL does not guess the Windows profile:
+the user supplies that path explicitly when enabling Zed. Older machine-local
+configs without a Zed entry remain valid and do not acquire a new target.

@@ -53,3 +53,17 @@ test("accepts named additional Codex homes and rejects duplicate identities", ()
   config.harnesses.codex.additionalHomes.push({ id: "windows", home: "/other" });
   expect(() => parsePolicyConfig(JSON.stringify(config))).toThrow("duplicate additional Codex id");
 });
+
+test("legacy configuration remains valid while Zed validates named homes", () => {
+  const config = defaultPolicyConfig({ home: "/home/agent", platform: "linux", env: {} });
+  delete config.harnesses.zed;
+  expect(parsePolicyConfig(JSON.stringify(config)).harnesses.zed).toBeUndefined();
+  config.harnesses.zed = {
+    enabled: true,
+    home: "/mnt/c/Users/agent/AppData/Roaming/Zed",
+    additionalHomes: [{ id: "linux", home: "/home/agent/.config/zed" }],
+  };
+  expect(parsePolicyConfig(JSON.stringify(config)).harnesses.zed).toEqual(config.harnesses.zed);
+  config.harnesses.zed.additionalHomes?.push({ id: "linux", home: "/elsewhere" });
+  expect(() => parsePolicyConfig(JSON.stringify(config))).toThrow("duplicate additional Zed id");
+});

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-export const HARNESS_NAMES = ["pi", "codex", "vscode"] as const;
+export const HARNESS_NAMES = ["pi", "codex", "vscode", "zed"] as const;
 export type HarnessName = (typeof HARNESS_NAMES)[number];
 
 export interface CanonicalSources {

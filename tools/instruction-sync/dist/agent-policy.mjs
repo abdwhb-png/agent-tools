@@ -75,7 +75,8 @@ function defaultPolicyConfig(environment = currentEnvironment()) {
     harnesses: {
       pi: { enabled: true, agentDir: homePath(environment, ".pi", "agent") },
       codex: { enabled: true, home: codexHome },
-      vscode: { enabled: true, targets: [vscodeTarget] }
+      vscode: { enabled: true, targets: [vscodeTarget] },
+      zed: { enabled: false }
     }
   };
 }
@@ -97,6 +98,35 @@ function assertAbsolute(value, label) {
   if (!path.isAbsolute(value) && !path.win32.isAbsolute(value))
     throw new Error(`${label} must be an absolute path`);
 }
+function validateHomeHarness(config, name) {
+  const label = name.toLowerCase();
+  assertKeys(config, ["enabled", "home", "additionalHomes"], `harnesses.${label}`);
+  if (config.enabled && typeof config.home !== "string")
+    throw new Error(`enabled ${name} harness requires home`);
+  if (typeof config.home === "string")
+    assertAbsolute(config.home, `harnesses.${label}.home`);
+  if (config.additionalHomes === undefined)
+    return;
+  if (!Array.isArray(config.additionalHomes))
+    throw new Error(`harnesses.${label}.additionalHomes must be an array`);
+  const ids = new Set;
+  const homes = new Set(typeof config.home === "string" ? [config.home] : []);
+  for (const entry of config.additionalHomes) {
+    if (!isObject(entry))
+      throw new Error(`each additional ${name} home must be an object`);
+    assertKeys(entry, ["id", "home"], `harnesses.${label}.additionalHomes entry`);
+    if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.home !== "string") {
+      throw new Error(`each additional ${name} home requires a lowercase id and absolute home path`);
+    }
+    assertAbsolute(entry.home, `harnesses.${label}.additionalHomes.${entry.id}.home`);
+    if (ids.has(entry.id))
+      throw new Error(`duplicate additional ${name} id: ${entry.id}`);
+    if (homes.has(entry.home))
+      throw new Error(`duplicate ${name} home: ${entry.home}`);
+    ids.add(entry.id);
+    homes.add(entry.home);
+  }
+}
 function parsePolicyConfig(raw) {
   let parsed;
   try {
@@ -109,45 +139,23 @@ function parsePolicyConfig(raw) {
   assertKeys(parsed, ["schemaVersion", "harnesses"], "configuration");
   if (parsed.schemaVersion !== 1 || !isObject(parsed.harnesses))
     throw new Error("configuration must have schemaVersion 1 and harnesses");
-  assertKeys(parsed.harnesses, ["pi", "codex", "vscode"], "harnesses");
+  assertKeys(parsed.harnesses, ["pi", "codex", "vscode", "zed"], "harnesses");
   const pi = assertHarness(parsed.harnesses.pi, "pi");
   const codex = assertHarness(parsed.harnesses.codex, "codex");
   const vscode = assertHarness(parsed.harnesses.vscode, "vscode");
+  const zed = parsed.harnesses.zed === undefined ? undefined : assertHarness(parsed.harnesses.zed, "zed");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
-  assertKeys(codex, ["enabled", "home", "additionalHomes"], "harnesses.codex");
+  validateHomeHarness(codex, "Codex");
+  if (zed)
+    validateHomeHarness(zed, "Zed");
   assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
   if (pi.enabled && typeof pi.agentDir !== "string")
     throw new Error("enabled Pi harness requires agentDir");
-  if (codex.enabled && typeof codex.home !== "string")
-    throw new Error("enabled Codex harness requires home");
   if (vscode.enabled && (!Array.isArray(vscode.targets) || vscode.targets.length === 0 || vscode.targets.some((target) => typeof target !== "string"))) {
     throw new Error("enabled VS Code harness requires a non-empty targets array");
   }
   if (typeof pi.agentDir === "string")
     assertAbsolute(pi.agentDir, "harnesses.pi.agentDir");
-  if (typeof codex.home === "string")
-    assertAbsolute(codex.home, "harnesses.codex.home");
-  if (codex.additionalHomes !== undefined) {
-    if (!Array.isArray(codex.additionalHomes))
-      throw new Error("harnesses.codex.additionalHomes must be an array");
-    const ids = new Set;
-    const homes = new Set(typeof codex.home === "string" ? [codex.home] : []);
-    for (const entry of codex.additionalHomes) {
-      if (!isObject(entry))
-        throw new Error("each additional Codex home must be an object");
-      assertKeys(entry, ["id", "home"], "harnesses.codex.additionalHomes entry");
-      if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.home !== "string") {
-        throw new Error("each additional Codex home requires a lowercase id and absolute home path");
-      }
-      assertAbsolute(entry.home, `harnesses.codex.additionalHomes.${entry.id}.home`);
-      if (ids.has(entry.id))
-        throw new Error(`duplicate additional Codex id: ${entry.id}`);
-      if (homes.has(entry.home))
-        throw new Error(`duplicate Codex home: ${entry.home}`);
-      ids.add(entry.id);
-      homes.add(entry.home);
-    }
-  }
   if (Array.isArray(vscode.targets))
     vscode.targets.forEach((target) => assertAbsolute(target, "harnesses.vscode.targets"));
   return parsed;
@@ -178,7 +186,7 @@ import { fileURLToPath } from "node:url";
 // src/sources.ts
 import fs from "node:fs/promises";
 import path2 from "node:path";
-var HARNESS_NAMES = ["pi", "codex", "vscode"];
+var HARNESS_NAMES = ["pi", "codex", "vscode", "zed"];
 function normalizeInstruction(source) {
   const normalized = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, `
 `);
@@ -304,6 +312,12 @@ ${block}`, owned: block };
 
 // src/targets.ts
 import path3 from "node:path";
+function namedHomes(name, config) {
+  return [
+    { id: name, home: config.home },
+    ...(config.additionalHomes || []).map(({ id, home }) => ({ id: `${name}-${id}`, home }))
+  ];
+}
 function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = false) {
   const targets = [];
   const preferences = composeInstructions([
@@ -320,14 +334,21 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
       sources.invariants,
       ...sources.harnessInstructions.codex
     ]);
-    const homes = [
-      { id: "codex", home: config.harnesses.codex.home },
-      ...(config.harnesses.codex.additionalHomes || []).map(({ id, home }) => ({ id: `codex-${id}`, home }))
-    ];
-    for (const { id, home } of homes) {
+    for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
       const target = renderCodexConfig(codexConfigs[id], instructions, adoptUnmanaged);
       targets.push({ id: `${id}-config`, kind: "codex", path: path3.join(home, "config.toml"), ...target });
       targets.push({ id: `${id}-agents`, kind: "file", path: path3.join(home, "AGENTS.md"), desired: preferences, owned: preferences });
+    }
+  }
+  if (config.harnesses.zed?.enabled) {
+    const instructions = composeInstructions([
+      sources.invariants,
+      ...sources.harnessInstructions.zed,
+      sources.preferences,
+      sources.technologyDefaults
+    ]);
+    for (const { id, home } of namedHomes("zed", config.harnesses.zed)) {
+      targets.push({ id: `${id}-agents`, kind: "file", path: path3.join(home, "AGENTS.md"), desired: instructions, owned: instructions });
     }
   }
   if (config.harnesses.vscode.enabled) {
@@ -335,6 +356,12 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
     for (const [index, target] of config.harnesses.vscode.targets.entries()) {
       targets.push({ id: `vscode-${index}`, kind: "file", path: target, desired: output, owned: output });
     }
+  }
+  const paths = new Set;
+  for (const target of targets) {
+    if (paths.has(target.path))
+      throw new Error(`duplicate target path: ${target.path}`);
+    paths.add(target.path);
   }
   return targets;
 }
@@ -521,9 +548,10 @@ configure options:
   --apply             Write the displayed configuration
   --pi-agent-dir PATH --codex-home PATH
   --codex-additional-home ID=PATH (repeatable)
+  --zed-home PATH --zed-additional-home ID=PATH (repeatable)
   --vscode-target PATH (repeatable)
-  --enable-pi --enable-codex --enable-vscode
-  --disable-pi --disable-codex --disable-vscode
+  --enable-pi --enable-codex --enable-vscode --enable-zed
+  --disable-pi --disable-codex --disable-vscode --disable-zed
 
 adopt options:
   --apply             Required before modifying targets
@@ -546,29 +574,41 @@ async function atomicWrite2(destination, content) {
   await fs3.writeFile(temporary, content, "utf8");
   await fs3.rename(temporary, destination);
 }
+function setAdditionalHomes(config, entries, option) {
+  for (const entry of entries) {
+    const separator = entry.indexOf("=");
+    if (separator < 1)
+      throw new Error(`${option} requires ID=PATH`);
+    const id = entry.slice(0, separator);
+    const home = entry.slice(separator + 1);
+    config.additionalHomes ||= [];
+    const existing = config.additionalHomes.find((item) => item.id === id);
+    if (existing)
+      existing.home = home;
+    else
+      config.additionalHomes.push({ id, home });
+  }
+}
 function configuredPolicy(base, arguments_) {
   const result = structuredClone(base);
   const pi = value(arguments_, "--pi-agent-dir");
   const codex = value(arguments_, "--codex-home");
   const additionalCodex = values(arguments_, "--codex-additional-home");
+  const zed = value(arguments_, "--zed-home");
+  const additionalZed = values(arguments_, "--zed-additional-home");
   const vscode = values(arguments_, "--vscode-target");
   if (pi)
     result.harnesses.pi.agentDir = pi;
   if (codex)
     result.harnesses.codex.home = codex;
-  for (const entry of additionalCodex) {
-    const separator = entry.indexOf("=");
-    if (separator < 1)
-      throw new Error("--codex-additional-home requires ID=PATH");
-    const id = entry.slice(0, separator);
-    const home = entry.slice(separator + 1);
-    result.harnesses.codex.additionalHomes ||= [];
-    const existing = result.harnesses.codex.additionalHomes.find((item) => item.id === id);
-    if (existing)
-      existing.home = home;
-    else
-      result.harnesses.codex.additionalHomes.push({ id, home });
+  setAdditionalHomes(result.harnesses.codex, additionalCodex, "--codex-additional-home");
+  if (zed || additionalZed.length || arguments_.flags.has("--enable-zed") || arguments_.flags.has("--disable-zed")) {
+    result.harnesses.zed ||= { enabled: false };
   }
+  if (zed)
+    result.harnesses.zed.home = zed;
+  if (additionalZed.length)
+    setAdditionalHomes(result.harnesses.zed, additionalZed, "--zed-additional-home");
   if (vscode.length > 0)
     result.harnesses.vscode.targets = vscode;
   if (arguments_.flags.has("--enable-pi"))
@@ -577,12 +617,16 @@ function configuredPolicy(base, arguments_) {
     result.harnesses.codex.enabled = true;
   if (arguments_.flags.has("--enable-vscode"))
     result.harnesses.vscode.enabled = true;
+  if (arguments_.flags.has("--enable-zed"))
+    result.harnesses.zed.enabled = true;
   if (arguments_.flags.has("--disable-pi"))
     result.harnesses.pi.enabled = false;
   if (arguments_.flags.has("--disable-codex"))
     result.harnesses.codex.enabled = false;
   if (arguments_.flags.has("--disable-vscode"))
     result.harnesses.vscode.enabled = false;
+  if (arguments_.flags.has("--disable-zed"))
+    result.harnesses.zed.enabled = false;
   return parsePolicyConfig(JSON.stringify(result));
 }
 function repositoryRoot() {

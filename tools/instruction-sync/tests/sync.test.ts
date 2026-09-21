@@ -29,6 +29,7 @@ const source = {
     pi: ["append\n"],
     codex: ["Codex only\n"],
     vscode: [],
+    zed: [],
   },
 };
 
@@ -148,4 +149,67 @@ test("adding a named Codex home preserves primary target state", async () => {
     ["codex-windows-config", "missing"],
     ["codex-windows-agents", "missing"],
   ]);
+});
+
+test("sync writes composed personal instructions to both Zed homes", async () => {
+  const root = await sandbox();
+  const windows = path.join(root, "windows-zed");
+  const linux = path.join(root, "linux-zed");
+  const statePath = path.join(root, "state.json");
+  const config: PolicyConfig = {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: false },
+      vscode: { enabled: false },
+      zed: { enabled: true, home: windows, additionalHomes: [{ id: "linux", home: linux }] },
+    },
+  };
+  const zedSource = { ...source, harnessInstructions: { ...source.harnessInstructions, zed: ["Zed only\n"] } };
+  const result = await synchronize(config, emptyState(), statePath, zedSource);
+  expect(result.changed).toEqual(["zed-agents", "zed-linux-agents"]);
+  const expected = "invariants\n\nZed only\n\npreferences\n\ntechnology defaults\n";
+  expect(await fs.readFile(path.join(windows, "AGENTS.md"), "utf8")).toBe(expected);
+  expect(await fs.readFile(path.join(linux, "AGENTS.md"), "utf8")).toBe(expected);
+});
+
+test("Zed home order does not change state identity and a conflict blocks other writes", async () => {
+  const root = await sandbox();
+  const statePath = path.join(root, "state.json");
+  const windows = path.join(root, "windows");
+  const linux = path.join(root, "linux");
+  const preview = path.join(root, "preview");
+  const config: PolicyConfig = {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: false },
+      vscode: { enabled: false },
+      zed: { enabled: true, home: windows, additionalHomes: [{ id: "linux", home: linux }, { id: "preview", home: preview }] },
+    },
+  };
+  await synchronize(config, emptyState(), statePath, source);
+  config.harnesses.zed!.additionalHomes!.reverse();
+  const state = await loadState(statePath);
+  expect((await assessTargets(config, state, source)).every(({ status }) => status === "current")).toBe(true);
+  await fs.writeFile(path.join(linux, "AGENTS.md"), "manual edit\n");
+  const changed = { ...source, invariants: "new invariants\n" };
+  await expect(synchronize(config, state, statePath, changed)).rejects.toThrow("sync preflight failed: zed-linux-agents");
+  expect(await fs.readFile(path.join(windows, "AGENTS.md"), "utf8")).toBe("invariants\n\npreferences\n\ntechnology defaults\n");
+});
+
+test("overlapping Zed and Codex homes fail before writing targets", async () => {
+  const root = await sandbox();
+  const shared = path.join(root, "shared-home");
+  const config: PolicyConfig = {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: true, home: shared },
+      vscode: { enabled: false },
+      zed: { enabled: true, home: shared },
+    },
+  };
+  await expect(synchronize(config, emptyState(), path.join(root, "state.json"), source)).rejects.toThrow("duplicate target path");
+  expect(await fs.exists(path.join(shared, "AGENTS.md"))).toBe(false);
 });

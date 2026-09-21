@@ -24,6 +24,7 @@ test("merges technology defaults into every preferences target", () => {
         pi: ["Pi only\n"],
         codex: ["Codex only\n"],
         vscode: [],
+        zed: [],
       },
     },
     {},

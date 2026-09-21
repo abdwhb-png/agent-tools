@@ -11,7 +11,7 @@ import {
 } from "./config.js";
 import { loadCanonicalSources } from "./sources.js";
 import { assessTargets, loadState, synchronize } from "./sync.js";
-import type { PolicyConfig } from "./types.js";
+import type { HomeHarnessConfig, PolicyConfig } from "./types.js";
 
 type Arguments = {
   positional: string[];
@@ -61,9 +61,10 @@ configure options:
   --apply             Write the displayed configuration
   --pi-agent-dir PATH --codex-home PATH
   --codex-additional-home ID=PATH (repeatable)
+  --zed-home PATH --zed-additional-home ID=PATH (repeatable)
   --vscode-target PATH (repeatable)
-  --enable-pi --enable-codex --enable-vscode
-  --disable-pi --disable-codex --disable-vscode
+  --enable-pi --enable-codex --enable-vscode --enable-zed
+  --disable-pi --disable-codex --disable-vscode --disable-zed
 
 adopt options:
   --apply             Required before modifying targets
@@ -94,6 +95,19 @@ async function atomicWrite(
   await fs.rename(temporary, destination);
 }
 
+function setAdditionalHomes(config: HomeHarnessConfig, entries: string[], option: string): void {
+  for (const entry of entries) {
+    const separator = entry.indexOf("=");
+    if (separator < 1) throw new Error(`${option} requires ID=PATH`);
+    const id = entry.slice(0, separator);
+    const home = entry.slice(separator + 1);
+    config.additionalHomes ||= [];
+    const existing = config.additionalHomes.find((item) => item.id === id);
+    if (existing) existing.home = home;
+    else config.additionalHomes.push({ id, home });
+  }
+}
+
 function configuredPolicy(
   base: PolicyConfig,
   arguments_: Arguments,
@@ -102,30 +116,30 @@ function configuredPolicy(
   const pi = value(arguments_, "--pi-agent-dir");
   const codex = value(arguments_, "--codex-home");
   const additionalCodex = values(arguments_, "--codex-additional-home");
+  const zed = value(arguments_, "--zed-home");
+  const additionalZed = values(arguments_, "--zed-additional-home");
   const vscode = values(arguments_, "--vscode-target");
   if (pi) result.harnesses.pi.agentDir = pi;
   if (codex) result.harnesses.codex.home = codex;
-  for (const entry of additionalCodex) {
-    const separator = entry.indexOf("=");
-    if (separator < 1) throw new Error("--codex-additional-home requires ID=PATH");
-    const id = entry.slice(0, separator);
-    const home = entry.slice(separator + 1);
-    result.harnesses.codex.additionalHomes ||= [];
-    const existing = result.harnesses.codex.additionalHomes.find((item) => item.id === id);
-    if (existing) existing.home = home;
-    else result.harnesses.codex.additionalHomes.push({ id, home });
+  setAdditionalHomes(result.harnesses.codex, additionalCodex, "--codex-additional-home");
+  if (zed || additionalZed.length || arguments_.flags.has("--enable-zed") || arguments_.flags.has("--disable-zed")) {
+    result.harnesses.zed ||= { enabled: false };
   }
+  if (zed) result.harnesses.zed!.home = zed;
+  if (additionalZed.length) setAdditionalHomes(result.harnesses.zed!, additionalZed, "--zed-additional-home");
   if (vscode.length > 0) result.harnesses.vscode.targets = vscode;
   if (arguments_.flags.has("--enable-pi")) result.harnesses.pi.enabled = true;
   if (arguments_.flags.has("--enable-codex"))
     result.harnesses.codex.enabled = true;
   if (arguments_.flags.has("--enable-vscode"))
     result.harnesses.vscode.enabled = true;
+  if (arguments_.flags.has("--enable-zed")) result.harnesses.zed!.enabled = true;
   if (arguments_.flags.has("--disable-pi")) result.harnesses.pi.enabled = false;
   if (arguments_.flags.has("--disable-codex"))
     result.harnesses.codex.enabled = false;
   if (arguments_.flags.has("--disable-vscode"))
     result.harnesses.vscode.enabled = false;
+  if (arguments_.flags.has("--disable-zed")) result.harnesses.zed!.enabled = false;
   return parsePolicyConfig(JSON.stringify(result));
 }
 

@@ -185,3 +185,24 @@ test("configure accepts a named additional Codex home", async () => {
   expect(result.stdout.toString()).toContain('"id": "windows"');
   expect(result.stdout.toString()).toContain(path.join(f.output, "windows"));
 });
+
+test("CLI configures both Zed homes and syncs Zed-only modules", async () => {
+  const f = await fixture();
+  const tool = path.join(f.root, "tools", "instruction-sync");
+  const windows = path.join(f.output, "windows-zed");
+  const linux = path.join(f.output, "linux-zed");
+  const configured = Bun.spawnSync([
+    process.execPath, path.join(tool, "src", "cli.ts"), "configure",
+    "--config", path.join(tool, "config.json"),
+    "--zed-home", windows, "--zed-additional-home", `linux=${linux}`,
+    "--enable-zed", "--apply",
+  ]);
+  expect(configured.exitCode).toBe(0);
+  await fs.mkdir(path.join(f.instructions, "zed"));
+  await fs.writeFile(path.join(f.instructions, "zed", "zed-only.md"), "Zed only.\n");
+  expect(f.run("sync").code).toBe(0);
+  const expected = "Invariant\n\nZed only.\n\nPreference\n\nTechnology\n";
+  expect(await fs.readFile(path.join(windows, "AGENTS.md"), "utf8")).toBe(expected);
+  expect(await fs.readFile(path.join(linux, "AGENTS.md"), "utf8")).toBe(expected);
+  expect(f.run("check").code).toBe(0);
+});

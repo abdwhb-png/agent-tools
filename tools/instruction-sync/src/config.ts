@@ -79,6 +79,7 @@ export function defaultPolicyConfig(environment = currentEnvironment()): PolicyC
       pi: { enabled: true, agentDir: homePath(environment, ".pi", "agent") },
       codex: { enabled: true, home: codexHome },
       vscode: { enabled: true, targets: [vscodeTarget] },
+      zed: { enabled: false },
     },
   };
 }
@@ -98,10 +99,33 @@ function assertHarness(value: unknown, name: HarnessName): Record<string, unknow
   return value;
 }
 
-type HarnessName = "pi" | "codex" | "vscode";
+type HarnessName = "pi" | "codex" | "vscode" | "zed";
 
 function assertAbsolute(value: string, label: string): void {
   if (!path.isAbsolute(value) && !path.win32.isAbsolute(value)) throw new Error(`${label} must be an absolute path`);
+}
+
+function validateHomeHarness(config: Record<string, unknown>, name: "Codex" | "Zed"): void {
+  const label = name.toLowerCase();
+  assertKeys(config, ["enabled", "home", "additionalHomes"], `harnesses.${label}`);
+  if (config.enabled && typeof config.home !== "string") throw new Error(`enabled ${name} harness requires home`);
+  if (typeof config.home === "string") assertAbsolute(config.home, `harnesses.${label}.home`);
+  if (config.additionalHomes === undefined) return;
+  if (!Array.isArray(config.additionalHomes)) throw new Error(`harnesses.${label}.additionalHomes must be an array`);
+  const ids = new Set<string>();
+  const homes = new Set<string>(typeof config.home === "string" ? [config.home] : []);
+  for (const entry of config.additionalHomes) {
+    if (!isObject(entry)) throw new Error(`each additional ${name} home must be an object`);
+    assertKeys(entry, ["id", "home"], `harnesses.${label}.additionalHomes entry`);
+    if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.home !== "string") {
+      throw new Error(`each additional ${name} home requires a lowercase id and absolute home path`);
+    }
+    assertAbsolute(entry.home, `harnesses.${label}.additionalHomes.${entry.id}.home`);
+    if (ids.has(entry.id)) throw new Error(`duplicate additional ${name} id: ${entry.id}`);
+    if (homes.has(entry.home)) throw new Error(`duplicate ${name} home: ${entry.home}`);
+    ids.add(entry.id);
+    homes.add(entry.home);
+  }
 }
 
 export function parsePolicyConfig(raw: string): PolicyConfig {
@@ -114,37 +138,20 @@ export function parsePolicyConfig(raw: string): PolicyConfig {
   if (!isObject(parsed)) throw new Error("configuration must be an object");
   assertKeys(parsed, ["schemaVersion", "harnesses"], "configuration");
   if (parsed.schemaVersion !== 1 || !isObject(parsed.harnesses)) throw new Error("configuration must have schemaVersion 1 and harnesses");
-  assertKeys(parsed.harnesses, ["pi", "codex", "vscode"], "harnesses");
+  assertKeys(parsed.harnesses, ["pi", "codex", "vscode", "zed"], "harnesses");
   const pi = assertHarness(parsed.harnesses.pi, "pi");
   const codex = assertHarness(parsed.harnesses.codex, "codex");
   const vscode = assertHarness(parsed.harnesses.vscode, "vscode");
+  const zed = parsed.harnesses.zed === undefined ? undefined : assertHarness(parsed.harnesses.zed, "zed");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
-  assertKeys(codex, ["enabled", "home", "additionalHomes"], "harnesses.codex");
+  validateHomeHarness(codex, "Codex");
+  if (zed) validateHomeHarness(zed, "Zed");
   assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
   if (pi.enabled && typeof pi.agentDir !== "string") throw new Error("enabled Pi harness requires agentDir");
-  if (codex.enabled && typeof codex.home !== "string") throw new Error("enabled Codex harness requires home");
   if (vscode.enabled && (!Array.isArray(vscode.targets) || vscode.targets.length === 0 || vscode.targets.some((target) => typeof target !== "string"))) {
     throw new Error("enabled VS Code harness requires a non-empty targets array");
   }
   if (typeof pi.agentDir === "string") assertAbsolute(pi.agentDir, "harnesses.pi.agentDir");
-  if (typeof codex.home === "string") assertAbsolute(codex.home, "harnesses.codex.home");
-  if (codex.additionalHomes !== undefined) {
-    if (!Array.isArray(codex.additionalHomes)) throw new Error("harnesses.codex.additionalHomes must be an array");
-    const ids = new Set<string>();
-    const homes = new Set<string>(typeof codex.home === "string" ? [codex.home] : []);
-    for (const entry of codex.additionalHomes) {
-      if (!isObject(entry)) throw new Error("each additional Codex home must be an object");
-      assertKeys(entry, ["id", "home"], "harnesses.codex.additionalHomes entry");
-      if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.home !== "string") {
-        throw new Error("each additional Codex home requires a lowercase id and absolute home path");
-      }
-      assertAbsolute(entry.home, `harnesses.codex.additionalHomes.${entry.id}.home`);
-      if (ids.has(entry.id)) throw new Error(`duplicate additional Codex id: ${entry.id}`);
-      if (homes.has(entry.home)) throw new Error(`duplicate Codex home: ${entry.home}`);
-      ids.add(entry.id);
-      homes.add(entry.home);
-    }
-  }
   if (Array.isArray(vscode.targets)) vscode.targets.forEach((target) => assertAbsolute(target, "harnesses.vscode.targets"));
   return parsed as unknown as PolicyConfig;
 }
