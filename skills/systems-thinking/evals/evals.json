@@ -1,0 +1,107 @@
+{
+  "skill_name": "systems-thinking",
+  "evals": [
+    {
+      "id": 1,
+      "name": "recurring-fix-that-does-not-hold",
+      "prompt": "This is the fourth time in six months that our nightly settlement job has stalled in production. Every time we restart it, patch the timeout, and it comes back a few weeks later with a different error. Last week we found out that the retry logic silently marks failed batches as settled. I want this to stop happening, not to patch it again. What should we do?",
+      "expected_output": "The agent should classify the situation (recurring failure with hidden cause and no reliable pattern → Complicated, or Complex if the cause genuinely only appears in production), produce the System Brief with a players/incentives field covering the job, on-call, and downstream consumers, name the stock being asked to move (unsettled batches vs retry throughput), and prescribe the protocol for that type rather than a fourth patch. The smallest test must be reversible and falsifiable.",
+      "files": [],
+      "expectations": [
+        "The response states a system type and the observable evidence that decided it.",
+        "The response names players and what their incentives actually reward, including the silent-success retry behaviour.",
+        "The response identifies a stock and the flow that would have to change, instead of prescribing another timeout patch.",
+        "The response ends with one smallest reversible test and the result that would falsify the classification."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "platform-team-incentive-conflict",
+      "prompt": "Our platform team ships quarterly releases and gets measured on release stability. The product teams get measured on features shipped per quarter. Product teams keep bypassing the platform with their own scripts, platform keeps adding review gates, and now nobody trusts anyone. We need to decide how to fix this before Q1 planning. What do we do?",
+      "expected_output": "The agent should treat this as a multi-actor incentive problem, produce the brief with a players/incentives table that captures the divergence (stability metric vs feature-throughput metric) and the proxy-reward trap, identify the leverage point (a shared rule/default or the misaligned proxy reward) rather than a process document, and prescribe the matching protocol. A generic 'improve communication' recommendation is a failure.",
+      "files": [],
+      "expectations": [
+        "The players/incentives table shows the actual measured incentive for both platform and product teams, not their stated goals.",
+        "The response identifies the misaligned proxy reward or a shared rule as the leverage point.",
+        "The response names the intervention with the smallest blast radius that still moves the constraint.",
+        "The response does not recommend a communication or documentation fix as the primary action."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "incident-stabilize-or-root-cause",
+      "prompt": "We are 25 minutes into an outage. Checkout is failing for roughly 40% of users in EU, error rates are climbing, and we have not identified a cause. One engineer wants to roll back the deploy from 40 minutes ago, another says we do not know it is the deploy and wants to keep investigating. Customers are starting to post about it publicly. What do we do right now?",
+      "expected_output": "The agent should classify the situation as Chaotic, lead with the stabilizing action rather than the full brief, and explicitly rule out expert analysis or a checklist while the system is unstable. The remaining brief fields should follow only after stability, with the reclassification loop stated. Recommending a root-cause investigation first is a failure.",
+      "files": [],
+      "expectations": [
+        "The response classifies the situation as Chaotic and leads with a stabilizing action.",
+        "The response explicitly defers the full analysis until the system is stable.",
+        "The response does not recommend running the standard incident process or finding the root cause before stabilizing.",
+        "The response states how the classification gets revisited once the system is stable."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "near-miss-technical-system-question",
+      "prompt": "Our build system in this monorepo takes 14 minutes on CI but 3 minutes locally, and the type system in the shared package complains about a conditional generic I cannot simplify. Shared package tsconfig.json: {\"compilerOptions\": {\"strict\": true, \"composite\": true, \"declaration\": true, \"moduleResolution\": \"bundler\"}, \"references\": [{\"path\": \"../utils\"}]}. CI log tail: \"[4/6] building 812 modules ... Done in 842.31s\". Same command locally: \"Done in 178.44s\". Can you tell me why the CI build is slow and how to fix that generic?",
+      "expected_output": "The agent should treat both as ordinary technical questions, inspect the config and log, and answer with concrete technical causes and fixes. It must not run the system-type diagnosis, produce a System Brief, or ask who the players are. The word 'system' in the prompt is not a trigger.",
+      "files": [],
+      "expectations": [
+        "The response diagnoses the CI/local build-time gap from the supplied config and log.",
+        "The response proposes a concrete fix for the conditional generic.",
+        "The response contains no Clear/Complicated/Complex/Chaotic classification and no System Brief."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "near-miss-single-owner-known-cause",
+      "prompt": "The nightly export writes to a temp file and then renames it, but on Windows the rename fails when the reader still has the file open. I reproduced it locally and confirmed the cause is the missing close before the rename. Here is the function:\n\n```python\ndef write_export(rows, path):\n    tmp = path + \".tmp\"\n    f = open(tmp, \"w\")\n    for r in rows:\n        f.write(f\"{r}\\n\")\n    os.replace(tmp, path)\n    f.close()\n```\n\nGive me the fixed function and a regression test.",
+      "expected_output": "The agent should return the corrected function with the file closed before os.replace, plus a regression test for the Windows rename failure. The cause is already verified, there is one owner, and the change is reversible, so framing adds nothing: no classification, no brief, no incentive mapping.",
+      "files": [],
+      "expectations": [
+        "The response returns a corrected function that closes the file before calling os.replace.",
+        "The response includes a regression test covering the Windows rename failure.",
+        "The response contains no system-type classification and no System Brief."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "symptom-recurring-skipped-test",
+      "prompt": "Third time this quarter our pipeline has 'fixed' the same flaky test. Someone marks it skipped, everything goes green, and two weeks later a bug ships that the test would have caught. The EM says just delete the test, the tech lead says the test is right and the fix keeps getting skipped. I am tired of this.",
+      "expected_output": "The message reports a symptom and asks for nothing. The agent should recognise the recurring-pattern shape, treat the skipped test as the surface and not answer only 'keep or delete the test', ask what the current response actually rewards, state a system type with the protocol it implies, and end with one smallest reversible action.",
+      "files": [],
+      "expectations": [
+        "The response treats the skipped test as a symptom of a recurring pattern rather than answering only whether to delete the test.",
+        "The response asks what the current process actually rewards instead of attributing the behaviour to attitude.",
+        "The response states a system type, or an explicit framing, with a protocol consistent with it.",
+        "The response ends with one smallest reversible next action."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "symptom-support-engineering-blame",
+      "prompt": "Support keeps escalating tickets that should have been closed, engineering keeps marking them 'fixed, cannot reproduce', and now both teams are sniping at each other in the shared channel. CSAT is dropping and I have to present to the exec team next week.",
+      "expected_output": "The agent should read the situation as an incentive conflict, map what each team is actually measured on, ask for the fact only the user can supply (the metrics and who owns the escalation rate), frame the exec presentation around the measurement structure rather than a communication fix, and state a system type with its protocol.",
+      "files": [],
+      "expectations": [
+        "The response identifies what each team is measured on rather than attributing the conflict to attitude or trust.",
+        "The response asks for at least one fact only the user can supply instead of assuming the metrics.",
+        "The response frames the exec presentation around the measurement structure, not a communication or culture fix.",
+        "The response states a system type and a matching protocol."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "symptom-double-charge-webhook",
+      "prompt": "Our payments webhook has been double-charging some customers since this morning, we are already getting chargebacks, and my team is in Slack arguing about whose code it is.",
+      "expected_output": "The agent should lead with a stabilizing action, explicitly defer root-cause analysis until the system is stable, state the system type and matching protocol, and name the verification that would confirm the bleeding stopped.",
+      "files": [],
+      "expectations": [
+        "The response leads with a stabilizing action rather than analysis or blame assignment.",
+        "The response explicitly defers root-cause analysis until the system is stable.",
+        "The response states a system type, or explicit framing, and the matching protocol.",
+        "The response names how to verify that the double charging has stopped."
+      ]
+    }
+  ]
+}
