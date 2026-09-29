@@ -26,6 +26,8 @@ Unset model/effort inherits from the parent agent. Higher reasoning effort incre
 
 Define custom agents as standalone TOML files under `~/.codex/agents/` (personal) or `.codex/agents/` (project-scoped). Required fields: `name`, `description`, `developer_instructions`. Optional keys include `model`, `model_reasoning_effort`, `sandbox_mode`, `mcp_servers`.
 
+The lane-to-agent mapping is resolved from the agents the user has actually defined. There is no built-in reviewer name to rely on: list the available agents, match the user-confirmed angles onto them, and drop or report any angle with no match instead of substituting a different agent.
+
 Project config (`.codex/config.toml`):
 
 ```toml
@@ -33,7 +35,7 @@ Project config (`.codex/config.toml`):
 max_concurrent_threads_per_session = 8
 ```
 
-`.codex/agents/reviewer.toml`:
+One example reviewer definition, illustrative rather than required:
 
 ```toml
 name = "reviewer"
@@ -65,6 +67,8 @@ Wait for all of them, then summarize findings by severity tier with file:line re
 
 ## Rules specific to Codex
 
-- Run all review lanes in parallel; wait for every lane before synthesizing the verdict.
+- Propose the lane set and confirm it with the user before spawning threads. The user picks the angles; you map them to agents.
+- Run all confirmed review lanes in parallel; wait for every lane before synthesizing the verdict.
 - Prefer read-only sandbox for reviewer agents so they cannot edit code under review.
-- If a lane fails or is unavailable, report the review as incomplete — never substitute self-review for a failed delegation lane.
+- A lane that fails or is unavailable is a lane failure, not a review result: name the missing coverage, and never substitute self-review or a different agent for it.
+- Do not re-launch a failed lane with different settings silently. Report the error and what you changed.
