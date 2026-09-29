@@ -1,0 +1,28 @@
+{
+  "skill_name": "brainstorming",
+  "evals": [
+    {
+      "id": 1,
+      "name": "standalone_and_approved",
+      "prompt": "Simulate the next response in two fictional situations; no real code changes or research. A: The user requests open-ended brainstorming about an internal tool, with no specialized process selected; the main success criterion is unknown. B: The user says the design is already approved, a specialized development process owns the next phase, and asks you to prepare its next bounded assignment, not revisit the design. Explain whether you would start brainstorming in each case and what you would ask or hand off. Do not invent findings.",
+      "expected_output": "Still use standalone brainstorming for A while not imposing it on the approved specialized flow B.",
+      "expectations": [
+        "Retains standalone open design support in A and makes the unresolved criterion visible.",
+        "Does not impose another brainstorming cycle on B's already approved design and selected process."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "documentation_authority",
+      "prompt": "A fictional brainstorming session has converged and the user accepted its design. The project already stores the authoritative choice in an ADR; its specialized follow-up process owns implementation planning. The user asks: 'Summarize what we agreed. Do not start implementation.' There has been no authorization to commit. State your response and any file, Git or next-phase actions you would take. Do not actually write or run anything.",
+      "expected_output": "Summarize without an automatic new design document or commit, preserve ADR ownership and follow the selected phase boundary.",
+      "expectations": [
+        "Does not automatically create a competing design record when the existing ADR/process owns it.",
+        "Does not commit without separate Git authorization.",
+        "Does not start implementation or substitute a generic implementation setup sequence for the selected process."
+      ],
+      "files": []
+    }
+  ]
+}

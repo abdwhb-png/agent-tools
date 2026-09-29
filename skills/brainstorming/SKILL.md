@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "Research-driven brainstorming and design for new features, components, or behavior modifications. Use this skill whenever the user wants to implement a new feature, change existing logic, design a system, compare approaches, or asks 'how should I approach X'. It mandates discovery in the actual codebase and verification of decision-critical assumptions before recommending a design."
+description: "Research-driven brainstorming and design for open features, components, system or workflow design, comparing approaches, or deciding how to approach a change. Verify decision-critical assumptions against actual evidence."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -22,6 +22,8 @@ Use this skill when the user wants to design a feature, component, system, workf
 ## When Not to Use
 
 Do not use this skill for direct edits with an already-decided outcome, straightforward debugging with a concrete failure, simple code explanations, package installation, or implementation of an approved design. Route those requests to the narrower execution or debugging workflow.
+
+When the user has already selected a specialized process that owns conception or the next phase, respect that boundary rather than imposing an additional brainstorming cycle. Remain independently usable when no such process has been selected.
 
 ## The Process
 
@@ -136,15 +138,13 @@ Do not silently revive a ruled-out path later. Reconsider it only when new evide
 
 **Documentation:**
 
-- Write the validated design to `docs/brainstorming-decisions/YYYY-MM-DD-<topic>.md` or based on project convention
+- When documentation is requested or authorized by the selected process, use its existing artifact owner and project convention; otherwise summarize convergence in the conversation. Use `docs/brainstorming-decisions/YYYY-MM-DD-<topic>.md` only when a separate record is appropriate and no convention exists.
 - Include the destination, research evidence, selected path, ruled-out paths, not-yet-specified items, architecture, components, data flow, error handling, testing, and implementation handoff boundary.
 - Follow project conventions and documentation guidelines for writing and formatting
-- Commit the design document to git
 
 **Implementation (if continuing):**
 
-- Ask: "Ready to set up for implementation?"
-- Follow project conventions and workflows for creating implementation plans
+- Follow the user's selected process and authority for the next phase. If none has been chosen and the user wants to continue, ask whether to prepare an implementation plan; do not treat design acceptance as implementation authority.
 
 ## Key Principles
 
