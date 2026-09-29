@@ -51,13 +51,4 @@ Read this before choosing a reviewer or changing any reviewer configuration.
 
 - Review lanes run with clean context and read-only tools only.
 - A lane failure, whether from an unavailable tool, a provider error, or a deadline, is reported as incomplete coverage. Never substitute self-review for a failed lane.
-
-## Known risk in this harness
-
-The `@review` and `@review-max` tool groups in this installation include a think-extension tool (`think_artifact_search`). That makes every agent whose frontmatter names those groups parent-safe but transport-dependent in a child.
-
-- Observed: reviewer lanes failed with `requested unavailable child tools` on 2026-09-19 and 2026-09-28.
-- Not reproducing: the same agents passed the capability audit on 2026-09-29, when lanes were launched as background children.
-- Two available fixes, neither applied: give the child the provider through the agent's child-only extension list, or split the group so the read-only reviewer set contains only builtin and always-loaded tools.
-
-Until it recurs, prefer the group split: one change, no extension loaded into children that never call it, and no dependence on foreground versus background.
+- A run killed early, for example by a short deadline, proves nothing about the child contract. Do not read a clean capability audit on a stopped run as evidence that the contract holds.
