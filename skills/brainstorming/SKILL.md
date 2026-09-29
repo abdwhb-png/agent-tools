@@ -13,7 +13,7 @@ Help turn ideas into fully formed designs and specs through natural collaborativ
 
 **Question Tool:** "The question tool" refers to your interactive question tool (e.g., `askQuestions`, `ask_user_question`, `AskUserQuestion`).
 
-Start by understanding the current project context, then use the question tool to ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
+Start by understanding the current project context, then use the question tool to ask questions one at a time to refine the idea. Once you understand what you're building, present the design in sections sized to the ceremony tier (100-200 words light, 200-300 words standard/heavy), checking after each section whether it looks right so far.
 
 ## When to Use
 
@@ -27,12 +27,22 @@ When the user has already selected a specialized process that owns conception or
 
 ## The Process
 
+**Adapt the ceremony to the stakes:**
+
+Choose a ceremony tier at the start of the process (refine it once the Research Summary is complete), by answering: how many modules or teams does this touch? How many decision-critical unknowns are open? How hard is the decision to reverse? How costly is a wrong design?
+
+- **Light** — small blast radius, few unknowns, cheap to reverse: research summary compressed to key findings and gaps; 2-3 materially different approaches with at least one outside the mainstream pattern; design sections of 100-200 words; plain-text questions allowed when the harness has no question tool.
+- **Standard (default)** — anything not clearly light or heavy: the full ceremony below (full research summary, 3-4 approaches spanning the distribution, 200-300 word sections, question tool when available).
+- **Heavy** — broad blast radius, many unknowns, expensive to reverse, high stakes: standard, plus independent critical review before recommending, a prototype/spike for experiential ambiguities, and every residual risk explicitly accepted with an owner.
+
+If the risk profile changes mid-session, move the tier and state the change; never silently drop ceremony.
+
 **Discovery Phase (Mandatory):**
 Before asking questions or proposing designs, you MUST perform a discovery phase to understand the technical reality of the project.
 
 - Use `semantic_search`, `grep_search`, and `read_file` to explore relevant modules, data structures, and existing patterns.
 - Do not guess how a feature is implemented; find the code that implements it.
-- **Mandatory Research Summary:** Before moving to any other phase, you must provide a "Research Summary" that includes:
+- **Mandatory Research Summary:** Before moving to any other phase, you must provide a "Research Summary" that includes (compressed to key findings and gaps for light-ceremony sessions):
   1. **Files Accessed:** A list of the specific files you read.
   2. **Key Findings:** Concrete facts found in the code (e.g., "The `LoanService` handles repayments in `app/Services/LoanService.php` using a `repay()` method").
   3. **Gaps:** What you were unable to find or what remains ambiguous.
@@ -65,6 +75,7 @@ Keep a lightweight working state throughout the conversation:
 - **Decisions and known facts:** Verified evidence and explicit choices that current reasoning may rely on.
 - **Not yet specified:** Relevant uncertainty that should remain visible rather than receive a plausible default.
 - **Out of scope:** A path or concern excluded by the destination, with a one-line reason.
+- **Recommendation vs decision:** The agent's recommended path and the user's accepted decision stay separate entries until the user explicitly ratifies.
 
 An uncertainty is ready for active resolution when its deciding question can be stated precisely now, even if the answer is not yet known. If the question is still vague, sharpen it before generating solutions.
 
@@ -77,9 +88,20 @@ Route each precise question to the narrowest reliable source of truth:
 
 After resolving a question, update the working state and address the next uncertainty that most directly blocks the destination. Keep this inside the conversation and design artifact; do not create issue maps, ticket graphs, branches, or multi-session orchestration.
 
+**When the design is ready (maturity gate):**
+
+Before presenting or recording the design, confirm each condition and state the result explicitly:
+
+1. **Evidence closed:** Every decision-critical empirical assumption is Verified or Falsified, or the user explicitly accepted it as known residual risk. No approach rests on an Unresolved critical assumption.
+2. **Uncertainty drained:** No item in **Not yet specified** could change the selected path. Everything else is parked as a **Future contingency** with a stated trigger.
+3. **Alternatives weighed:** The ceremony-tier count of materially different approaches was explored and compared on evidence, fit to the destination, and failure conditions.
+4. **Recommendation ratified:** The user explicitly accepted the recommendation (see "Recommendation vs decision"). An unratified recommendation is not a finished design.
+
+If a condition fails, keep resolving the blocking uncertainty. These may remain open without blocking: future contingencies (with triggers) and implementation details the destination does not require. A session may also end early by explicit user request or a changed destination — then record the state exactly as it stands rather than implying completion.
+
 **Exploring approaches:**
 
-- Propose 3-4 materially different approaches spanning the full solution distribution (Verbalized Sampling) rather than superficial variations of a single mainstream pattern:
+- Propose the ceremony-tier count of materially different approaches spanning the full solution distribution (Verbalized Sampling) rather than superficial variations of a single mainstream pattern (see "Adapt the ceremony to the stakes"):
   1. **Idiomatic / Direct Baseline (High probability — Conventional A):** The direct path using existing codebase patterns, built-in framework primitives, or minimal extensions (lowest friction, in-house conventions).
   2. **Ecosystem / Pattern-Driven Alternative (High probability — Conventional B):** The second mainstream industry standard leveraging proven libraries, established design patterns (e.g., state machines, adapter/strategy, dedicated middleware), or structured decoupling.
   3. **Structural / Boundary Trade-off (Medium probability — Alternative):** A distinct architectural trade-off shifting responsibilities across boundaries (e.g., compile-time vs runtime, push vs pull, client-driven vs server-orchestrated, async/event-driven vs synchronous).
@@ -119,16 +141,17 @@ Present options conversationally with your recommendation and reasoning. Lead wi
 
 When converging, record:
 
-- **Selected path:** The decision and why it best fits the destination.
-- **Ruled-out paths:** One line per rejected option explaining why it lost.
+- **Recommendation:** The path the agent argues for and why it best fits the destination. Label it as recommended by the agent; it is not yet the user's decision.
+- **Accepted decision:** Recorded only after explicit ratification. Ask the user one direct question (question tool): "Do you accept the recommended path and the listed remaining uncertainties?" Only an explicit yes or an explicit counter-choice promotes the recommendation to an accepted decision, including which residual risks the user knowingly accepted. Silence, "maybe", or absence of approval does not.
+- **Ruled-out paths:** One line per rejected option explaining why it lost and who ruled it out (evidence falsified it vs user rejected it).
 - **Remaining uncertainties:** Unresolved items, their impact, and the next reliable way to settle them.
 
 Do not silently revive a ruled-out path later. Reconsider it only when new evidence, a changed destination, or an explicit user decision invalidates the earlier reason.
 
 **Presenting the design:**
 
-- Once you believe you understand what you're building, present the design
-- Break it into sections of 200-300 words
+- Once the maturity gate passes (see "When the design is ready"), present the design
+- Break it into sections sized to the ceremony tier (100-200 words light, 200-300 words standard/heavy)
 - Ask after each section whether it looks right so far
 - Cover: architecture, components, data flow, error handling, testing
 - Be ready to go back and clarify if something doesn't make sense
@@ -140,6 +163,7 @@ Do not silently revive a ruled-out path later. Reconsider it only when new evide
 
 - When documentation is requested or authorized by the selected process, use its existing artifact owner and project convention; otherwise summarize convergence in the conversation. Use `docs/brainstorming-decisions/YYYY-MM-DD-<topic>.md` only when a separate record is appropriate and no convention exists.
 - Include the destination, research evidence, selected path, ruled-out paths, not-yet-specified items, architecture, components, data flow, error handling, testing, and implementation handoff boundary.
+- Label every recorded path as `recommended` or `accepted`; if the session ended without ratification, write `recommendation pending decision` — never present an unratified recommendation as the user's decision.
 - Follow project conventions and documentation guidelines for writing and formatting
 
 **Implementation (if continuing):**
@@ -161,10 +185,10 @@ Do not silently revive a ruled-out path later. Reconsider it only when new evide
 - **One question at a time** - Don't overwhelm with multiple questions
 - **Multiple choice preferred** - Easier to answer than open-ended when possible
 - **YAGNI ruthlessly** - Remove unnecessary features from all designs
-- **Explore alternatives** - Always propose 3-4 approaches before settling
+- **Explore alternatives** - Always explore the solution distribution before settling; the approach count scales with the ceremony tier
 - **Incremental validation** - Present design in sections, validate each
 - **Be flexible** - Go back and clarify when something doesn't make sense
 
 ## Mandatory Use
 
-Always ask user questions through your harness's interactive question tool (`askQuestions`, `ask_user_question`, `AskUserQuestion`, etc.) rather than plain text.
+Use the question tool whenever the harness provides one (`askQuestions`, `ask_user_question`, `AskUserQuestion`, etc.). In light-ceremony sessions or harnesses without a question tool, ask in plain text — still one question per message, multiple choice preferred.
