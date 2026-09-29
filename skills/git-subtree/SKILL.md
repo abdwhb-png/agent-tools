@@ -1,6 +1,6 @@
 ---
 name: git-subtree
-description: Use when adding, updating, publishing, extracting, inspecting, or removing Git subtrees; when synchronizing a directory with another Git repository using `git subtree`; or when deciding how to safely run `git subtree add`, `pull`, `push`, `split`, or `merge`.
+description: Use when choosing a Git subtree versus a submodule for external source, converting between them, or adding, updating, publishing, extracting, inspecting, or removing a subtree with `git subtree`.
 compatibility: Requires Git with the `git subtree` command available.
 metadata:
 category: git
@@ -13,7 +13,25 @@ Manage Git subtrees safely and deterministically.
 
 A Git subtree embeds another repository's files directly inside a directory of the current repository while preserving the ability to synchronize that directory with an external Git repository.
 
-Use `git subtree`, not Git submodules, when the repository should remain fully usable after a normal clone without requiring submodule initialization.
+A subtree makes a parent repository self-contained after a normal clone, but removes the nested repository's independent Git checkout. Choose it based on how maintainers work with the source, not clone convenience alone.
+
+## When to Use
+
+Use this skill to choose or operate a Git subtree, including migrations from or to a submodule.
+
+## When Not to Use
+
+For ordinary fetch, merge, branch, or push work inside an existing submodule or separate repository, use that repository's Git workflow instead of subtree commands.
+
+## Decide before converting
+
+Before recommending a subtree or changing repository layout, establish how maintainers update the external source: how often they sync a fork with upstream, whether they fetch/merge/branch/commit/push from inside its directory, and whether a self-contained normal clone matters more than that independent workflow. If unknown and material to the choice, ask one focused question. State the trade-off before requesting conversion approval:
+
+- **Subtree:** Normal clone contains source. The prefix contains parent-tracked files, not a separate checkout: `cd <prefix> && git fetch` operates on the parent repository. Import updates from the parent with `git subtree pull --prefix=<prefix> <repository> <branch> --squash` for a squashed subtree (omit `--squash` when preserving established full history); publish prefix changes with `git subtree push`. Document upstream URL and branch separately because subtree metadata does not retain them.
+- **Submodule:** The prefix is an independent Git checkout. Maintainers can sync their fork using its own remotes and branches, then commit the updated gitlink in the parent. Clones require `--recurse-submodules` or `git submodule update --init`; a newly initialized checkout is usually at a detached HEAD until a branch is selected.
+- **Separate clone/worktree:** Preserves independent Git operations outside the parent; it does not by itself pin source in the parent or include it in normal deployment clones.
+
+Recommend a submodule when frequent fork/upstream sync or independent branch work inside the prefix is central, even if a subtree would simplify cloning. Recommend a subtree when source is mostly consumed from the parent and imports are occasional. Mixed layouts are valid: decide per prefix. Do not describe subtree as unconditionally simpler than a submodule or worktree. If the user explicitly requests a subtree despite an established independent-worktree workflow, explain the lost workflow and confirm that trade-off before converting; do not repeat the question once the choice is informed.
 
 ## Core rules
 
