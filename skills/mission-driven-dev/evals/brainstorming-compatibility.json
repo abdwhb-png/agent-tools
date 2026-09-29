@@ -1,0 +1,18 @@
+{
+  "skill_name": "mission-driven-dev",
+  "comparison": "Both configurations use mission-driven-dev; compare old/new general brainstorming instructions as an optional available skill.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "refused_correction_and_optional_skill",
+      "prompt": "The user has explicitly selected mission-driven-dev. Fictional state: approved mission m2 is executing in its isolated worktree; packet p2 returned correction_required, with changed files and retained failing evidence. The user now says: 'I refuse this proposed correction because it expands scope. Inspect and tell me what happens next; do not execute.' The existing approved design is sufficient; no substantive design question needs reopening. A different general brainstorming skill is also available. State the next authorized action, phase/interruption, record preservation, and which instructions own this process. Do not invent a new approved scope, destroy changes, or perform scenario actions.",
+      "expected_output": "Respect inspection authority, preserve the rejected attempt and current phase, expose the missing scope decision, and keep the specialized process authoritative without restarting conception.",
+      "expectations": [
+        "Preserves failed changes and evidence without reset, deletion or replacing the old result.",
+        "Does not execute, relaunch or change scope during an inspection-only request.",
+        "Keeps the recorded phase and makes a missing decision explicit rather than marking completed/failed automatically.",
+        "Uses the specialized process with sufficient existing design, without a fresh generic brainstorming cycle."
+      ]
+    }
+  ]
+}

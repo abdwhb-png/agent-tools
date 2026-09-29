@@ -1,0 +1,44 @@
+{
+  "skill_name": "mission-driven-dev",
+  "evals": [
+    {
+      "id": 1,
+      "name": "preparation",
+      "prompt": "You are advising on two fictional development requests, without changing files. A: A project has an accepted architecture ADR and an existing PRD. The user asks to prepare one narrowly scoped fix to CSV quoting; the outcome and failing counterexample are already established and this fits one mission. Only documentation preparation is authorized. B: The same user instead wants a knowledge tool but has not decided whether success means faster search or fewer escalations. For each case, give the next response, the artifacts (if any) you would prepare and what you would not launch. Do not invent repository findings.",
+      "expected_output": "Reuse approved conception and existing owners for A, prepare one mission without a roadmap or extra spec and do not launch execution. Ask a material preference question with options for B.",
+      "expectations": [
+        "Case A preserves existing PRD/ADR ownership and does not restart approved conception.",
+        "Case A prepares one bounded Mission Contract without manufacturing a roadmap or parallel execution spec.",
+        "Neither case launches implementation under documentation-only authority.",
+        "Case B preserves the unresolved success criterion and asks one material question with alternatives."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "resumption",
+      "prompt": "Inspect this fictional mission and report status plus next permitted actions; inspection only, no edits or launches. The active Mission Contract is revision 2. Packet p1 and its completed result correctly reference retained revision 1. Packet p2 is marked current but also references revision 1. A previous attempt requires correction, its changes are still in the worktree, and the original checkout has unrelated dirty files. The user approved a two-mission wave by outcomes and limits, not a newly proposed change of scope. Explain which old records remain valid, what prevents dispatch, how to preserve work, and how later mission elaboration relates to that wave.",
+      "expected_output": "Preserve historical references and rejected work, detect only active staleness, do not dispatch/reset/rewrite records, and distinguish allowed elaboration from a changed scope.",
+      "expectations": [
+        "Keeps correctly retained revision-1 historical packets/results valid.",
+        "Flags current p2 as stale against active revision 2.",
+        "Does not rewrite historical packets or discard rejected/unrelated dirty work.",
+        "Respects inspection-only authority and returns the new scope decision to the user while permitting later detail within approved limits."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "fresh_contexts",
+      "prompt": "For three fictional harness situations, decide the next permitted action for a prepared mission packet and its later mission validation. A: delegation is explicitly authorized and the native worker tool offers no inherited conversation. B: delegation is authorized but the only tool forks the entire conversation. C: a fresh-context tool exists but delegation has not been authorized. The implementer says all tests passed; no independent mission validation has happened. Give dispatch/handoff choices, the minimum context to transmit, and whether the mission can close. Do not actually launch anything.",
+      "expected_output": "Use authorized fresh native delegation only in A, handoff in B/C, preserve essential approved context, do not close without independent validation.",
+      "expectations": [
+        "Chooses native no-history delegation for A only, without forcing a harness/provider change.",
+        "Does not describe a full-history fork as fresh in B.",
+        "Supplies a manual handoff for B/C and does not infer delegation authority from tool availability.",
+        "Transmits exact contract/packet revisions, scope and required proof rather than entire conversation, and refuses closure based only on implementer claims."
+      ],
+      "files": []
+    }
+  ]
+}

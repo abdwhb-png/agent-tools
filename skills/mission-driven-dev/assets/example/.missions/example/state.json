@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "state",
+  "id": "example",
+  "revision": 1,
+  "mission": {
+    "kind": "mission",
+    "id": "example",
+    "revision": 1,
+    "path": "../../docs/missions/example/r1.md"
+  },
+  "status": "draft",
+  "interruption": null,
+  "history": "history.jsonl",
+  "lastSequence": 1,
+  "currentPacket": null,
+  "attempts": [],
+  "checkpoints": [],
+  "evidence": [],
+  "validation": null
+}

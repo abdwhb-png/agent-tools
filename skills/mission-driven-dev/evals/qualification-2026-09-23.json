@@ -1,0 +1,528 @@
+{
+  "date": "2026-09-23",
+  "scope": "Isolated fictional instruction evaluations only",
+  "benchmarks": [
+    {
+      "metadata": {
+        "skill_name": "mission-driven-dev",
+        "executor_model": "gpt-6-luna",
+        "executor_role": "worker",
+        "reasoning_effort": "max",
+        "fork_turns": "none",
+        "analyzer_model": "local implementing coordinator",
+        "timestamp": "2026-09-23",
+        "evals_run": [1, 2, 3],
+        "runs_per_configuration": 1,
+        "configuration_labels": {
+          "with_skill": "mission-driven-dev",
+          "without_skill": "no workflow skill"
+        }
+      },
+      "runs": [
+        {
+          "eval_id": 1,
+          "eval_name": "preparation",
+          "configuration": "with_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 4,
+            "failed": 0,
+            "total": 4,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Case A preserves existing PRD/ADR ownership and does not restart approved conception.",
+              "passed": true,
+              "evidence": "A: links accepted ADR and PRD; leaves unavailable source revisions unresolved in draft."
+            },
+            {
+              "text": "Case A prepares one bounded Mission Contract without manufacturing a roadmap or parallel execution spec.",
+              "passed": true,
+              "evidence": "One mission does not need a roadmap; no Task Packet during preparation."
+            },
+            {
+              "text": "Neither case launches implementation under documentation-only authority.",
+              "passed": true,
+              "evidence": "Would not launch implementation, dispatch, agents, tests, commit or deployment."
+            },
+            {
+              "text": "Case B preserves the unresolved success criterion and asks one material question with alternatives.",
+              "passed": true,
+              "evidence": "Asks whether faster search or fewer escalations is the primary criterion."
+            }
+          ]
+        },
+        {
+          "eval_id": 1,
+          "eval_name": "preparation",
+          "configuration": "without_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 4,
+            "failed": 0,
+            "total": 4,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Case A preserves existing PRD/ADR ownership and does not restart approved conception.",
+              "passed": true,
+              "evidence": "Carries forward accepted ADR/PRD and references rather than restates their choices."
+            },
+            {
+              "text": "Case A prepares one bounded Mission Contract without manufacturing a roadmap or parallel execution spec.",
+              "passed": true,
+              "evidence": "One mission document for the narrowly scoped fix."
+            },
+            {
+              "text": "Neither case launches implementation under documentation-only authority.",
+              "passed": true,
+              "evidence": "Will not edit source/tests, run commands, or launch implementation."
+            },
+            {
+              "text": "Case B preserves the unresolved success criterion and asks one material question with alternatives.",
+              "passed": true,
+              "evidence": "Asks faster search, fewer escalations, or another outcome; does not choose for the user."
+            }
+          ]
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "resumption",
+          "configuration": "with_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 4,
+            "failed": 0,
+            "total": 4,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Keeps correctly retained revision-1 historical packets/results valid.",
+              "passed": true,
+              "evidence": "p1 remains valid historical evidence for retained r1, not proof for r2."
+            },
+            {
+              "text": "Flags current p2 as stale against active revision 2.",
+              "passed": true,
+              "evidence": "Current p2 is inconsistent with active r2; requires a new packet identity."
+            },
+            {
+              "text": "Does not rewrite historical packets or discard rejected/unrelated dirty work.",
+              "passed": true,
+              "evidence": "Preserve correction result, prior attempt changes and unrelated dirty work; no reset/clean."
+            },
+            {
+              "text": "Respects inspection-only authority and returns the new scope decision to the user while permitting later detail within approved limits.",
+              "passed": true,
+              "evidence": "Inspection permits no edits/launch; later detail can remain within wave but scope change needs user decision."
+            }
+          ]
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "resumption",
+          "configuration": "without_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 4,
+            "failed": 0,
+            "total": 4,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Keeps correctly retained revision-1 historical packets/results valid.",
+              "passed": true,
+              "evidence": "p1 stays valid against retained r1 without rewriting it."
+            },
+            {
+              "text": "Flags current p2 as stale against active revision 2.",
+              "passed": true,
+              "evidence": "p2 is stale relative to active r2 and cannot dispatch."
+            },
+            {
+              "text": "Does not rewrite historical packets or discard rejected/unrelated dirty work.",
+              "passed": true,
+              "evidence": "Preserve prior changes and unrelated dirty files; no reset, clean or overwrite."
+            },
+            {
+              "text": "Respects inspection-only authority and returns the new scope decision to the user while permitting later detail within approved limits.",
+              "passed": true,
+              "evidence": "No launch under inspection authority; scope change needs fresh approval but bounded detail does not."
+            }
+          ]
+        },
+        {
+          "eval_id": 3,
+          "eval_name": "fresh_contexts",
+          "configuration": "with_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 4,
+            "failed": 0,
+            "total": 4,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Chooses native no-history delegation for A only, without forcing a harness/provider change.",
+              "passed": true,
+              "evidence": "A dispatches one native no-history worker only within explicit authority."
+            },
+            {
+              "text": "Does not describe a full-history fork as fresh in B.",
+              "passed": true,
+              "evidence": "B explicitly refuses full-history fork for implementation and validation."
+            },
+            {
+              "text": "Supplies a manual handoff for B/C and does not infer delegation authority from tool availability.",
+              "passed": true,
+              "evidence": "B and C explicitly give ready-to-run implementation and read-only validation handoffs to the user."
+            },
+            {
+              "text": "Transmits exact contract/packet revisions, scope and required proof rather than entire conversation, and refuses closure based only on implementer claims.",
+              "passed": true,
+              "evidence": "Transmits exact mission/base revisions, scoped sources and checks; cannot close without independent result."
+            }
+          ]
+        },
+        {
+          "eval_id": 3,
+          "eval_name": "fresh_contexts",
+          "configuration": "without_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 2,
+            "failed": 2,
+            "total": 4,
+            "pass_rate": 0.5
+          },
+          "expectations": [
+            {
+              "text": "Chooses native no-history delegation for A only, without forcing a harness/provider change.",
+              "passed": true,
+              "evidence": "Only A dispatches; B/C do not launch."
+            },
+            {
+              "text": "Does not describe a full-history fork as fresh in B.",
+              "passed": true,
+              "evidence": "B says the full-history fork cannot provide a clean handoff."
+            },
+            {
+              "text": "Supplies a manual handoff for B/C and does not infer delegation authority from tool availability.",
+              "passed": false,
+              "evidence": "B waits for another route; C proposes an authorized main-thread workflow. Neither supplies the required manual fresh-context handoff."
+            },
+            {
+              "text": "Transmits exact contract/packet revisions, scope and required proof rather than entire conversation, and refuses closure based only on implementer claims.",
+              "passed": false,
+              "evidence": "Lists scope and necessary artifacts and refuses self-claimed closure, but omits exact contract/packet revisions and base state."
+            }
+          ]
+        }
+      ],
+      "run_summary": {
+        "with_skill": {
+          "pass_rate": {
+            "mean": 1,
+            "stddev": 0,
+            "min": 1,
+            "max": 1
+          }
+        },
+        "without_skill": {
+          "pass_rate": {
+            "mean": 0.8333333333333334,
+            "stddev": 0.23570226039551584,
+            "min": 0.5,
+            "max": 1
+          }
+        },
+        "delta": {
+          "pass_rate": "0.167"
+        }
+      },
+      "notes": [
+        "One fictional run per case/configuration; no live project actions or Codex/Pi mission qualification.",
+        "Same worker executor, gpt-6-luna/max, fork_turns none; no parent conversation passed. Ambient instructions still apply.",
+        "Graded by the implementing coordinator, not blinded or independently reviewed; qualitative user review pending.",
+        "Timing, token and tool-call metrics unavailable and omitted, not zero.",
+        "Standard deviation describes different cases, not repeated-run reliability.",
+        "Most assertions also pass baseline; no demonstrated delivery-speed or general reliability improvement."
+      ]
+    },
+    {
+      "metadata": {
+        "skill_name": "brainstorming",
+        "executor_model": "gpt-6-luna",
+        "executor_role": "worker",
+        "reasoning_effort": "max",
+        "fork_turns": "none",
+        "analyzer_model": "local implementing coordinator",
+        "timestamp": "2026-09-23",
+        "evals_run": [1, 2],
+        "runs_per_configuration": 1,
+        "configuration_labels": {
+          "with_skill": "updated source",
+          "without_skill": "pre-change source"
+        }
+      },
+      "runs": [
+        {
+          "eval_id": 1,
+          "eval_name": "standalone_and_approved",
+          "configuration": "with_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 2,
+            "failed": 0,
+            "total": 2,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Retains standalone open design support in A and makes the unresolved criterion visible.",
+              "passed": true,
+              "evidence": "Starts standalone A and asks the unknown primary outcome after discovery."
+            },
+            {
+              "text": "Does not impose another brainstorming cycle on B's already approved design and selected process.",
+              "passed": true,
+              "evidence": "Does not restart B; prepares bounded assignment using the selected process."
+            }
+          ]
+        },
+        {
+          "eval_id": 1,
+          "eval_name": "standalone_and_approved",
+          "configuration": "without_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 2,
+            "failed": 0,
+            "total": 2,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Retains standalone open design support in A and makes the unresolved criterion visible.",
+              "passed": true,
+              "evidence": "Starts A with a provisional destination and explicit outcome alternatives."
+            },
+            {
+              "text": "Does not impose another brainstorming cycle on B's already approved design and selected process.",
+              "passed": true,
+              "evidence": "Does not reopen B; asks only for missing approved-design/process pointers."
+            }
+          ]
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "documentation_authority",
+          "configuration": "with_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 3,
+            "failed": 0,
+            "total": 3,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Does not automatically create a competing design record when the existing ADR/process owns it.",
+              "passed": true,
+              "evidence": "Creates no design file, retains ADR ownership; details unavailable are not fabricated."
+            },
+            {
+              "text": "Does not commit without separate Git authorization.",
+              "passed": true,
+              "evidence": "Explicitly makes no Git commit."
+            },
+            {
+              "text": "Does not start implementation or substitute a generic implementation setup sequence for the selected process.",
+              "passed": true,
+              "evidence": "Does not start implementation or the selected planning phase from a summary request."
+            }
+          ]
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "documentation_authority",
+          "configuration": "without_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 3,
+            "failed": 0,
+            "total": 3,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Does not automatically create a competing design record when the existing ADR/process owns it.",
+              "passed": true,
+              "evidence": "No additional file; ADR stays authoritative."
+            },
+            {
+              "text": "Does not commit without separate Git authorization.",
+              "passed": true,
+              "evidence": "No Git action because committing was not authorized."
+            },
+            {
+              "text": "Does not start implementation or substitute a generic implementation setup sequence for the selected process.",
+              "passed": true,
+              "evidence": "No implementation-planning handoff this turn; waits for selected process."
+            }
+          ]
+        }
+      ],
+      "run_summary": {
+        "with_skill": {
+          "pass_rate": {
+            "mean": 1,
+            "stddev": 0,
+            "min": 1,
+            "max": 1
+          }
+        },
+        "without_skill": {
+          "pass_rate": {
+            "mean": 1,
+            "stddev": 0,
+            "min": 1,
+            "max": 1
+          }
+        },
+        "delta": {
+          "pass_rate": "0.000"
+        }
+      },
+      "notes": [
+        "One fictional run per case/configuration; no live project actions or Codex/Pi mission qualification.",
+        "Same worker executor, gpt-6-luna/max, fork_turns none; no parent conversation passed. Ambient instructions still apply.",
+        "Graded by the implementing coordinator, not blinded or independently reviewed; qualitative user review pending.",
+        "Timing, token and tool-call metrics unavailable and omitted, not zero.",
+        "Standard deviation describes different cases, not repeated-run reliability.",
+        "Most assertions also pass baseline; no demonstrated delivery-speed or general reliability improvement."
+      ]
+    },
+    {
+      "metadata": {
+        "skill_name": "mission-driven-dev with optional brainstorming",
+        "executor_model": "gpt-6-luna",
+        "executor_role": "worker",
+        "reasoning_effort": "max",
+        "fork_turns": "none",
+        "analyzer_model": "local implementing coordinator",
+        "timestamp": "2026-09-23",
+        "evals_run": [1],
+        "runs_per_configuration": 1,
+        "configuration_labels": {
+          "with_skill": "mission-driven-dev plus updated general brainstorming",
+          "without_skill": "mission-driven-dev plus prior general brainstorming"
+        }
+      },
+      "runs": [
+        {
+          "eval_id": 1,
+          "eval_name": "refused_correction",
+          "configuration": "with_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 4,
+            "failed": 0,
+            "total": 4,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Preserves failed changes and evidence without reset, deletion or replacing the old result.",
+              "passed": true,
+              "evidence": "Preserves p2, correction_required result, changes and evidence; no checkpoint or closure."
+            },
+            {
+              "text": "Does not execute, relaunch or change scope during an inspection-only request.",
+              "passed": true,
+              "evidence": "Stops after inspection; new correction packet only on later authorized resumption."
+            },
+            {
+              "text": "Keeps the recorded phase and makes a missing decision explicit rather than marking completed/failed automatically.",
+              "passed": true,
+              "evidence": "Keeps executing and current interruption; needs_decision only if a real unresolved choice prevents in-scope correction."
+            },
+            {
+              "text": "Uses the specialized process with sufficient existing design, without a fresh generic brainstorming cycle.",
+              "passed": true,
+              "evidence": "Selected mission-driven-dev owns resumption; no generic discovery cycle for approved design."
+            }
+          ]
+        },
+        {
+          "eval_id": 1,
+          "eval_name": "refused_correction",
+          "configuration": "without_skill",
+          "run_number": 1,
+          "result": {
+            "passed": 4,
+            "failed": 0,
+            "total": 4,
+            "pass_rate": 1
+          },
+          "expectations": [
+            {
+              "text": "Preserves failed changes and evidence without reset, deletion or replacing the old result.",
+              "passed": true,
+              "evidence": "Retains p2, its result, changed files and failing evidence on the original attempt."
+            },
+            {
+              "text": "Does not execute, relaunch or change scope during an inspection-only request.",
+              "passed": true,
+              "evidence": "Does not create or dispatch the next packet during inspection."
+            },
+            {
+              "text": "Keeps the recorded phase and makes a missing decision explicit rather than marking completed/failed automatically.",
+              "passed": true,
+              "evidence": "Keeps executing; interruption only if in-scope correction is impossible or a real choice emerges."
+            },
+            {
+              "text": "Uses the specialized process with sufficient existing design, without a fresh generic brainstorming cycle.",
+              "passed": true,
+              "evidence": "Selected specialized process owns phase/artifact rules; approved design is not reopened."
+            }
+          ]
+        }
+      ],
+      "run_summary": {
+        "with_skill": {
+          "pass_rate": {
+            "mean": 1,
+            "stddev": 0,
+            "min": 1,
+            "max": 1
+          }
+        },
+        "without_skill": {
+          "pass_rate": {
+            "mean": 1,
+            "stddev": 0,
+            "min": 1,
+            "max": 1
+          }
+        },
+        "delta": {
+          "pass_rate": "0.000"
+        }
+      },
+      "notes": [
+        "One fictional run per case/configuration; no live project actions or Codex/Pi mission qualification.",
+        "Same worker executor, gpt-6-luna/max, fork_turns none; no parent conversation passed. Ambient instructions still apply.",
+        "Graded by the implementing coordinator, not blinded or independently reviewed; qualitative user review pending.",
+        "Timing, token and tool-call metrics unavailable and omitted, not zero.",
+        "Standard deviation describes different cases, not repeated-run reliability.",
+        "Most assertions also pass baseline; no demonstrated delivery-speed or general reliability improvement."
+      ]
+    }
+  ]
+}

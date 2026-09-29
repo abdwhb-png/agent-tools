@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "result",
+  "id": "example-result-1",
+  "revision": 1,
+  "mission": {
+    "kind": "mission",
+    "id": "example",
+    "revision": 1,
+    "path": "../../docs/missions/example/r1.md"
+  },
+  "scope": "packet",
+  "packet": { "kind": "packet", "id": "example-attempt-1", "revision": 1, "path": "packet-r1.md" },
+  "actor": "example-coordinator",
+  "implementers": ["example-worker"],
+  "freshContext": false,
+  "outcome": "needs_decision",
+  "summary": "Fictional example only: authority and real evidence have not been established.",
+  "evidence": []
+}
