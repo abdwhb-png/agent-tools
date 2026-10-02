@@ -227,6 +227,7 @@ async function main(): Promise<void> {
       undefined,
       true,
     );
+    console.log("Before adoption:");
     printAssessments(preliminary);
     const selected = arguments_.flags.has("--all")
       ? new Set(preliminary.map((item) => item.target.id))
@@ -238,10 +239,13 @@ async function main(): Promise<void> {
       adoptTargets: selected,
     });
     console.log(
-      `Adopted: ${result.changed.join(", ") || "no changed target files"}`,
+      result.changed.length ? `Adopted: ${result.changed.join(", ")}` : "No target files changed.",
     );
     if (result.backups.length)
       console.log(`Backups: ${result.backups.join(", ")}`);
+    const updated = await assessTargets(config, await loadState(statePath), sources);
+    console.log("After adoption:");
+    printAssessments(updated.filter((item) => selected.has(item.target.id)));
     return;
   }
   throw new Error(`unknown command: ${command}\n\n${usage()}`);

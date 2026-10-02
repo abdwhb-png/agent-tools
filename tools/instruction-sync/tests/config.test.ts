@@ -67,3 +67,12 @@ test("legacy configuration remains valid while Zed validates named homes", () =>
   config.harnesses.zed.additionalHomes?.push({ id: "linux", home: "/elsewhere" });
   expect(() => parsePolicyConfig(JSON.stringify(config))).toThrow("duplicate additional Zed id");
 });
+
+test("rejects Windows-style target paths when syncing from Linux", () => {
+  const config = defaultPolicyConfig({ home: "/home/agent", platform: "linux", env: {} });
+  config.harnesses.zed = { enabled: true, home: "C:\\Users\\winne\\AppData\\Roaming\\Zed" };
+  expect(() => parsePolicyConfig(JSON.stringify(config), "linux")).toThrow("harnesses.zed.home must be an absolute path for linux");
+  const windows = defaultPolicyConfig({ home: "C:\\Users\\winne", platform: "win32", env: {} });
+  windows.harnesses.zed = { enabled: true, home: "C:\\Users\\winne\\AppData\\Roaming\\Zed" };
+  expect(parsePolicyConfig(JSON.stringify(windows), "win32").harnesses.zed?.home).toBe(windows.harnesses.zed.home);
+});

@@ -94,17 +94,17 @@ function assertHarness(value, name) {
     throw new Error(`harnesses.${name} must contain boolean enabled`);
   return value;
 }
-function assertAbsolute(value, label) {
-  if (!path.isAbsolute(value) && !path.win32.isAbsolute(value))
-    throw new Error(`${label} must be an absolute path`);
+function assertAbsolute(value, label, platform) {
+  if (!platformPath(platform).isAbsolute(value))
+    throw new Error(`${label} must be an absolute path for ${platform}`);
 }
-function validateHomeHarness(config, name) {
+function validateHomeHarness(config, name, platform) {
   const label = name.toLowerCase();
   assertKeys(config, ["enabled", "home", "additionalHomes"], `harnesses.${label}`);
   if (config.enabled && typeof config.home !== "string")
     throw new Error(`enabled ${name} harness requires home`);
   if (typeof config.home === "string")
-    assertAbsolute(config.home, `harnesses.${label}.home`);
+    assertAbsolute(config.home, `harnesses.${label}.home`, platform);
   if (config.additionalHomes === undefined)
     return;
   if (!Array.isArray(config.additionalHomes))
@@ -118,7 +118,7 @@ function validateHomeHarness(config, name) {
     if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.home !== "string") {
       throw new Error(`each additional ${name} home requires a lowercase id and absolute home path`);
     }
-    assertAbsolute(entry.home, `harnesses.${label}.additionalHomes.${entry.id}.home`);
+    assertAbsolute(entry.home, `harnesses.${label}.additionalHomes.${entry.id}.home`, platform);
     if (ids.has(entry.id))
       throw new Error(`duplicate additional ${name} id: ${entry.id}`);
     if (homes.has(entry.home))
@@ -127,7 +127,7 @@ function validateHomeHarness(config, name) {
     homes.add(entry.home);
   }
 }
-function parsePolicyConfig(raw) {
+function parsePolicyConfig(raw, platform = process.platform) {
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -145,9 +145,9 @@ function parsePolicyConfig(raw) {
   const vscode = assertHarness(parsed.harnesses.vscode, "vscode");
   const zed = parsed.harnesses.zed === undefined ? undefined : assertHarness(parsed.harnesses.zed, "zed");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
-  validateHomeHarness(codex, "Codex");
+  validateHomeHarness(codex, "Codex", platform);
   if (zed)
-    validateHomeHarness(zed, "Zed");
+    validateHomeHarness(zed, "Zed", platform);
   assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
   if (pi.enabled && typeof pi.agentDir !== "string")
     throw new Error("enabled Pi harness requires agentDir");
@@ -155,9 +155,9 @@ function parsePolicyConfig(raw) {
     throw new Error("enabled VS Code harness requires a non-empty targets array");
   }
   if (typeof pi.agentDir === "string")
-    assertAbsolute(pi.agentDir, "harnesses.pi.agentDir");
+    assertAbsolute(pi.agentDir, "harnesses.pi.agentDir", platform);
   if (Array.isArray(vscode.targets))
-    vscode.targets.forEach((target) => assertAbsolute(target, "harnesses.vscode.targets"));
+    vscode.targets.forEach((target) => assertAbsolute(target, "harnesses.vscode.targets", platform));
   return parsed;
 }
 function parsePolicyState(raw) {
@@ -690,6 +690,7 @@ State:  ${statePath}`);
     if (!arguments_.flags.has("--apply"))
       throw new Error("adopt requires --apply");
     const preliminary = await assessTargets(config, state, sources, undefined, true);
+    console.log("Before adoption:");
     printAssessments(preliminary);
     const selected = arguments_.flags.has("--all") ? new Set(preliminary.map((item) => item.target.id)) : new Set(values(arguments_, "--target"));
     if (selected.size === 0)
@@ -698,9 +699,12 @@ State:  ${statePath}`);
       adopt: true,
       adoptTargets: selected
     });
-    console.log(`Adopted: ${result.changed.join(", ") || "no changed target files"}`);
+    console.log(result.changed.length ? `Adopted: ${result.changed.join(", ")}` : "No target files changed.");
     if (result.backups.length)
       console.log(`Backups: ${result.backups.join(", ")}`);
+    const updated = await assessTargets(config, await loadState(statePath), sources);
+    console.log("After adoption:");
+    printAssessments(updated.filter((item) => selected.has(item.target.id)));
     return;
   }
   throw new Error(`unknown command: ${command}

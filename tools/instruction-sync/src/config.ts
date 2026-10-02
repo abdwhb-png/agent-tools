@@ -101,15 +101,15 @@ function assertHarness(value: unknown, name: HarnessName): Record<string, unknow
 
 type HarnessName = "pi" | "codex" | "vscode" | "zed";
 
-function assertAbsolute(value: string, label: string): void {
-  if (!path.isAbsolute(value) && !path.win32.isAbsolute(value)) throw new Error(`${label} must be an absolute path`);
+function assertAbsolute(value: string, label: string, platform: string): void {
+  if (!platformPath(platform).isAbsolute(value)) throw new Error(`${label} must be an absolute path for ${platform}`);
 }
 
-function validateHomeHarness(config: Record<string, unknown>, name: "Codex" | "Zed"): void {
+function validateHomeHarness(config: Record<string, unknown>, name: "Codex" | "Zed", platform: string): void {
   const label = name.toLowerCase();
   assertKeys(config, ["enabled", "home", "additionalHomes"], `harnesses.${label}`);
   if (config.enabled && typeof config.home !== "string") throw new Error(`enabled ${name} harness requires home`);
-  if (typeof config.home === "string") assertAbsolute(config.home, `harnesses.${label}.home`);
+  if (typeof config.home === "string") assertAbsolute(config.home, `harnesses.${label}.home`, platform);
   if (config.additionalHomes === undefined) return;
   if (!Array.isArray(config.additionalHomes)) throw new Error(`harnesses.${label}.additionalHomes must be an array`);
   const ids = new Set<string>();
@@ -120,7 +120,7 @@ function validateHomeHarness(config: Record<string, unknown>, name: "Codex" | "Z
     if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.home !== "string") {
       throw new Error(`each additional ${name} home requires a lowercase id and absolute home path`);
     }
-    assertAbsolute(entry.home, `harnesses.${label}.additionalHomes.${entry.id}.home`);
+    assertAbsolute(entry.home, `harnesses.${label}.additionalHomes.${entry.id}.home`, platform);
     if (ids.has(entry.id)) throw new Error(`duplicate additional ${name} id: ${entry.id}`);
     if (homes.has(entry.home)) throw new Error(`duplicate ${name} home: ${entry.home}`);
     ids.add(entry.id);
@@ -128,7 +128,7 @@ function validateHomeHarness(config: Record<string, unknown>, name: "Codex" | "Z
   }
 }
 
-export function parsePolicyConfig(raw: string): PolicyConfig {
+export function parsePolicyConfig(raw: string, platform = process.platform): PolicyConfig {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -144,15 +144,15 @@ export function parsePolicyConfig(raw: string): PolicyConfig {
   const vscode = assertHarness(parsed.harnesses.vscode, "vscode");
   const zed = parsed.harnesses.zed === undefined ? undefined : assertHarness(parsed.harnesses.zed, "zed");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
-  validateHomeHarness(codex, "Codex");
-  if (zed) validateHomeHarness(zed, "Zed");
+  validateHomeHarness(codex, "Codex", platform);
+  if (zed) validateHomeHarness(zed, "Zed", platform);
   assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
   if (pi.enabled && typeof pi.agentDir !== "string") throw new Error("enabled Pi harness requires agentDir");
   if (vscode.enabled && (!Array.isArray(vscode.targets) || vscode.targets.length === 0 || vscode.targets.some((target) => typeof target !== "string"))) {
     throw new Error("enabled VS Code harness requires a non-empty targets array");
   }
-  if (typeof pi.agentDir === "string") assertAbsolute(pi.agentDir, "harnesses.pi.agentDir");
-  if (Array.isArray(vscode.targets)) vscode.targets.forEach((target) => assertAbsolute(target, "harnesses.vscode.targets"));
+  if (typeof pi.agentDir === "string") assertAbsolute(pi.agentDir, "harnesses.pi.agentDir", platform);
+  if (Array.isArray(vscode.targets)) vscode.targets.forEach((target) => assertAbsolute(target, "harnesses.vscode.targets", platform));
   return parsed as unknown as PolicyConfig;
 }
 

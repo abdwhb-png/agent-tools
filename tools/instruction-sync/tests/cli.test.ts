@@ -40,10 +40,10 @@ async function fixture() {
   const statePath = path.join(root, "state.json");
   return {
     root, instructions, codexSource, codexConfig, output, statePath,
-    run(command: string) {
+    run(command: string, ...options: string[]) {
       const result = Bun.spawnSync([
         process.execPath, path.join(tool, "src", "cli.ts"), command,
-        "--config", configPath, "--state", statePath,
+        "--config", configPath, "--state", statePath, ...options,
       ], { cwd: root });
       return { code: result.exitCode, stdout: result.stdout.toString(), stderr: result.stderr.toString() };
     },
@@ -205,4 +205,19 @@ test("CLI configures both Zed homes and syncs Zed-only modules", async () => {
   expect(await fs.readFile(path.join(windows, "AGENTS.md"), "utf8")).toBe(expected);
   expect(await fs.readFile(path.join(linux, "AGENTS.md"), "utf8")).toBe(expected);
   expect(f.run("check").code).toBe(0);
+});
+
+test("adopt reports the selected target as current after its first successful run", async () => {
+  const f = await fixture();
+  const existing = path.join(f.output, "pi", "AGENTS.md");
+  await fs.mkdir(path.dirname(existing), { recursive: true });
+  await fs.writeFile(existing, "old preference\n");
+  const result = f.run("adopt", "--target", "pi-agents", "--apply");
+  expect(result.code).toBe(0);
+  expect(result.stdout).toContain("Adopted: pi-agents");
+  expect(result.stdout).toContain("current    pi-agents");
+  expect(await fs.readFile(existing, "utf8")).toBe("Preference\n\nTechnology\n");
+  const repeated = f.run("adopt", "--target", "pi-agents", "--apply");
+  expect(repeated.stdout).toContain("No target files changed.");
+  expect(repeated.stdout).toContain("current    pi-agents");
 });
