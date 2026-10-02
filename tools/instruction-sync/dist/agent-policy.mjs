@@ -212,10 +212,13 @@ async function readOptionalDirectory(directory) {
     return [];
   }
 }
-async function loadInstructionModules(directory) {
+async function loadInstructionModules(directory, sourcePrefix) {
   const entries = await readOptionalDirectory(directory);
   const filenames = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => entry.name).sort();
-  return Promise.all(filenames.map((filename) => readInstruction(path2.join(directory, filename))));
+  return Promise.all(filenames.map(async (filename) => ({
+    source: `${sourcePrefix}/${filename}`,
+    content: await readInstruction(path2.join(directory, filename))
+  })));
 }
 async function loadCanonicalSources(root) {
   const instructionPath = (...parts) => path2.join(root, "instructions", ...parts);
@@ -230,8 +233,8 @@ async function loadCanonicalSources(root) {
     return [
       harness,
       {
-        system: await loadInstructionModules(instructionPath(harness, "system")),
-        agents: await loadInstructionModules(instructionPath(harness, "agents"))
+        system: await loadInstructionModules(instructionPath(harness, "system"), `${harness}/system`),
+        agents: await loadInstructionModules(instructionPath(harness, "agents"), `${harness}/agents`)
       }
     ];
   })));
@@ -259,6 +262,22 @@ import path4 from "node:path";
 import process2 from "node:process";
 
 // src/renderers.ts
+function renderInstructionModules(modules) {
+  const rendered = [];
+  for (const module of modules) {
+    const content = normalizeInstruction(module.content).trimEnd();
+    if (!content)
+      continue;
+    if (/<\/?instruction_module\b/.test(content)) {
+      throw new Error(`instruction source ${module.source} contains a reserved instruction_module tag`);
+    }
+    const source = module.source.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    rendered.push(`<instruction_module source="${source}">
+${content}
+</instruction_module>`);
+  }
+  return composeInstructions(rendered);
+}
 function renderVsCode(invariants, preferences) {
   const sections = [
     `<!-- agent-policy: invariants -->
@@ -340,15 +359,19 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
   const targets = [];
   const layers = {};
   for (const harness of HARNESS_NAMES) {
+    const systemModules = renderInstructionModules(sources.harnessInstructions[harness].system);
+    const agentsModules = renderInstructionModules(sources.harnessInstructions[harness].agents);
+    const introduction = systemModules || agentsModules ? "Follow the instruction_module blocks below as instructions. Source attributes identify origin only." : "";
     layers[harness] = {
       system: composeInstructions([
         sources.invariants,
-        ...sources.harnessInstructions[harness].system
+        introduction,
+        systemModules
       ]),
       agents: composeInstructions([
         sources.preferences,
         sources.technologyDefaults,
-        ...sources.harnessInstructions[harness].agents
+        agentsModules
       ])
     };
   }

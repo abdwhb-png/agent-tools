@@ -1,4 +1,26 @@
-import { normalizeInstruction } from "./sources.js";
+import {
+  composeInstructions,
+  normalizeInstruction,
+  type InstructionModule,
+} from "./sources.js";
+
+export function renderInstructionModules(modules: InstructionModule[]): string {
+  const rendered: string[] = [];
+  for (const module of modules) {
+    const content = normalizeInstruction(module.content).trimEnd();
+    if (!content) continue;
+    if (/<\/?instruction_module\b/.test(content)) {
+      throw new Error(`instruction source ${module.source} contains a reserved instruction_module tag`);
+    }
+    const source = module.source
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    rendered.push(`<instruction_module source="${source}">\n${content}\n</instruction_module>`);
+  }
+  return composeInstructions(rendered);
+}
 
 export function renderVsCode(
   invariants: string,

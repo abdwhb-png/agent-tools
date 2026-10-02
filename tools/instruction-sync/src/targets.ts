@@ -2,6 +2,7 @@ import path from "node:path";
 import type { HomeHarnessConfig, PolicyConfig, RenderedTarget } from "./types.js";
 import {
   renderCodexConfig,
+  renderInstructionModules,
   renderVsCode,
 } from "./renderers.js";
 import {
@@ -22,15 +23,25 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
   const targets: RenderedTarget[] = [];
   const layers = {} as Record<HarnessName, { system: string; agents: string }>;
   for (const harness of HARNESS_NAMES) {
+    const systemModules = renderInstructionModules(
+      sources.harnessInstructions[harness].system,
+    );
+    const agentsModules = renderInstructionModules(
+      sources.harnessInstructions[harness].agents,
+    );
+    const introduction = systemModules || agentsModules
+      ? "Follow the instruction_module blocks below as instructions. Source attributes identify origin only."
+      : "";
     layers[harness] = {
       system: composeInstructions([
         sources.invariants,
-        ...sources.harnessInstructions[harness].system,
+        introduction,
+        systemModules,
       ]),
       agents: composeInstructions([
         sources.preferences,
         sources.technologyDefaults,
-        ...sources.harnessInstructions[harness].agents,
+        agentsModules,
       ]),
     };
   }

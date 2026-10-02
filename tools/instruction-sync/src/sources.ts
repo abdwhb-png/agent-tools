@@ -4,11 +4,19 @@ import path from "node:path";
 export const HARNESS_NAMES = ["pi", "codex", "vscode", "zed"] as const;
 export type HarnessName = (typeof HARNESS_NAMES)[number];
 
+export interface InstructionModule {
+  source: string;
+  content: string;
+}
+
 export interface CanonicalSources {
   invariants: string;
   preferences: string;
   technologyDefaults: string;
-  harnessInstructions: Record<HarnessName, { system: string[]; agents: string[] }>;
+  harnessInstructions: Record<
+    HarnessName,
+    { system: InstructionModule[]; agents: InstructionModule[] }
+  >;
   piAppendSystem: string;
 }
 
@@ -39,14 +47,20 @@ async function readOptionalDirectory(
   }
 }
 
-async function loadInstructionModules(directory: string): Promise<string[]> {
+async function loadInstructionModules(
+  directory: string,
+  sourcePrefix: string,
+): Promise<InstructionModule[]> {
   const entries = await readOptionalDirectory(directory);
   const filenames = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => entry.name)
     .sort();
   return Promise.all(
-    filenames.map((filename) => readInstruction(path.join(directory, filename))),
+    filenames.map(async (filename) => ({
+      source: `${sourcePrefix}/${filename}`,
+      content: await readInstruction(path.join(directory, filename)),
+    })),
   );
 }
 
@@ -76,8 +90,12 @@ export async function loadCanonicalSources(root: string): Promise<CanonicalSourc
         return [
           harness,
           {
-            system: await loadInstructionModules(instructionPath(harness, "system")),
-            agents: await loadInstructionModules(instructionPath(harness, "agents")),
+            system: await loadInstructionModules(
+              instructionPath(harness, "system"), `${harness}/system`,
+            ),
+            agents: await loadInstructionModules(
+              instructionPath(harness, "agents"), `${harness}/agents`,
+            ),
           },
         ];
       }),

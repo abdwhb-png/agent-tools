@@ -28,7 +28,7 @@ const source = {
   piAppendSystem: "append\n",
   harnessInstructions: {
     pi: { system: [], agents: [] },
-    codex: { system: ["Codex only\n"], agents: [] },
+    codex: { system: [{ source: "codex/system/policy.md", content: "Codex only\n" }], agents: [] },
     vscode: { system: [], agents: [] },
     zed: { system: [], agents: [] },
   },
@@ -166,10 +166,10 @@ test("sync writes composed personal instructions to both Zed homes", async () =>
       zed: { enabled: true, home: windows, additionalHomes: [{ id: "linux", home: linux }] },
     },
   };
-  const zedSource = { ...source, harnessInstructions: { ...source.harnessInstructions, zed: { system: ["Zed only\n"], agents: [] } } };
+  const zedSource = { ...source, harnessInstructions: { ...source.harnessInstructions, zed: { system: [{ source: "zed/system/policy.md", content: "Zed only\n" }], agents: [] } } };
   const result = await synchronize(config, emptyState(), statePath, zedSource);
   expect(result.changed).toEqual(["zed-agents", "zed-linux-agents"]);
-  const expected = "invariants\n\nZed only\n\npreferences\n\ntechnology defaults\n";
+  const expected = "invariants\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source=\"zed/system/policy.md\">\nZed only\n</instruction_module>\n\npreferences\n\ntechnology defaults\n";
   expect(await fs.readFile(path.join(windows, "AGENTS.md"), "utf8")).toBe(expected);
   expect(await fs.readFile(path.join(linux, "AGENTS.md"), "utf8")).toBe(expected);
 });
