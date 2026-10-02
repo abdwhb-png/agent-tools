@@ -1,0 +1,110 @@
+{
+  "skill_name": "better-ux-flow",
+  "evals": [
+    {
+      "id": 1,
+      "name": "simple-long-form-without-impeccable",
+      "prompt": "Use better-ux-flow to assess our contact editor. Do not edit code. Impeccable is not installed. Support staff use it dozens of times a day and compare all values against a customer record: given name, family name, email, phone, company, role, street, city, postal code, country, reference, and notes. All fields are familiar, independent, and required by the current workflow except notes. The reported problem is that optional status and error messages are unclear. A colleague wants three steps because there are 12 fields. We already have labeled input and fieldset components. What should change?",
+      "expected_output": "Keep one grouped page, address optional status and errors, and explain why sequential steps would interrupt this repeated comparison task. Operate without Impeccable and preserve the supplied business requirements.",
+      "files": [],
+      "expectations": [
+        "Retains a single page and cites independent familiar inputs and cross-field comparison, not a numeric field threshold.",
+        "Clarifies notes as optional and describes actionable errors, correction focus, and preservation of entered values.",
+        "Uses existing components without requiring another skill or inventing measured usability gains.",
+        "Preserves the eleven required fields and honors the diagnosis-only request."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "sequential-setup-without-durable-drafts",
+      "prompt": "Specify a better first-time integration setup. Choosing a provider determines the required connection fields. A successful server connection test is mandatory before choosing resources, and Publish creates a live integration after reviewing the selected resources. The app keeps values in memory across its existing routes but has no draft API or reload persistence. Users have lost work after reloading and do not understand why they cannot proceed after a failed connection test. Keep the existing design system. Include back, direct links, exit, and keyboard behavior, without implementing anything.",
+      "expected_output": "Specify a dependency-based sequence with explicit connection-test recovery, review before publication, truthful progress retention, and no fabricated resume feature.",
+      "files": [],
+      "expectations": [
+        "Chooses stages based on provider, connection verification, and resource dependencies rather than a step or field count.",
+        "Does not permit resource selection or publication to bypass mandatory successful connection verification, including via direct links.",
+        "Distinguishes route-level in-memory retention from reload loss, explains consequential exit, and does not promise autosave or resume.",
+        "Allows backward correction and explains dependent resource revalidation after provider or connection changes.",
+        "Includes meaningful focus after stage navigation, visible blocker recovery, and review before Publish."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "conditional-branch-and-server-rejection",
+      "prompt": "Diagnose and specify a fix for our delivery form. A customer enters a delivery address, switches to pickup, chooses a store, goes back, and then returns to delivery. Address drafts may be retained in memory, but our API requires an address only for delivery and a store ID only for pickup. Hidden address errors currently block pickup, and both payloads are submitted. Store availability can expire. A server field error currently wipes all inputs. We have an error-summary component with links to fields. Explain the intended transitions and verification cases, including keyboard correction. Do not introduce a new form framework.",
+      "expected_output": "Separate retained draft values from active validation and payloads, recheck dependent choices, preserve inputs on failure, and use the existing linked summary for correction.",
+      "files": [],
+      "expectations": [
+        "Excludes hidden inapplicable address errors and submits only the fields applicable to the selected method.",
+        "Retains the reversible in-memory address draft while rechecking values when the branch becomes applicable again.",
+        "Requires current store availability before committing pickup and does not assume prior selection remains valid.",
+        "Preserves unaffected data on server rejection, focuses the existing error summary, and makes linked fields reachable.",
+        "Proposes verification of branch switching and the actual payload through the existing form boundary."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "async-stale-results-and-unknown-outcome",
+      "prompt": "Specify interaction behavior for inviting a teammate. The user types handle 'anna', then 'anne'. The available result for anna arrives last. The handle lookup is advisory, and the Invite endpoint checks validity and permissions authoritatively. Users also double-click Invite. Sometimes the request times out after the server may have created the invite. The backend already supports looking up the invite operation by its request ID and retrying with the same idempotency key. There is no error summary for this one-field form. Describe pending, validation, error, retry, and keyboard behavior without adding dependencies or changing server rules.",
+      "expected_output": "Ignore stale lookup responses, distinguish advisory availability from acceptance, prevent duplicate activation, and resolve unknown outcomes before a safe retry.",
+      "files": [],
+      "expectations": [
+        "Does not apply anna's late result to anne and clears any outdated success state when input changes.",
+        "Treats lookup unavailability as unverified and relies on authoritative Invite validation without bypassing permissions.",
+        "Shows pending feedback and prevents repeated activation without claiming a disabled button alone provides exactly-once behavior.",
+        "Uses request-status lookup or the existing same-key idempotent retry path for a timeout instead of blind resubmission.",
+        "Preserves the input on rejection, focuses the invalid field when applicable, and offers form-level recovery for service failures without falsely marking the handle invalid."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "non-form-operational-task",
+      "prompt": "Our operators compare failed imports, inspect details, select jobs, and rerun the selected jobs. There is no form. They can inspect jobs in any order, switch between them, and adjust selection until they choose Rerun. Selection disappears when they return from details. Each job has an independent retry permission and status. Operators ask for less navigation and clearer completion feedback. Use better-ux-flow to propose a focused change with our existing table and detail views. Do not redesign the visual theme.",
+      "expected_output": "Improve selection continuity, navigation, retry eligibility, and per-job outcomes without forcing an ordered wizard or introducing form machinery.",
+      "files": [],
+      "expectations": [
+        "Keeps free navigation because comparisons and job inspection are independent, without inventing a form or wizard.",
+        "Preserves selection and useful table context when returning from details, while rechecking current retry eligibility.",
+        "Explains partial success or failure per selected job and offers retry only for eligible unresolved work.",
+        "Retains existing table/detail components and visual identity, with keyboard-operable selection and navigation."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "ambiguous-onboarding-audience",
+      "prompt": "Use better-ux-flow to make onboarding easier. This is a new product with no existing screens, repository, or research available. Customers could be individual creators or organization administrators, and we have not chosen the first useful task. Please recommend the journey.",
+      "expected_output": "Ask a focused audience/outcome clarification before committing to a sequence, without inventing research, collecting generic requirements exhaustively, or assuming a visual skill is necessary.",
+      "files": [],
+      "expectations": [
+        "Asks which audience and first successful task to prioritize because those choices materially change onboarding.",
+        "Does not prescribe final steps, data requirements, or claimed abandonment causes before that clarification.",
+        "Does not demand Impeccable, a particular product-document filename, a framework, or a design-system generator."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "visual-only-boundary",
+      "prompt": "Only adjust the colors and typography of this existing onboarding screen to match our approved design tokens. Keep all fields, sequence, validation, and behaviors exactly as they are. Is better-ux-flow needed for this task? No implementation is requested in this question.",
+      "expected_output": "Decline to activate the workflow for a purely visual change and direct the work to the existing styling conventions or selected design workflow without adding a UX audit.",
+      "files": [],
+      "expectations": [
+        "States that better-ux-flow is unnecessary for this purely visual request.",
+        "Does not redesign the journey, ask product-discovery questions, or change functional requirements.",
+        "Does not automatically load or require Impeccable."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "explicit-impeccable-composition",
+      "prompt": "Use better-ux-flow with Impeccable for our approval task. The functional requirements are established: an approver compares requests in any order, may request changes with a reason, and may approve only within their assigned spending limit. Server authorization remains mandatory. Our existing design system should stay. For now, describe the division of work and the functional handoff for Impeccable, without invoking tools or writing code.",
+      "expected_output": "Provide a concise task and behavior handoff while leaving visual composition to the explicitly selected design skill and preserving authorization and the requested non-execution mode.",
+      "files": [],
+      "expectations": [
+        "Assigns task structure, transitions, requirements, and recovery to better-ux-flow while leaving visual composition to Impeccable.",
+        "Preserves free comparison, the required change reason, spending limits, and server authorization without silently altering them.",
+        "Includes pending, rejection/recovery, completion, and acceptance scenarios in the handoff without imposing a palette, grid, or typography system.",
+        "Does not require new PRODUCT.md or DESIGN.md files and respects the request not to execute tools or code."
+      ]
+    }
+  ]
+}
