@@ -1,16 +1,5 @@
-# Keep asynchronous questions pending until answered
+# Keep questions visible until answered
 
-- After calling `request_user_input_async`, keep the turn active until the user
-  answers or explicitly cancels each pending question, subject to the fallback
-  below.
-- Finish only work that does not depend on the answer, then use an interruptible
-  wait provided by the harness. Limit each blocking wait call to 60 seconds or
-  less and let incoming user input interrupt it.
-- Renew an expired wait while the question remains unanswered. Wait without
-  polling, filler commentary, a final response, or an implicit choice.
-- Never treat elapsed time as an answer, authorization, or selection of the
-  recommended option.
-- If no interruptible wait is available, ask a durable question in the transcript
-  instead and end the turn so the user can reply normally. If an asynchronous
-  question is already pending, restate it in the transcript before ending.
-- Make no promises about billing during the wait.
+- For questions that block a decision, finish independent work, then ask the complete question and its choices in a normal assistant message. End the turn and wait for the user's explicit reply before doing dependent work. This keeps the question readable in both Codex Desktop and Codex CLI.
+- Do not use `request_user_input_async` for user-facing questions in Codex CLI unless a higher-priority workflow requires it: the TUI queues them behind a collapsed question count. In Codex Desktop, do not rely on an asynchronous question card as the only record of a blocking question; the card can expire or disappear before the user answers.
+- If a higher-priority workflow requires `request_user_input_async`, continue independent work while it is pending. Tool acceptance, elapsed time, and the default selected option are not answers. Before ending an unanswered turn, repeat the complete question in a normal assistant message so the user can reply there. Do not promise anything about billing while waiting.

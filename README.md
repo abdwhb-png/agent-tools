@@ -55,9 +55,10 @@ synchronization.
 Zed writes one personal `AGENTS.md` per configured home, composing invariants,
 Zed modules, preferences, and technology defaults in that order.
 
-The current waiting policy is an instruction-based mitigation. It does not
-modify the Codex server or guarantee model behavior. Validate generated files
-separately from observed behavior in a new Codex session after synchronization.
+The Codex question-visibility policy is an instruction-based mitigation. It does
+not modify the CLI or desktop UI or guarantee model behavior. Validate
+generated files separately from observed behavior in a new Codex session after
+synchronization.
 
 ### Skills
 
@@ -153,6 +154,8 @@ The first command previews the paths. Existing configs without `zed` remain
 valid, and the Zed target is disabled until configured. The targets are
 `zed-agents` and `zed-linux-agents`. Zed's external agents use their own
 instruction mechanisms; these files target the native Zed Agent.
+When running from WSL, use `/mnt/...` paths; a Windows `C:\...` path is rejected
+because Linux would otherwise treat it as a relative filename.
 
 `check` never writes and returns non-zero for stale, missing, untracked, or
 conflicted targets. Existing divergent targets require explicit
