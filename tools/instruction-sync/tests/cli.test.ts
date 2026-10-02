@@ -78,7 +78,7 @@ test("CLI sync discovers ordered Codex instructions without changing other harne
   await fs.writeFile(f.codexSource, "Updated wait policy.\n");
   const updated = f.run("sync");
   expect(updated.code).toBe(0);
-  expect(updated.stdout).toContain("Updated: codex-config\n");
+  expect(updated.stdout).toContain("changed    codex-config");
   expect(await fs.readFile(f.codexConfig, "utf8")).toBe(
     'model = "test-model"\n# >>> agent-policy developer_instructions >>>\ndeveloper_instructions = """\nInvariant\n\nUpdated wait policy.\n\nLater policy.\n"""\n# <<< agent-policy developer_instructions <<<\n',
   );
@@ -207,17 +207,56 @@ test("CLI configures both Zed homes and syncs Zed-only modules", async () => {
   expect(f.run("check").code).toBe(0);
 });
 
-test("adopt reports the selected target as current after its first successful run", async () => {
+test("adopt clearly distinguishes a target changed this run from an unchanged target", async () => {
   const f = await fixture();
   const existing = path.join(f.output, "pi", "AGENTS.md");
   await fs.mkdir(path.dirname(existing), { recursive: true });
   await fs.writeFile(existing, "old preference\n");
   const result = f.run("adopt", "--target", "pi-agents", "--apply");
   expect(result.code).toBe(0);
-  expect(result.stdout).toContain("Adopted: pi-agents");
-  expect(result.stdout).toContain("current    pi-agents");
+  expect(result.stdout).toContain("Changed 1 target.");
+  expect(result.stdout).toContain("changed    pi-agents");
+  expect(result.stdout.match(/pi-agents/g)).toHaveLength(1);
+  expect(result.stdout).not.toContain("Before adoption:");
+  expect(result.stdout).not.toContain("After adoption:");
+  expect(result.stdout).toContain("Backups:");
+  expect(result.stdout).not.toContain("pi-agents.bak");
   expect(await fs.readFile(existing, "utf8")).toBe("Preference\n\nTechnology\n");
   const repeated = f.run("adopt", "--target", "pi-agents", "--apply");
   expect(repeated.stdout).toContain("No target files changed.");
   expect(repeated.stdout).toContain("current    pi-agents");
+});
+
+test("sync lists changed targets first and leaves unchanged targets current", async () => {
+  const f = await fixture();
+  expect(f.run("sync").code).toBe(0);
+  await fs.writeFile(path.join(f.instructions, "preferences.md"), "Updated preference\n");
+  const updated = f.run("sync");
+  expect(updated.code).toBe(0);
+  expect(updated.stdout).toContain("Changed 3 targets.");
+  expect(updated.stdout).toContain("changed    pi-agents");
+  expect(updated.stdout).toContain("changed    codex-agents");
+  expect(updated.stdout).toContain("changed    vscode-0");
+  expect(updated.stdout).toContain("current    pi-system");
+  expect(updated.stdout.indexOf("changed    pi-agents")).toBeLessThan(updated.stdout.indexOf("current    pi-system"));
+  expect(updated.stdout.match(/pi-agents/g)).toHaveLength(1);
+  const repeated = f.run("sync");
+  expect(repeated.stdout).toContain("No target files changed.");
+  expect(repeated.stdout).not.toMatch(/^changed\s/m);
+});
+
+test("adopt all reports changed, unchanged, and missing targets once", async () => {
+  const f = await fixture();
+  const piHome = path.join(f.output, "pi");
+  await fs.mkdir(piHome, { recursive: true });
+  await fs.writeFile(path.join(piHome, "AGENTS.md"), "old preference\n");
+  await fs.writeFile(path.join(piHome, "APPEND_SYSTEM.md"), "Pi only\n");
+  const result = f.run("adopt", "--all", "--apply");
+  expect(result.code).toBe(0);
+  expect(result.stdout).toContain("Changed 1 target.");
+  expect(result.stdout).toContain("changed    pi-agents");
+  expect(result.stdout).toContain("current    pi-append-system");
+  expect(result.stdout).toContain("missing    pi-system");
+  expect(result.stdout.match(/pi-agents/g)).toHaveLength(1);
+  expect(await fs.exists(path.join(piHome, "SYSTEM.md"))).toBe(false);
 });

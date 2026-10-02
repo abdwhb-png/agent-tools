@@ -160,6 +160,9 @@ because Linux would otherwise treat it as a relative filename.
 `check` never writes and returns non-zero for stale, missing, untracked, or
 conflicted targets. Existing divergent targets require explicit
 `adopt --target <id> --apply` (or `--all`); adoption writes a recovery backup.
+
+`sync` and `adopt` show one final result per target, with files written during that run labeled `changed` and listed first. Unchanged files show `current`, and missing files remain visible. Backups are reported by directory rather than as a list of individual files. `check` and `doctor` report the files' current state, so a file changed by an earlier command appears as `current` once it matches the sources.
+
 Use `bun run typecheck`, `bun test`, `bun run build`, and `bun run verify:dist`
 from `tools/instruction-sync/` when maintaining the tool. Source maintenance
 requires Bun 1.3.14 and a locally available TypeScript compiler; the committed

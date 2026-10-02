@@ -10,7 +10,7 @@ import {
   parsePolicyConfig,
 } from "./config.js";
 import { loadCanonicalSources } from "./sources.js";
-import { assessTargets, loadState, synchronize } from "./sync.js";
+import { assessTargets, loadState, synchronize, type SyncResult } from "./sync.js";
 import type { HomeHarnessConfig, PolicyConfig } from "./types.js";
 
 type Arguments = {
@@ -153,11 +153,25 @@ function toolDirectory(): string {
 
 function printAssessments(
   items: Awaited<ReturnType<typeof assessTargets>>,
+  changed = new Set<string>(),
 ): void {
-  for (const item of items)
+  const idWidth = Math.max(18, ...items.map(({ target }) => target.id.length));
+  for (const item of items) {
+    const written = changed.has(item.target.id) && item.status === "current";
+    const status = written ? "changed" : item.status;
+    const detail = written ? "written this run" : item.detail;
     console.log(
-      `${item.status.padEnd(10)} ${item.target.id.padEnd(18)} ${item.target.path} — ${item.detail}`,
+      `${status.padEnd(10)} ${item.target.id.padEnd(idWidth)} ${item.target.path} — ${detail}`,
     );
+  }
+}
+
+function printWriteResults(items: Awaited<ReturnType<typeof assessTargets>>, result: SyncResult): void {
+  const changed = new Set(result.changed);
+  console.log(changed.size ? `Changed ${changed.size} target${changed.size === 1 ? "" : "s"}.` : "No target files changed.");
+  const ordered = [...items].sort((a, b) => Number(changed.has(b.target.id)) - Number(changed.has(a.target.id)));
+  printAssessments(ordered, changed);
+  if (result.backups.length) console.log(`Backups: ${path.dirname(result.backups[0])} (${result.backups.length} ${result.backups.length === 1 ? "file" : "files"})`);
 }
 
 async function main(): Promise<void> {
@@ -208,13 +222,16 @@ async function main(): Promise<void> {
     return;
   }
   if (command === "sync") {
-    printAssessments(await assessTargets(config, state, sources));
-    const result = await synchronize(config, state, statePath, sources);
-    console.log(
-      result.changed.length
-        ? `Updated: ${result.changed.join(", ")}`
-        : "No target files changed.",
-    );
+    const preliminary = await assessTargets(config, state, sources);
+    let result: SyncResult;
+    try {
+      result = await synchronize(config, state, statePath, sources);
+    } catch (error) {
+      printAssessments(preliminary);
+      throw error;
+    }
+    const updated = await assessTargets(config, await loadState(statePath), sources);
+    printWriteResults(updated, result);
     return;
   }
   if (command === "adopt") {
@@ -227,25 +244,23 @@ async function main(): Promise<void> {
       undefined,
       true,
     );
-    console.log("Before adoption:");
-    printAssessments(preliminary);
     const selected = arguments_.flags.has("--all")
       ? new Set(preliminary.map((item) => item.target.id))
       : new Set(values(arguments_, "--target"));
     if (selected.size === 0)
       throw new Error("adopt requires --target or --all");
-    const result = await synchronize(config, state, statePath, sources, {
-      adopt: true,
-      adoptTargets: selected,
-    });
-    console.log(
-      result.changed.length ? `Adopted: ${result.changed.join(", ")}` : "No target files changed.",
-    );
-    if (result.backups.length)
-      console.log(`Backups: ${result.backups.join(", ")}`);
+    let result: SyncResult;
+    try {
+      result = await synchronize(config, state, statePath, sources, {
+        adopt: true,
+        adoptTargets: selected,
+      });
+    } catch (error) {
+      printAssessments(preliminary);
+      throw error;
+    }
     const updated = await assessTargets(config, await loadState(statePath), sources);
-    console.log("After adoption:");
-    printAssessments(updated.filter((item) => selected.has(item.target.id)));
+    printWriteResults(updated.filter((item) => selected.has(item.target.id)), result);
     return;
   }
   throw new Error(`unknown command: ${command}\n\n${usage()}`);
