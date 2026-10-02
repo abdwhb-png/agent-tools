@@ -1,6 +1,6 @@
 # Form Behavior and Recovery
 
-Read this reference when conditional data, validation, submission, or interruption affects the task. Apply the relevant sections to the existing form or workflow implementation. Leave visual styling to the project's conventions.
+Read this reference when conditional data, validation, submission, destructive actions, or interruption affects the task. Apply the relevant sections to the existing form or workflow implementation. Leave visual styling to the project's conventions.
 
 ## Conditional data and correction
 
@@ -67,6 +67,16 @@ A silent disabled action conceals the path forward, while uncontrolled retry can
 - On a definite failure, restore the relevant action and offer correction or retry. After a timeout with an unknown outcome, check the operation's status or reuse an established idempotent retry mechanism before repeating a consequential action. Do not blindly resend it.
 - Confirm success only after acceptance. Explain what completed and provide the next useful destination. Distinguish a saved draft from a finished operation.
 
+## Destructive actions and recovery
+
+Confirmation can prevent an accidental click but cannot recover from a mistaken decision. Make the consequences understandable and expose supported recovery so users can correct consequential mistakes after commitment.
+
+- Establish what the action affects: the current item, explicitly selected items, or every matching result across pages. Show the meaningful scope and count before commitment. Keep delete, archive, remove-from-group, and revoke-access wording distinct because their effects differ.
+- Inspect whether the operation is reversible, who may restore it, any deadline, and which side effects remain irreversible. Use a supported undo, restore, or rollback path with those limits. Do not promise that restoring a record also retracts sent messages or reverses external effects.
+- If no recovery exists, state the irreversible consequence before commitment and use a proportionate review or confirmation. Do not invent an undo endpoint, silently replace permanent deletion with archiving, or add typed confirmations indiscriminately.
+- For bulk work, distinguish successful, failed, and unresolved items using actual server results. Offer recovery only for eligible completed changes and retry only for appropriate failures. Do not repeat successful destructive actions or label a partially restored batch fully restored.
+- Keep recovery discoverable for its supported lifetime, such as an existing archive or operation history. A short-lived toast must not be the only entry point when the product supports later restoration. After recovery, confirm the authoritative result and retain a correction path if restoration fails.
+
 ## Exit, persistence, and resume
 
 Retaining input while navigating does not mean it survives reload or sign-out. Match the promise to the storage and recovery mechanisms that actually exist.
@@ -86,4 +96,5 @@ Use only the scenarios affected by the change, through the real form or workflow
 - Resolve two validation requests out of order. Confirm only the current input's response affects status or progression.
 - Reject submission on the server, retry a known failure, and test an unknown-outcome timeout separately. Check state preservation and duplicate prevention.
 - Go back, leave, reload, and resume where supported. Compare the observed behavior with the persistence promise.
+- Perform a reversible destructive action and restore it through the existing mechanism. Check permission/expiry limits, partial batch failures, and unsupported reversal separately from confirmation before deletion.
 - Complete and correct the task with a keyboard and at a narrow viewport. Record what was inspected, exercised, or left unverified.

@@ -49,13 +49,14 @@ People should understand what is needed, why it matters, and what happens next w
 - Challenge each requested input or decision: needed now, needed later, already known, derivable, or genuinely optional. Preserve required business information and make any proposed rule change explicit.
 - Reuse information already supplied when still applicable. Make inferred defaults visible and editable where appropriate. Do not preselect consent or hide a consequential commitment behind a default.
 - Order questions by dependencies and user understanding. Put explanations where a decision needs them, with persistent labels and specific action wording.
+- Match each control to the decision: one choice, multiple choices, immediate state change, lookup, or free entry. Make requiredness, permitted answers, units, and the effect of the action understandable before asking for input. For control selection, mobile/autofill semantics, repeatable groups, or question wording, read [Input and decision design](references/input-and-decision-design.md).
 - Define the entry conditions, main action, next state, back/edit path, and completion result. For optional work, explain what skipping means. Return users to a useful product location after completion.
 - When branches change, distinguish retained drafts from applicable submission data. Revalidate dependent decisions rather than silently treating old answers as current.
 - For multi-step work, expose the current task and remaining work honestly. Do not show a fixed total when the route is still unknown. Allow backward correction without requiring unrelated current fields to pass validation.
 - Define exit and interruption behavior from actual persistence capabilities. Keep in-session state and durable save/resume distinct. If leaving loses work, explain that at the relevant moment rather than promising autosave.
-- Provide review or confirmation when consequences justify it. Do not insert a confirmation screen for every harmless action.
+- For destructive or bulk actions, establish the affected scope, consequences, and actual reversibility. Expose an existing undo or restore path with its real limits, and explain irreversible effects before commitment. Use review or confirmation when consequences justify it, without inventing rollback infrastructure or confirming every harmless action.
 
-When the task involves conditional inputs, validation, submission, or interruption, read [Form behavior and recovery](references/form-behavior-and-recovery.md). Use it to resolve concrete behaviors without loading an additional design skill.
+When the task involves conditional inputs, validation, submission, destructive actions, or interruption, read [Form behavior and recovery](references/form-behavior-and-recovery.md). Use it to resolve concrete behaviors without loading an additional design skill.
 
 ## 4. Implement within the product
 

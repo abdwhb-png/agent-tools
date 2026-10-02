@@ -105,6 +105,71 @@
         "Includes pending, rejection/recovery, completion, and acceptance scenarios in the handoff without imposing a palette, grid, or typography system.",
         "Does not require new PRODUCT.md or DESIGN.md files and respects the request not to execute tools or code."
       ]
+    },
+    {
+      "id": 9,
+      "name": "destructive-batch-and-real-recovery",
+      "prompt": "Use better-ux-flow to specify deletion behavior for a customer list. Staff can select the current page or all matching results across pages. Delete soft-deletes records; administrators can restore each successfully deleted record for seven days through an existing archive. Webhook notifications already sent cannot be recalled. Batch delete and restore return per-record success/failure results. People sometimes confirm deletion and realize later they chose the wrong scope. Describe prevention and recovery. Also state how your guidance changes for a separate permanent-purge action that has no restore endpoint. Do not implement anything.",
+      "expected_output": "Expose precise scope and supported restoration, including permission/time/side-effect limits and partial results; make permanent purge explicitly irreversible without inventing recovery.",
+      "files": [],
+      "expectations": [
+        "Distinguishes page selection from all matching records and shows scope and count before commitment.",
+        "Provides the existing archive restoration path for eligible deleted records, with administrator permission and seven-day limit, beyond a transient toast.",
+        "Distinguishes record restoration from irreversible sent webhooks and handles per-item failure without claiming full restoration.",
+        "Makes permanent purge irreversible with proportionate confirmation, without inventing an endpoint or substituting archiving."
+      ]
+    },
+    {
+      "id": 10,
+      "name": "controls-follow-decision-semantics",
+      "prompt": "Specify controls for these existing web settings using better-ux-flow: a user compares three delivery methods with different costs and selects exactly one; can choose several notification topics; selects one known organization from thousands of allowed organizations; must explicitly answer yes or no to a required eligibility question (unanswered is not no); edits a preference saved only with Save; and can independently enable an immediately applied service setting. We already have accessible radios, checkboxes, a searchable entity picker, and a switch. Explain control choice and behavior, not styling or code.",
+      "expected_output": "Choose by single/multiple selection, explicit answer, lookup and commit semantics; reuse existing controls without visual prescriptions or new component machinery.",
+      "files": [],
+      "expectations": [
+        "Uses comparable exclusive options for delivery and multiple-selection controls for notification topics without arbitrary count rules.",
+        "Reuses the searchable entity picker and distinguishes typed query from allowed selection, with keyboard and loading/no-result/error behavior.",
+        "Keeps unanswered eligibility distinct from no and avoids silently preselecting an answer.",
+        "Distinguishes a draft preference committed by Save from an immediately applied switch and describes failure feedback for the latter."
+      ]
+    },
+    {
+      "id": 11,
+      "name": "mobile-autofill-preserves-meaning",
+      "prompt": "Assess our proposed web inputs. A developer uses type=number for postal codes and the membership reference 001234, type=text for every phone/email, and disables autocomplete and paste globally. Our customers have international phone numbers and numeric or alphanumeric postal codes. There are two separate people, each with name/address fields, plus an existing-password login and a six-digit one-time-code input. Recommend concrete HTML semantics with better-ux-flow, preserving our validation rules. There is no browser available for this exercise.",
+      "expected_output": "Provide correct semantic types, keyboard hints, and autocomplete purposes without corrupting identifiers or promising device verification.",
+      "files": [],
+      "expectations": [
+        "Preserves postal codes and membership references as text with leading zeros; limits numeric keyboard hints to actually digit-only values.",
+        "Uses appropriate email/tel types and purposes without inventing one country phone-number constraints.",
+        "Uses distinct section autocomplete groups for the two people, current-password for login and one-time-code for the code, without globally blocking paste/autofill.",
+        "Explains that inputmode does not enforce validity and that actual mobile/autofill behavior remains untested."
+      ]
+    },
+    {
+      "id": 12,
+      "name": "repeatable-group-identity-and-delayed-errors",
+      "prompt": "Specify a repair for a repeatable passenger form using better-ux-flow. A trip needs one to six passengers. Each passenger has an existing stable client ID, name, and birth date. The API returns validation errors indexed by the submitted passenger array. Users can edit the list while a request is pending. After removing the first passenger, errors sometimes move to another person. Add and Remove buttons accidentally submit the form, and focus disappears after removal. Ordering is meaningful and the current reorder UI is drag-only. This is a draft list, not deletion of persisted passengers. Keep the existing state owner and do not write code.",
+      "expected_output": "Keep stable identity through list mutations and response mapping, correct local action and focus behavior, and support keyboard reordering without adding a form engine.",
+      "files": [],
+      "expectations": [
+        "Uses stable IDs for state/errors and maps API positions through the submitted snapshot rather than the current array.",
+        "Gives repeated fields unique associated IDs and contextual actions, and prevents Add/Remove from submitting.",
+        "Specifies focus for add/removal and preserves remaining passengers values and errors when order changes, with a keyboard reorder path.",
+        "Enforces the one-to-six domain bounds, preserves partial drafts and distinguishes draft removal from persisted deletion without inventing backend undo."
+      ]
+    },
+    {
+      "id": 13,
+      "name": "question-writing-with-domain-ambiguity",
+      "prompt": "Use better-ux-flow to rewrite this draft application form specification. Label 1 is Company and email but we need a company name plus the invoice recipient email, which may differ from login. Label 2 is Amount but means the monthly spending limit in NGN. Label 3 is Do you not want to disable notifications? and we need an explicit yes/no decision, not a default. Placeholder-only hints carry the required/optional status. The optional registration number may be unknown; the business process permits continuing without it. The final button says Continue but immediately sends invitations. Give concrete copy and grouping choices, preserving the rules without turning every field into a screen.",
+      "expected_output": "Write answerable persistent questions with correct scope, units, requiredness and commitment wording, while preserving logical grouping.",
+      "files": [],
+      "expectations": [
+        "Separates company name from invoice-recipient email and makes its distinction from login clear.",
+        "Labels the spending limit with NGN and monthly scope, placing requiredness and helper text persistently instead of only in placeholders.",
+        "Replaces the double negative with a positive explicit yes/no question and leaves it unanswered initially.",
+        "Allows the optional unknown registration number according to the supplied rule and labels the final commitment Send invitations without inventing an intermediate save."
+      ]
     }
   ]
 }

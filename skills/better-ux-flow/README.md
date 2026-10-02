@@ -23,7 +23,8 @@ Impeccable is optional. Without it, the skill completes the requested work using
 ## Files
 
 - [SKILL.md](SKILL.md): scope, task analysis, path selection, implementation, and verification.
-- [Form behavior and recovery](references/form-behavior-and-recovery.md): conditional data, validation, focus, asynchronous checks, submission, and persistence. Load only for relevant tasks.
+- [Input and decision design](references/input-and-decision-design.md): control selection, mobile/autofill semantics, repeatable groups, and question wording. Load when designing or changing data entry.
+- [Form behavior and recovery](references/form-behavior-and-recovery.md): conditional data, validation, focus, asynchronous checks, submission, destructive-action recovery, and persistence. Load only for relevant tasks.
 - [Evaluation cases](evals/evals.json): self-contained prompts with observable expectations, including ambiguity and scope boundaries.
 
 ## Source decisions
@@ -39,6 +40,8 @@ The operational guidance is an original synthesis of selected practices, not a c
 | [Designing with Impeccable](https://impeccable.style/designing/) (consulted 2026-10-02) | Explicit design authority and existing product/design context | Support optional composition without making Impeccable or its document names prerequisites. |
 
 Upstream licensing differs. The inspected better-web-ui revision uses a [custom license](https://github.com/aladicf/better-web-ui/blob/af21dcfa71d83104a9e0beb04ffedf79f800f53c/LICENSE), while [form-ux-patterns](https://github.com/Bbeierle12/Skill-MCP-Claude/blob/ca3aef077400c3d75a9b594b4e7fb2f95ea54eef/LICENSE), [Dembrandt](https://github.com/dembrandt/dembrandt-skills/blob/b05848a01092232f869329cebf155ee802511765/LICENSE), and [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill/blob/09170eec67eefd46a7ae85de61b40c194020f997/LICENSE) use MIT licenses. Future maintainers should check the applicable terms before copying upstream text or code. This bundle does not redistribute those source files.
+
+The input-design extension was checked against [MDN inputmode](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inputmode), [MDN autocomplete](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/autocomplete), the [WAI combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/), and GOV.UK guidance for [radios](https://design-system.service.gov.uk/components/radios/) and [text inputs](https://design-system.service.gov.uk/components/text-input/) on 2026-10-02. Use these as maintainer provenance, not runtime dependencies. The extension adds decision guidance without adopting those sources' visual systems.
 
 ## Validation
 
