@@ -6,6 +6,8 @@ import {
 } from "./renderers.js";
 import {
   composeInstructions,
+  HARNESS_NAMES,
+  type HarnessName,
   type CanonicalSources,
 } from "./sources.js";
 
@@ -18,38 +20,40 @@ function namedHomes(name: string, config: HomeHarnessConfig): { id: string; home
 
 export function renderTargets(config: PolicyConfig, sources: CanonicalSources, codexConfigs: Record<string, string | undefined> = {}, adoptUnmanaged = false): RenderedTarget[] {
   const targets: RenderedTarget[] = [];
-  const preferences = composeInstructions([
-    sources.preferences,
-    sources.technologyDefaults,
-  ]);
+  const layers = {} as Record<HarnessName, { system: string; agents: string }>;
+  for (const harness of HARNESS_NAMES) {
+    layers[harness] = {
+      system: composeInstructions([
+        sources.invariants,
+        ...sources.harnessInstructions[harness].system,
+      ]),
+      agents: composeInstructions([
+        sources.preferences,
+        sources.technologyDefaults,
+        ...sources.harnessInstructions[harness].agents,
+      ]),
+    };
+  }
   if (config.harnesses.pi.enabled) {
     const agentDir = config.harnesses.pi.agentDir!;
-    const piInstructions = composeInstructions(
-      sources.harnessInstructions.pi,
-    );
+    const piInstructions = composeInstructions([sources.piAppendSystem]);
     targets.push(
-      { id: "pi-system", kind: "file", path: path.join(agentDir, "SYSTEM.md"), desired: sources.invariants, owned: sources.invariants },
-      { id: "pi-agents", kind: "file", path: path.join(agentDir, "AGENTS.md"), desired: preferences, owned: preferences },
+      { id: "pi-system", kind: "file", path: path.join(agentDir, "SYSTEM.md"), desired: layers.pi.system, owned: layers.pi.system },
+      { id: "pi-agents", kind: "file", path: path.join(agentDir, "AGENTS.md"), desired: layers.pi.agents, owned: layers.pi.agents },
       { id: "pi-append-system", kind: "file", path: path.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions },
     );
   }
   if (config.harnesses.codex.enabled) {
-    const instructions = composeInstructions([
-      sources.invariants,
-      ...sources.harnessInstructions.codex,
-    ]);
     for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
-      const target = renderCodexConfig(codexConfigs[id], instructions, adoptUnmanaged);
+      const target = renderCodexConfig(codexConfigs[id], layers.codex.system, adoptUnmanaged);
       targets.push({ id: `${id}-config`, kind: "codex", path: path.join(home, "config.toml"), ...target });
-      targets.push({ id: `${id}-agents`, kind: "file", path: path.join(home, "AGENTS.md"), desired: preferences, owned: preferences });
+      targets.push({ id: `${id}-agents`, kind: "file", path: path.join(home, "AGENTS.md"), desired: layers.codex.agents, owned: layers.codex.agents });
     }
   }
   if (config.harnesses.zed?.enabled) {
     const instructions = composeInstructions([
-      sources.invariants,
-      ...sources.harnessInstructions.zed,
-      sources.preferences,
-      sources.technologyDefaults,
+      layers.zed.system,
+      layers.zed.agents,
     ]);
     for (const { id, home } of namedHomes("zed", config.harnesses.zed)) {
       targets.push({ id: `${id}-agents`, kind: "file", path: path.join(home, "AGENTS.md"), desired: instructions, owned: instructions });
@@ -57,9 +61,8 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
   }
   if (config.harnesses.vscode.enabled) {
     const output = renderVsCode(
-      sources.invariants,
-      preferences,
-      composeInstructions(sources.harnessInstructions.vscode),
+      layers.vscode.system,
+      layers.vscode.agents,
     );
     for (const [index, target] of config.harnesses.vscode.targets!.entries()) {
       targets.push({ id: `vscode-${index}`, kind: "file", path: target, desired: output, owned: output });

@@ -1,0 +1,1 @@
+- Prefer breaking down complex tasks into todo lists and executing them step by step, rather than trying to do everything in one go.

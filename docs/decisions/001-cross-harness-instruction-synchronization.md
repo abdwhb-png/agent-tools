@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Harness source discovery and composition are superseded by [ADR-002](002-explicit-harness-instruction-layers.md). The original mapping below records the previous design.
 
 ## Date
 

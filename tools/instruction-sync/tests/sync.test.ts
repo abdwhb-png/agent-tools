@@ -25,11 +25,12 @@ const source = {
   invariants: "invariants\n",
   preferences: "preferences\n",
   technologyDefaults: "technology defaults\n",
+  piAppendSystem: "append\n",
   harnessInstructions: {
-    pi: ["append\n"],
-    codex: ["Codex only\n"],
-    vscode: [],
-    zed: [],
+    pi: { system: [], agents: [] },
+    codex: { system: ["Codex only\n"], agents: [] },
+    vscode: { system: [], agents: [] },
+    zed: { system: [], agents: [] },
   },
 };
 
@@ -70,7 +71,7 @@ test("a write failure rolls back targets already replaced and retains backups", 
       await nodeFileOps.rename(from, to);
     },
   };
-  await expect(synchronize(config, await loadState(statePath), statePath, { ...source, invariants: "new\n", preferences: "new\n", technologyDefaults: "new defaults\n", harnessInstructions: { ...source.harnessInstructions, pi: ["new\n"] } }, {}, failingIo)).rejects.toThrow("changed targets were rolled back");
+  await expect(synchronize(config, await loadState(statePath), statePath, { ...source, invariants: "new\n", preferences: "new\n", technologyDefaults: "new defaults\n", piAppendSystem: "new\n" }, {}, failingIo)).rejects.toThrow("changed targets were rolled back");
   expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "SYSTEM.md"), "utf8")).toBe("invariants\n");
   expect((await fs.readdir(path.join(root, "state", "backups"))).length).toBe(1);
 });
@@ -165,7 +166,7 @@ test("sync writes composed personal instructions to both Zed homes", async () =>
       zed: { enabled: true, home: windows, additionalHomes: [{ id: "linux", home: linux }] },
     },
   };
-  const zedSource = { ...source, harnessInstructions: { ...source.harnessInstructions, zed: ["Zed only\n"] } };
+  const zedSource = { ...source, harnessInstructions: { ...source.harnessInstructions, zed: { system: ["Zed only\n"], agents: [] } } };
   const result = await synchronize(config, emptyState(), statePath, zedSource);
   expect(result.changed).toEqual(["zed-agents", "zed-linux-agents"]);
   const expected = "invariants\n\nZed only\n\npreferences\n\ntechnology defaults\n";

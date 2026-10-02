@@ -1,0 +1,1 @@
+- Use `safe_bash` instead of `bash` when the extension is available. If it is unavailable, use the harness-provided shell capability and state the fallback rather than claiming `safe_bash` ran.

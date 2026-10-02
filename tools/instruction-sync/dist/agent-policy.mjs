@@ -203,29 +203,51 @@ function composeInstructions(sources) {
 async function readInstruction(filePath) {
   return normalizeInstruction(await fs.readFile(filePath, "utf8"));
 }
-async function loadHarnessInstructions(root, harness) {
-  const directory = path2.join(root, "instructions", harness);
-  let entries = [];
+async function readOptionalDirectory(directory) {
   try {
-    entries = await fs.readdir(directory, { withFileTypes: true });
+    return await fs.readdir(directory, { withFileTypes: true });
   } catch (error) {
     if (error?.code !== "ENOENT")
       throw error;
+    return [];
   }
+}
+async function loadInstructionModules(directory) {
+  const entries = await readOptionalDirectory(directory);
   const filenames = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => entry.name).sort();
   return Promise.all(filenames.map((filename) => readInstruction(path2.join(directory, filename))));
 }
 async function loadCanonicalSources(root) {
   const instructionPath = (...parts) => path2.join(root, "instructions", ...parts);
-  const harnessInstructions = Object.fromEntries(await Promise.all(HARNESS_NAMES.map(async (harness) => [
-    harness,
-    await loadHarnessInstructions(root, harness)
-  ])));
+  const harnessInstructions = Object.fromEntries(await Promise.all(HARNESS_NAMES.map(async (harness) => {
+    const directory = instructionPath(harness);
+    const entries = await readOptionalDirectory(directory);
+    const misplaced = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md") && !(harness === "pi" && entry.name === "APPEND_SYSTEM.md")).map((entry) => entry.name).sort();
+    if (misplaced.length > 0) {
+      const appendHint = harness === "pi" ? "; Pi append content belongs in APPEND_SYSTEM.md" : "";
+      throw new Error(`misplaced instruction source: ${path2.join(directory, misplaced[0])}; move Markdown modules into system/ or agents/${appendHint}`);
+    }
+    return [
+      harness,
+      {
+        system: await loadInstructionModules(instructionPath(harness, "system")),
+        agents: await loadInstructionModules(instructionPath(harness, "agents"))
+      }
+    ];
+  })));
+  let piAppendSystem = "";
+  try {
+    piAppendSystem = await readInstruction(instructionPath("pi", "APPEND_SYSTEM.md"));
+  } catch (error) {
+    if (error?.code !== "ENOENT")
+      throw error;
+  }
   return {
     invariants: await readInstruction(instructionPath("invariant.md")),
     preferences: await readInstruction(instructionPath("preferences.md")),
     technologyDefaults: await readInstruction(instructionPath("technology-defaults.md")),
-    harnessInstructions
+    harnessInstructions,
+    piAppendSystem
   };
 }
 
@@ -237,17 +259,13 @@ import path4 from "node:path";
 import process2 from "node:process";
 
 // src/renderers.ts
-function renderVsCode(invariants, preferences, harnessInstructions = "") {
+function renderVsCode(invariants, preferences) {
   const sections = [
     `<!-- agent-policy: invariants -->
-${normalizeInstruction(invariants).trimEnd()}`
+${normalizeInstruction(invariants).trimEnd()}`,
+    `<!-- agent-policy: preferences -->
+${normalizeInstruction(preferences).trimEnd()}`
   ];
-  if (harnessInstructions.trim()) {
-    sections.push(`<!-- agent-policy: vscode -->
-${normalizeInstruction(harnessInstructions).trimEnd()}`);
-  }
-  sections.push(`<!-- agent-policy: preferences -->
-${normalizeInstruction(preferences).trimEnd()}`);
   return [
     "---",
     'applyTo: "**"',
@@ -320,39 +338,43 @@ function namedHomes(name, config) {
 }
 function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = false) {
   const targets = [];
-  const preferences = composeInstructions([
-    sources.preferences,
-    sources.technologyDefaults
-  ]);
+  const layers = {};
+  for (const harness of HARNESS_NAMES) {
+    layers[harness] = {
+      system: composeInstructions([
+        sources.invariants,
+        ...sources.harnessInstructions[harness].system
+      ]),
+      agents: composeInstructions([
+        sources.preferences,
+        sources.technologyDefaults,
+        ...sources.harnessInstructions[harness].agents
+      ])
+    };
+  }
   if (config.harnesses.pi.enabled) {
     const agentDir = config.harnesses.pi.agentDir;
-    const piInstructions = composeInstructions(sources.harnessInstructions.pi);
-    targets.push({ id: "pi-system", kind: "file", path: path3.join(agentDir, "SYSTEM.md"), desired: sources.invariants, owned: sources.invariants }, { id: "pi-agents", kind: "file", path: path3.join(agentDir, "AGENTS.md"), desired: preferences, owned: preferences }, { id: "pi-append-system", kind: "file", path: path3.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions });
+    const piInstructions = composeInstructions([sources.piAppendSystem]);
+    targets.push({ id: "pi-system", kind: "file", path: path3.join(agentDir, "SYSTEM.md"), desired: layers.pi.system, owned: layers.pi.system }, { id: "pi-agents", kind: "file", path: path3.join(agentDir, "AGENTS.md"), desired: layers.pi.agents, owned: layers.pi.agents }, { id: "pi-append-system", kind: "file", path: path3.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions });
   }
   if (config.harnesses.codex.enabled) {
-    const instructions = composeInstructions([
-      sources.invariants,
-      ...sources.harnessInstructions.codex
-    ]);
     for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
-      const target = renderCodexConfig(codexConfigs[id], instructions, adoptUnmanaged);
+      const target = renderCodexConfig(codexConfigs[id], layers.codex.system, adoptUnmanaged);
       targets.push({ id: `${id}-config`, kind: "codex", path: path3.join(home, "config.toml"), ...target });
-      targets.push({ id: `${id}-agents`, kind: "file", path: path3.join(home, "AGENTS.md"), desired: preferences, owned: preferences });
+      targets.push({ id: `${id}-agents`, kind: "file", path: path3.join(home, "AGENTS.md"), desired: layers.codex.agents, owned: layers.codex.agents });
     }
   }
   if (config.harnesses.zed?.enabled) {
     const instructions = composeInstructions([
-      sources.invariants,
-      ...sources.harnessInstructions.zed,
-      sources.preferences,
-      sources.technologyDefaults
+      layers.zed.system,
+      layers.zed.agents
     ]);
     for (const { id, home } of namedHomes("zed", config.harnesses.zed)) {
       targets.push({ id: `${id}-agents`, kind: "file", path: path3.join(home, "AGENTS.md"), desired: instructions, owned: instructions });
     }
   }
   if (config.harnesses.vscode.enabled) {
-    const output = renderVsCode(sources.invariants, preferences, composeInstructions(sources.harnessInstructions.vscode));
+    const output = renderVsCode(layers.vscode.system, layers.vscode.agents);
     for (const [index, target] of config.harnesses.vscode.targets.entries()) {
       targets.push({ id: `vscode-${index}`, kind: "file", path: target, desired: output, owned: output });
     }

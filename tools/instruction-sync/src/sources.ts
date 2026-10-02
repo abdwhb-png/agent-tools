@@ -8,7 +8,8 @@ export interface CanonicalSources {
   invariants: string;
   preferences: string;
   technologyDefaults: string;
-  harnessInstructions: Record<HarnessName, string[]>;
+  harnessInstructions: Record<HarnessName, { system: string[]; agents: string[] }>;
+  piAppendSystem: string;
 }
 
 export function normalizeInstruction(source: string): string {
@@ -27,17 +28,19 @@ async function readInstruction(filePath: string): Promise<string> {
   return normalizeInstruction(await fs.readFile(filePath, "utf8"));
 }
 
-async function loadHarnessInstructions(
-  root: string,
-  harness: HarnessName,
-): Promise<string[]> {
-  const directory = path.join(root, "instructions", harness);
-  let entries: Array<{ isFile(): boolean; name: string }> = [];
+async function readOptionalDirectory(
+  directory: string,
+): Promise<Array<{ isFile(): boolean; name: string }>> {
   try {
-    entries = await fs.readdir(directory, { withFileTypes: true });
+    return await fs.readdir(directory, { withFileTypes: true });
   } catch (error: any) {
     if (error?.code !== "ENOENT") throw error;
+    return [];
   }
+}
+
+async function loadInstructionModules(directory: string): Promise<string[]> {
+  const entries = await readOptionalDirectory(directory);
   const filenames = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => entry.name)
@@ -52,12 +55,40 @@ export async function loadCanonicalSources(root: string): Promise<CanonicalSourc
     path.join(root, "instructions", ...parts);
   const harnessInstructions = Object.fromEntries(
     await Promise.all(
-      HARNESS_NAMES.map(async (harness) => [
-        harness,
-        await loadHarnessInstructions(root, harness),
-      ]),
+      HARNESS_NAMES.map(async (harness) => {
+        const directory = instructionPath(harness);
+        const entries = await readOptionalDirectory(directory);
+        const misplaced = entries
+          .filter(
+            (entry) => entry.isFile() && entry.name.endsWith(".md") &&
+              !(harness === "pi" && entry.name === "APPEND_SYSTEM.md"),
+          )
+          .map((entry) => entry.name)
+          .sort();
+        if (misplaced.length > 0) {
+          const appendHint = harness === "pi"
+            ? "; Pi append content belongs in APPEND_SYSTEM.md"
+            : "";
+          throw new Error(
+            `misplaced instruction source: ${path.join(directory, misplaced[0])}; move Markdown modules into system/ or agents/${appendHint}`,
+          );
+        }
+        return [
+          harness,
+          {
+            system: await loadInstructionModules(instructionPath(harness, "system")),
+            agents: await loadInstructionModules(instructionPath(harness, "agents")),
+          },
+        ];
+      }),
     ),
-  ) as Record<HarnessName, string[]>;
+  ) as CanonicalSources["harnessInstructions"];
+  let piAppendSystem = "";
+  try {
+    piAppendSystem = await readInstruction(instructionPath("pi", "APPEND_SYSTEM.md"));
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") throw error;
+  }
   return {
     invariants: await readInstruction(instructionPath("invariant.md")),
     preferences: await readInstruction(instructionPath("preferences.md")),
@@ -65,5 +96,6 @@ export async function loadCanonicalSources(root: string): Promise<CanonicalSourc
       instructionPath("technology-defaults.md"),
     ),
     harnessInstructions,
+    piAppendSystem,
   };
 }

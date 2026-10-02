@@ -3,19 +3,11 @@ import { normalizeInstruction } from "./sources.js";
 export function renderVsCode(
   invariants: string,
   preferences: string,
-  harnessInstructions = "",
 ): string {
   const sections = [
     `<!-- agent-policy: invariants -->\n${normalizeInstruction(invariants).trimEnd()}`,
-  ];
-  if (harnessInstructions.trim()) {
-    sections.push(
-      `<!-- agent-policy: vscode -->\n${normalizeInstruction(harnessInstructions).trimEnd()}`,
-    );
-  }
-  sections.push(
     `<!-- agent-policy: preferences -->\n${normalizeInstruction(preferences).trimEnd()}`,
-  );
+  ];
   return [
     "---",
     'applyTo: "**"',

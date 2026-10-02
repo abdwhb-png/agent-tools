@@ -11,54 +11,33 @@ outputs.
 
 ### Instructions
 
-The [`instructions/`](instructions/) directory contains the canonical global
-instruction sources:
+The [`instructions/`](instructions/) directory contains the canonical global instruction sources:
 
-- [`invariant.md`](instructions/invariant.md)
-  defines durable, evidence-led operating invariants.
-- [`preferences.md`](instructions/preferences.md)
-  defines general coding and collaboration preferences that project-level
-  instructions may refine or override.
-- [`technology-defaults.md`](instructions/technology-defaults.md)
-  defines conditional technology choices used only when a project has not
-  already established its own stack or tooling.
-- [`pi/`](instructions/pi/) contains Pi-only instruction modules, including
-  `append-system.md`.
-- [`codex/`](instructions/codex/) contains Codex-only instruction modules,
-  including `async-question-wait.md`.
-- `instructions/vscode/` is the optional location for VS Code-only instruction
-  modules.
-- `instructions/zed/` is the optional location for Zed-only instruction
-  modules.
+- [`invariant.md`](instructions/invariant.md) defines durable operating rules.
+- [`preferences.md`](instructions/preferences.md) defines general coding and collaboration preferences.
+- [`technology-defaults.md`](instructions/technology-defaults.md) defines conditional technology choices when the project has not established its stack or tooling.
 
-These files intentionally contain plain Markdown. Pi, Codex, VS Code, and Zed use
-different configuration formats and precedence rules, so a source file should
-not be copied blindly to every destination. The synchronizer deterministically
-appends `technology-defaults.md` to `preferences.md` before rendering each
-harness's preferences target.
+Each harness (`pi`, `codex`, `vscode`, `zed`) supports two optional module directories:
 
-The central source loader discovers every regular `*.md` file in
-`instructions/pi/`, `instructions/codex/`, `instructions/vscode/`, and
-`instructions/zed/`, sorted
-by filename within each directory. It normalizes each source to LF, trims
-trailing whitespace, and separates modules with one blank line. Every harness
-directory is optional, so removing its last file leaves the extension point
-intact without requiring a code change.
+```text
+instructions/<harness>/system/*.md   # operating rules
+instructions/<harness>/agents/*.md   # global personal guidance
+instructions/pi/APPEND_SYSTEM.md    # dedicated Pi append source
+```
 
-The renderers keep these modules isolated. Pi writes its modules to
-`APPEND_SYSTEM.md`. Codex appends its modules after `invariant.md` in the managed
-`developer_instructions` TOML string. VS Code adds its modules in a dedicated
-section of the combined instruction file between invariants and preferences. A
-TOML multiline-string delimiter (`"""`) in any Codex-composed source blocks
-synchronization.
+Add a Markdown file to the appropriate layer directory to include it automatically. The loader reads regular `*.md` files directly within each directory in alphabetical filename order, normalizes BOM and line endings, and joins nonempty content with one blank line. Nested directories and non-Markdown files are not included. Missing or empty layer directories are valid.
 
-Zed writes one personal `AGENTS.md` per configured home, composing invariants,
-Zed modules, preferences, and technology defaults in that order.
+| Source content | Pi | Codex |
+| --- | --- | --- |
+| `invariant.md` + matching `system/*.md` | `SYSTEM.md` | managed `developer_instructions` in `config.toml` |
+| `preferences.md` + `technology-defaults.md` + matching `agents/*.md` | global `AGENTS.md` | global `AGENTS.md` |
+| Only `pi/APPEND_SYSTEM.md` | `APPEND_SYSTEM.md` | excluded |
 
-The Codex question-visibility policy is an instruction-based mitigation. It does
-not modify the CLI or desktop UI or guarantee model behavior. Validate
-generated files separately from observed behavior in a new Codex session after
-synchronization.
+Zed combines the operating layer followed by the personal guidance layer into one personal `AGENTS.md` per configured home. VS Code combines them into the invariants and preferences sections of its existing `*.instructions.md` targets. Source separation does not give these files system or developer priority. Pi's custom `SYSTEM.md` continues to replace its built-in prompt preamble.
+
+Markdown files directly under a harness directory are rejected with a migration error, except the exact `pi/APPEND_SYSTEM.md` source. Move old modules into `system/` or `agents/` and rename `pi/append-system.md` to `pi/APPEND_SYSTEM.md`. A missing append source generates an empty managed `APPEND_SYSTEM.md`. A TOML multiline-string delimiter (`"""`) in Codex's operating layer blocks synchronization. Codex's `agents/` content remains plain Markdown and does not have that restriction.
+
+The Pi shell rule lives in [`pi/system/specific-tools.md`](instructions/pi/system/specific-tools.md), and its todo-list preference lives in [`pi/agents/task-workflow.md`](instructions/pi/agents/task-workflow.md). Codex's question-visibility rule lives in [`codex/system/async-question-wait.md`](instructions/codex/system/async-question-wait.md). These instructions do not guarantee model behavior. Validate generated files separately from observed behavior in a new session after synchronization.
 
 ### Skills
 
@@ -91,10 +70,7 @@ harness's instruction layering.
 Version 1 uses explicit manual synchronization. Startup hooks are deliberately
 deferred until the file-based workflow has been implemented and validated.
 
-See
-[`ADR-001: Synchronize global instructions across agent harnesses`](docs/decisions/001-cross-harness-instruction-synchronization.md)
-for the context, target mapping, safety model, alternatives, and implementation
-boundary.
+See [ADR-001](docs/decisions/001-cross-harness-instruction-synchronization.md) for the synchronization safety model and [ADR-002](docs/decisions/002-explicit-harness-instruction-layers.md) for the accepted source layout, native target mapping, migration, and validation requirements.
 
 ## Project Status
 
