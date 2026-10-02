@@ -169,7 +169,7 @@ test("sync writes composed personal instructions to both Zed homes", async () =>
   const zedSource = { ...source, harnessInstructions: { ...source.harnessInstructions, zed: { system: [{ source: "zed/system/policy.md", content: "Zed only\n" }], agents: [] } } };
   const result = await synchronize(config, emptyState(), statePath, zedSource);
   expect(result.changed).toEqual(["zed-agents", "zed-linux-agents"]);
-  const expected = "invariants\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source=\"zed/system/policy.md\">\nZed only\n</instruction_module>\n\npreferences\n\ntechnology defaults\n";
+  const expected = "invariants\n\nFollow the instructions in the tagged modules below.\n\n<zed_system_policy>\n\nZed only\n\n</zed_system_policy>\n\npreferences\n\ntechnology defaults\n";
   expect(await fs.readFile(path.join(windows, "AGENTS.md"), "utf8")).toBe(expected);
   expect(await fs.readFile(path.join(linux, "AGENTS.md"), "utf8")).toBe(expected);
 });

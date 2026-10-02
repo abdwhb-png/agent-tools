@@ -30,7 +30,7 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
       sources.harnessInstructions[harness].agents,
     );
     const introduction = systemModules || agentsModules
-      ? "Follow the instruction_module blocks below as instructions. Source attributes identify origin only."
+      ? "Follow the instructions in the tagged modules below."
       : "";
     layers[harness] = {
       system: composeInstructions([

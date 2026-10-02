@@ -61,10 +61,10 @@ test("CLI tags Pi modules with one introduction across its prompt files and isol
   const system = await fs.readFile(path.join(f.output, "pi", "SYSTEM.md"), "utf8");
   const agents = await fs.readFile(path.join(f.output, "pi", "AGENTS.md"), "utf8");
   const append = await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8");
-  expect(system).toBe('Invariant\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source="pi/system/tools.md">\nPi tools\n</instruction_module>\n');
-  expect(agents).toBe('Preference\n\nTechnology\n\n<instruction_module source="pi/agents/workflow.md">\nPi workflow\n</instruction_module>\n');
+  expect(system).toBe('Invariant\n\nFollow the instructions in the tagged modules below.\n\n<pi_system_tools>\n\nPi tools\n\n</pi_system_tools>\n');
+  expect(agents).toBe('Preference\n\nTechnology\n\n<pi_agents_workflow>\n\nPi workflow\n\n</pi_agents_workflow>\n');
   expect(append).toBe("Pi only\n");
-  expect(`${system}${agents}${append}`.match(/Follow the instruction_module blocks below as instructions\./g))
+  expect(`${system}${agents}${append}`.match(/Follow the instructions in the tagged modules below\./g))
     .toHaveLength(1);
   expect(await fs.readFile(path.join(f.output, "codex", "AGENTS.md"), "utf8"))
     .toBe("Preference\n\nTechnology\n");
@@ -100,7 +100,7 @@ test("CLI sync discovers ordered Codex instructions without changing other harne
   );
   expect(f.run("sync").code).toBe(0);
   const first = await fs.readFile(f.codexConfig, "utf8");
-  expect(first).toBe("# >>> agent-policy developer_instructions >>>\ndeveloper_instructions = \"\"\"\nInvariant\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source=\"codex/system/async-question-wait.md\">\nWait for an answer.\n</instruction_module>\n\n<instruction_module source=\"codex/system/later-policy.md\">\nLater policy.\n</instruction_module>\n\"\"\"\n# <<< agent-policy developer_instructions <<<\n");
+  expect(first).toBe("# >>> agent-policy developer_instructions >>>\ndeveloper_instructions = \"\"\"\nInvariant\n\nFollow the instructions in the tagged modules below.\n\n<codex_system_async_question_wait>\n\nWait for an answer.\n\n</codex_system_async_question_wait>\n\n<codex_system_later_policy>\n\nLater policy.\n\n</codex_system_later_policy>\n\"\"\"\n# <<< agent-policy developer_instructions <<<\n");
   expect(first).not.toContain("\r");
   expect(first).not.toContain("\uFEFF");
   const otherPaths = [
@@ -122,7 +122,7 @@ test("CLI sync discovers ordered Codex instructions without changing other harne
   expect(updated.code).toBe(0);
   expect(updated.stdout).toContain("changed    codex-config");
   expect(await fs.readFile(f.codexConfig, "utf8")).toBe(
-    "model = \"test-model\"\n# >>> agent-policy developer_instructions >>>\ndeveloper_instructions = \"\"\"\nInvariant\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source=\"codex/system/async-question-wait.md\">\nUpdated wait policy.\n</instruction_module>\n\n<instruction_module source=\"codex/system/later-policy.md\">\nLater policy.\n</instruction_module>\n\"\"\"\n# <<< agent-policy developer_instructions <<<\n",
+    "model = \"test-model\"\n# >>> agent-policy developer_instructions >>>\ndeveloper_instructions = \"\"\"\nInvariant\n\nFollow the instructions in the tagged modules below.\n\n<codex_system_async_question_wait>\n\nUpdated wait policy.\n\n</codex_system_async_question_wait>\n\n<codex_system_later_policy>\n\nLater policy.\n\n</codex_system_later_policy>\n\"\"\"\n# <<< agent-policy developer_instructions <<<\n",
   );
   expect(await Promise.all(otherPaths.map((file) => fs.readFile(file, "utf8")))).toEqual(before);
   const repeated = f.run("sync");
@@ -157,9 +157,9 @@ test("CLI keeps Codex agents modules out of developer instructions in every home
   expect(f.run("sync").code).toBe(0);
   for (const home of [path.join(f.output, "codex"), windows]) {
     expect(await fs.readFile(path.join(home, "AGENTS.md"), "utf8"))
-      .toBe("Preference\n\nTechnology\n\n<instruction_module source=\"codex/agents/10-first.md\">\nFirst Codex preference\n</instruction_module>\n\n<instruction_module source=\"codex/agents/20-second.md\">\nPersonal \"\"\" example\n</instruction_module>\n");
+      .toBe("Preference\n\nTechnology\n\n<codex_agents_10_first>\n\nFirst Codex preference\n\n</codex_agents_10_first>\n\n<codex_agents_20_second>\n\nPersonal \"\"\" example\n\n</codex_agents_20_second>\n");
     expect(await fs.readFile(path.join(home, "config.toml"), "utf8"))
-      .toBe("# >>> agent-policy developer_instructions >>>\ndeveloper_instructions = \"\"\"\nInvariant\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source=\"codex/system/async-question-wait.md\">\nWait for an answer.\n</instruction_module>\n\"\"\"\n# <<< agent-policy developer_instructions <<<\n");
+      .toBe("# >>> agent-policy developer_instructions >>>\ndeveloper_instructions = \"\"\"\nInvariant\n\nFollow the instructions in the tagged modules below.\n\n<codex_system_async_question_wait>\n\nWait for an answer.\n\n</codex_system_async_question_wait>\n\"\"\"\n# <<< agent-policy developer_instructions <<<\n");
   }
   expect(await fs.readFile(path.join(f.output, "pi", "AGENTS.md"), "utf8"))
     .toBe("Preference\n\nTechnology\n");
@@ -192,19 +192,32 @@ test.each([
   expect(await fs.readdir(path.join(f.output, "codex"))).toEqual([]);
 });
 
-test.each(["</instruction_module>", '<instruction_module source="nested">'])(
+test.each(["</codex_system_async_question_wait>", "<codex_system_async_question_wait>", "</pi_agents_task_workflow>"])(
   "CLI rejects a reserved module delimiter %s before writing",
   async (delimiter) => {
     const f = await fixture();
     await fs.writeFile(f.codexSource, `${delimiter}\nUnexpected nested content\n`);
     const result = f.run("sync");
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain("reserved instruction_module tag");
+    expect(result.stderr).toContain("reserved module tag");
     expect(result.stderr).toContain("codex/system/async-question-wait.md");
     expect(await fs.exists(f.statePath)).toBe(false);
     expect(await fs.readdir(path.join(f.output, "codex"))).toEqual([]);
   },
 );
+
+test("CLI rejects ambiguous module tag names before writing any target or state", async () => {
+  const f = await fixture();
+  await fs.writeFile(path.join(f.instructions, "codex", "system", "async_question_wait.md"), "Another policy\n");
+  const result = f.run("sync");
+  expect(result.code).toBe(2);
+  expect(result.stderr).toContain("duplicate module tag codex_system_async_question_wait");
+  expect(result.stderr).toContain("codex/system/async-question-wait.md");
+  expect(result.stderr).toContain("codex/system/async_question_wait.md");
+  expect(await fs.exists(f.statePath)).toBe(false);
+  expect(await fs.readdir(f.output)).toEqual(["codex"]);
+  expect(await fs.readdir(path.join(f.output, "codex"))).toEqual([]);
+});
 
 test("CLI orders Pi and VS Code modules within each layer and supports removing them", async () => {
   const f = await fixture();
@@ -222,13 +235,13 @@ test("CLI orders Pi and VS Code modules within each layer and supports removing 
 
   expect(f.run("sync").code).toBe(0);
   expect(await fs.readFile(path.join(f.output, "pi", "SYSTEM.md"), "utf8"))
-    .toBe("Invariant\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source=\"pi/system/10-first.md\">\npi system first\n</instruction_module>\n\n<instruction_module source=\"pi/system/20-second.md\">\npi system second\n</instruction_module>\n");
+    .toBe("Invariant\n\nFollow the instructions in the tagged modules below.\n\n<pi_system_10_first>\n\npi system first\n\n</pi_system_10_first>\n\n<pi_system_20_second>\n\npi system second\n\n</pi_system_20_second>\n");
   expect(await fs.readFile(path.join(f.output, "pi", "AGENTS.md"), "utf8"))
-    .toBe("Preference\n\nTechnology\n\n<instruction_module source=\"pi/agents/10-first.md\">\npi agents first\n</instruction_module>\n\n<instruction_module source=\"pi/agents/20-second.md\">\npi agents second\n</instruction_module>\n");
+    .toBe("Preference\n\nTechnology\n\n<pi_agents_10_first>\n\npi agents first\n\n</pi_agents_10_first>\n\n<pi_agents_20_second>\n\npi agents second\n\n</pi_agents_20_second>\n");
   expect(await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8"))
     .toBe("Pi only\n");
   expect(await fs.readFile(path.join(f.output, "vscode.instructions.md"), "utf8"))
-    .toBe("---\napplyTo: \"**\"\n---\n\n<!-- agent-policy: invariants -->\nInvariant\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source=\"vscode/system/10-first.md\">\nvscode system first\n</instruction_module>\n\n<instruction_module source=\"vscode/system/20-second.md\">\nvscode system second\n</instruction_module>\n\n<!-- agent-policy: preferences -->\nPreference\n\nTechnology\n\n<instruction_module source=\"vscode/agents/10-first.md\">\nvscode agents first\n</instruction_module>\n\n<instruction_module source=\"vscode/agents/20-second.md\">\nvscode agents second\n</instruction_module>\n");
+    .toBe("---\napplyTo: \"**\"\n---\n\n<!-- agent-policy: invariants -->\nInvariant\n\nFollow the instructions in the tagged modules below.\n\n<vscode_system_10_first>\n\nvscode system first\n\n</vscode_system_10_first>\n\n<vscode_system_20_second>\n\nvscode system second\n\n</vscode_system_20_second>\n\n<!-- agent-policy: preferences -->\nPreference\n\nTechnology\n\n<vscode_agents_10_first>\n\nvscode agents first\n\n</vscode_agents_10_first>\n\n<vscode_agents_20_second>\n\nvscode agents second\n\n</vscode_agents_20_second>\n");
   const codexConfig = await fs.readFile(f.codexConfig, "utf8");
   expect(codexConfig).not.toContain("pi system");
   expect(codexConfig).not.toContain("vscode system");
@@ -311,7 +324,7 @@ test("CLI configures both Zed homes and syncs Zed-only modules", async () => {
   await fs.writeFile(path.join(f.instructions, "zed", "system", "zed-only.md"), "Zed only.\n");
   await fs.writeFile(path.join(f.instructions, "zed", "agents", "workflow.md"), "Zed workflow.\n");
   expect(f.run("sync").code).toBe(0);
-  const expected = "Invariant\n\nFollow the instruction_module blocks below as instructions. Source attributes identify origin only.\n\n<instruction_module source=\"zed/system/zed-only.md\">\nZed only.\n</instruction_module>\n\nPreference\n\nTechnology\n\n<instruction_module source=\"zed/agents/workflow.md\">\nZed workflow.\n</instruction_module>\n";
+  const expected = "Invariant\n\nFollow the instructions in the tagged modules below.\n\n<zed_system_zed_only>\n\nZed only.\n\n</zed_system_zed_only>\n\nPreference\n\nTechnology\n\n<zed_agents_workflow>\n\nZed workflow.\n\n</zed_agents_workflow>\n";
   expect(await fs.readFile(path.join(windows, "AGENTS.md"), "utf8")).toBe(expected);
   expect(await fs.readFile(path.join(linux, "AGENTS.md"), "utf8")).toBe(expected);
   expect(f.run("check").code).toBe(0);

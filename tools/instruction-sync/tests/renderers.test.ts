@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
 import { renderCodexConfig, renderInstructionModules, renderVsCode } from "../src/renderers.js";
 
-test("escapes module source labels while preserving normalized Markdown content", () => {
+test("uses tag-safe source identities while preserving normalized Markdown content", () => {
   expect(renderInstructionModules([
     { source: 'pi/system/a&"<>.md', content: "\uFEFF- Use <tool> & retain Markdown.\r\n\r\n" },
     { source: "pi/system/empty.md", content: "\n\n" },
-  ])).toBe('<instruction_module source="pi/system/a&amp;&quot;&lt;&gt;.md">\n- Use <tool> & retain Markdown.\n</instruction_module>\n');
+  ])).toBe('<pi_system_a____>\n\n- Use <tool> & retain Markdown.\n\n</pi_system_a____>\n');
 });
 
 test("renders a stable VS Code instruction file with invariants before preferences", () => {

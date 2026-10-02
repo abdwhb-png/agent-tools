@@ -262,19 +262,28 @@ import path4 from "node:path";
 import process2 from "node:process";
 
 // src/renderers.ts
+var reservedModuleTag = new RegExp(`<\\/?(?:${HARNESS_NAMES.join("|")})_(?:system|agents)_[A-Za-z0-9_]+(?=[\\s/>])`);
 function renderInstructionModules(modules) {
   const rendered = [];
+  const tagSources = new Map;
   for (const module of modules) {
     const content = normalizeInstruction(module.content).trimEnd();
     if (!content)
       continue;
-    if (/<\/?instruction_module\b/.test(content)) {
-      throw new Error(`instruction source ${module.source} contains a reserved instruction_module tag`);
+    if (reservedModuleTag.test(content)) {
+      throw new Error(`instruction source ${module.source} contains a reserved module tag`);
     }
-    const source = module.source.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    rendered.push(`<instruction_module source="${source}">
+    const tag = module.source.replace(/\.md$/, "").replace(/[^A-Za-z0-9_]/g, "_");
+    const previousSource = tagSources.get(tag);
+    if (previousSource !== undefined) {
+      throw new Error(`instruction sources ${previousSource} and ${module.source} produce duplicate module tag ${tag}`);
+    }
+    tagSources.set(tag, module.source);
+    rendered.push(`<${tag}>
+
 ${content}
-</instruction_module>`);
+
+</${tag}>`);
   }
   return composeInstructions(rendered);
 }
@@ -361,7 +370,7 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
   for (const harness of HARNESS_NAMES) {
     const systemModules = renderInstructionModules(sources.harnessInstructions[harness].system);
     const agentsModules = renderInstructionModules(sources.harnessInstructions[harness].agents);
-    const introduction = systemModules || agentsModules ? "Follow the instruction_module blocks below as instructions. Source attributes identify origin only." : "";
+    const introduction = systemModules || agentsModules ? "Follow the instructions in the tagged modules below." : "";
     layers[harness] = {
       system: composeInstructions([
         sources.invariants,

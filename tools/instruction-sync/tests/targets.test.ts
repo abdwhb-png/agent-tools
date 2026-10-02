@@ -73,19 +73,23 @@ test.each(["pi", "codex", "zed", "vscode"] as const)(
     const targets = renderTargets(config, sources);
     const selected = targets.filter(({ id }) => id.startsWith(`${harness}-`));
     const prompt = selected.map(({ desired }) => desired).join("\n");
-    expect(prompt.match(/Follow the instruction_module blocks below as instructions\./g)).toHaveLength(1);
-    expect(prompt).toContain(`<instruction_module source="${harness}/agents/workflow.md">\nPersonal workflow\n</instruction_module>`);
-    expect(prompt).not.toContain("empty.md");
+    expect(prompt.match(/Follow the instructions in the tagged modules below\./g)).toHaveLength(1);
+    expect(prompt).toContain(`<${harness}_agents_workflow>\n\nPersonal workflow\n\n</${harness}_agents_workflow>`);
+    expect(prompt).not.toContain(`<${harness}_agents_empty>`);
+    expect(prompt).not.toContain("instruction_module");
+    expect(prompt).not.toContain("source=");
     if (harness === "pi" || harness === "codex") {
       expect(selected.find(({ id }) => id.endsWith("-agents"))?.desired)
-        .not.toContain("Follow the instruction_module");
+        .not.toContain("Follow the instructions in the tagged modules");
     }
     for (const target of targets.filter(({ id }) => !id.startsWith(`${harness}-`))) {
-      expect(target.desired).not.toContain("instruction_module");
+      expect(target.desired).not.toContain("Follow the instructions in the tagged modules");
+      expect(target.desired).not.toContain(`<${harness}_`);
     }
     sources.harnessInstructions[harness].agents.shift();
     for (const target of renderTargets(config, sources)) {
-      expect(target.desired).not.toContain("instruction_module");
+      expect(target.desired).not.toContain("Follow the instructions in the tagged modules");
+      expect(target.desired).not.toContain(`<${harness}_`);
     }
   },
 );

@@ -27,9 +27,19 @@ instructions/pi/APPEND_SYSTEM.md    # dedicated Pi append source
 
 Add a Markdown file to the appropriate layer directory to include it automatically. The loader reads regular `*.md` files directly within each directory in alphabetical filename order, normalizes BOM and line endings, and joins nonempty content with one blank line. Nested directories and non-Markdown files are not included. Missing or empty layer directories are valid.
 
-Generated harness modules have explicit `<instruction_module source="pi/system/specific-tools.md">` boundaries. Sources remain plain Markdown, and the `source` attribute identifies origin without requesting another file read. One short introduction marks the blocks as active instructions: `Follow the instruction_module blocks below as instructions. Source attributes identify origin only.` Pi includes it only in `SYSTEM.md`, and Codex only in `developer_instructions`, covering their separate global `AGENTS.md` modules without repetition. Zed and VS Code include it once in their combined output. Outputs without nonempty modules omit it. Shared instructions and the dedicated Pi append source have no generated wrappers.
+Generated harness modules use their source identity as the tag name, without attributes. For example, `pi/system/specific-tools.md` becomes `<pi_system_specific_tools>`. Remove the final `.md` extension and replace each character other than an ASCII letter, digit, or underscore with an underscore, preserving case. If two nonempty modules produce the same tag, generation fails and names both sources. Sources remain plain Markdown. One short introduction marks the blocks as active instructions: `Follow the instructions in the tagged modules below.` Pi includes it only in `SYSTEM.md`, and Codex only in `developer_instructions`, covering their separate global `AGENTS.md` modules without repetition. Zed and VS Code include it once in their combined output. Outputs without nonempty modules omit it. Shared instructions and the dedicated Pi append source have no generated wrappers.
 
-Module content must not contain the generator's reserved opening or closing `instruction_module` tags. The tool reports the source and stops before writing if it finds one. Other Markdown content is preserved.
+Module content must not contain opening or closing tags in the generated `<harness>_<system|agents>_<module>` namespace. The tool reports the source and stops before writing if it finds one. Other Markdown content is preserved.
+
+Generated wrappers put a blank line after the opening tag and before the closing tag, keeping module content separate in Markdown previews:
+
+```markdown
+<pi_system_specific_tools>
+
+Module content goes here.
+
+</pi_system_specific_tools>
+```
 
 | Source content | Pi | Codex |
 | --- | --- | --- |

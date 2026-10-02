@@ -1,23 +1,32 @@
 import {
   composeInstructions,
+  HARNESS_NAMES,
   normalizeInstruction,
   type InstructionModule,
 } from "./sources.js";
 
+const reservedModuleTag = new RegExp(
+  `<\\/?(?:${HARNESS_NAMES.join("|")})_(?:system|agents)_[A-Za-z0-9_]+(?=[\\s/>])`,
+);
+
 export function renderInstructionModules(modules: InstructionModule[]): string {
   const rendered: string[] = [];
+  const tagSources = new Map<string, string>();
   for (const module of modules) {
     const content = normalizeInstruction(module.content).trimEnd();
     if (!content) continue;
-    if (/<\/?instruction_module\b/.test(content)) {
-      throw new Error(`instruction source ${module.source} contains a reserved instruction_module tag`);
+    if (reservedModuleTag.test(content)) {
+      throw new Error(`instruction source ${module.source} contains a reserved module tag`);
     }
-    const source = module.source
-      .replace(/&/g, "&amp;")
-      .replace(/"/g, "&quot;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    rendered.push(`<instruction_module source="${source}">\n${content}\n</instruction_module>`);
+    const tag = module.source
+      .replace(/\.md$/, "")
+      .replace(/[^A-Za-z0-9_]/g, "_");
+    const previousSource = tagSources.get(tag);
+    if (previousSource !== undefined) {
+      throw new Error(`instruction sources ${previousSource} and ${module.source} produce duplicate module tag ${tag}`);
+    }
+    tagSources.set(tag, module.source);
+    rendered.push(`<${tag}>\n\n${content}\n\n</${tag}>`);
   }
   return composeInstructions(rendered);
 }
