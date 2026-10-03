@@ -2,7 +2,6 @@
   "description": "Strict bounded implementation worker for small, explicit, reversible tasks with an exact file allowlist and focused verification.",
   "pi": {
     "name": "quick-worker",
-    "description": "Strict bounded implementation worker for small, explicit, reversible tasks with an exact file allowlist and focused verification.",
     "tools": "@inspect, @lens-inspect, @lens-write, @implement",
     "thinking": "medium",
     "systemPromptMode": "replace",
@@ -14,7 +13,6 @@
   },
   "codex": {
     "name": "quick-worker",
-    "description": "Strict bounded implementation worker for small, explicit, reversible tasks with an exact file allowlist and focused verification.",
     "model": "gpt-6-luna",
     "model_reasoning_effort": "high",
     "sandbox_mode": "workspace-write"

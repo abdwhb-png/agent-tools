@@ -125,7 +125,7 @@ See [ADR-001](docs/decisions/001-cross-harness-instruction-synchronization.md) f
 - Canonical instruction sources: available
 - Reusable skills: available
 - Instructions and agent synchronizer: available at [`tools/harness-sync/`](tools/harness-sync/)
-- Canonical specialist agents: 22 roles in [`agents/`](agents/), producing 17 Pi and 18 Codex agents
+- Selected specialist agents: 19 roles in [`agents/`](agents/), producing 17 Pi and 19 Codex agents
 
 ## Instruction synchronization
 
@@ -173,11 +173,17 @@ node tools/harness-sync/dist/agent-sync.mjs check
 
 Configuration defaults to the Git-ignored `tools/harness-sync/agents.config.json`. Copy [agents.config.example.json](tools/harness-sync/agents.config.example.json) there and edit its absolute destinations, or use `configure`. Its `kind` is `agents`, and its settings cover only Pi and Codex. Agent synchronization requires its own configuration, even if instruction synchronization is already configured. Configure accepts Pi and Codex paths and named additional Codex homes. `configure --disable --apply` pauses this workflow while preserving files and ownership. Instruction synchronization continues independently.
 
-Canonical definitions remain in `agents/<role>/`: shared responsibilities in `role.md`, native settings in `agent.json`, and optional `pi.md` and `codex.md` supplements. The 22-role catalog produces 17 Pi and 18 Codex agents. Both configured Codex homes receive the same profile.
+Canonical definitions remain in `agents/<role>/`: shared responsibilities in `role.md`, native settings in `agent.json`, and optional `pi.md` and `codex.md` supplements. The selected catalog contains 19 roles, producing 17 Pi agents and 19 agents in each Codex home. Quick-reviewer, test-engineer and librarian are available in both harnesses. Worker and scout have only Codex profiles, preserving Pi's packaged agents. SDD-orchestrator and orchestration-assessor remain local to Pi and outside synchronization.
+
+Browser validation and debugging share one `browser-tester` role and description. Pi retains the native name `browser-tester`. Codex uses `browser_tester`, generated in `browser-tester.toml`. The previous Codex `browser-debugger.toml` files are retired through explicit, backed-up migration. Native permissions and reporting procedures remain harness-specific, including Pi's version-1 JSON reporting contract when supplied by the caller.
+
+Descriptions inherit `agent.json.description` by default. Use `pi.description` or `codex.description` only when the agent's responsibilities or selection criteria materially differ. Formatting differences and harness-specific tool procedures do not justify an override.
 
 Harness-wide subagent instructions belong in [agents/pi.md](agents/pi.md) and [agents/codex.md](agents/codex.md). Every generated agent receives its harness's shared instructions, then its role, then its role-specific harness supplement. Missing or empty shared files preserve the previous output. The loader composes each prompt once, and native renderers only serialize it. These sources are managed exclusively by `agent-sync` and are separate from global instruction modules. The Pi file explains tool-group aliases without copying their members. The Codex file is initially empty.
 
 Matching unmanaged files can be recorded by sync. Divergent files require explicit adoption. Source removal deletes only recorded agents in enabled output directories whose current hash matches their ownership record. Independent edits block removal and sibling writes. Moving or disabling a harness preserves its previously managed files and records.
+
+When removing a harness-specific agent from shared management, back up and release its ownership record while preserving the native file. Removing its canonical source alone would schedule deletion during the next sync.
 
 For a known legacy Codex alias, put its exact basename in `retiredAgents` on the primary Codex settings or a named additional home. For example, `additionalHomes: [{ "id": "windows", "home": "/mnt/c/Users/example/.codex", "retiredAgents": ["explore.toml"] }]`. Adopt its reported target ID before removal:
 

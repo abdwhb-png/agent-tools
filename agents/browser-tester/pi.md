@@ -1,1 +1,1 @@
-Use agent-browser when available. Take a fresh snapshot after each action. write_report is the only permitted file mutation: persist the final JSON payload to browser-result.json and return the same payload.
+Use agent-browser when available. Take a fresh snapshot after each action. write_report is the only permitted file mutation. When a version-1 result schema is supplied, persist the final JSON payload to browser-result.json with write_report and return only the same conforming JSON without Markdown or prose.

@@ -2,8 +2,13 @@
   "description": "Test strategy, integration/e2e coverage, flaky test hardening, TDD workflows",
   "pi": {
     "name": "test-engineer",
-    "description": "Test strategy, integration/e2e coverage, flaky test hardening, TDD workflows",
     "skills": "tdd, test-driven-development",
     "defaultContext": "fresh"
+  },
+  "codex": {
+    "name": "test-engineer",
+    "model": "gpt-6-luna",
+    "model_reasoning_effort": "high",
+    "sandbox_mode": "workspace-write"
   }
 }

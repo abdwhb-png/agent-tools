@@ -2,7 +2,6 @@
   "description": "General-purpose worker for delegating tasks. Use for non-trivial tasks that benefit from parallel execution, such as medium to high coding tasks, Q&A, analysis.",
   "codex": {
     "name": "worker",
-    "description": "General-purpose worker for delegating tasks. Use for non-trivial tasks that benefit from parallel execution, such as medium to high coding tasks, Q&A, analysis.",
     "model": "gpt-6-luna",
     "model_reasoning_effort": "max"
   }

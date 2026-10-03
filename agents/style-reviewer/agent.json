@@ -2,13 +2,11 @@
   "description": "Formatting, naming conventions, idioms, lint/style conventions (READ-ONLY)",
   "pi": {
     "name": "style-reviewer",
-    "description": "Formatting, naming conventions, idioms, lint/style conventions (READ-ONLY)",
     "tools": "@review",
     "defaultContext": "fresh"
   },
   "codex": {
     "name": "style-reviewer",
-    "description": "Formatting, naming conventions, idioms, lint/style conventions (READ-ONLY)",
     "model": "gpt-6-luna",
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "read-only"

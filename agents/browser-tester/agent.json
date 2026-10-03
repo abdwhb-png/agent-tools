@@ -1,8 +1,7 @@
 {
-  "description": "Read-only browser validation tester",
+  "description": "Browser validation and debugging with reproducible steps and observable evidence. Does not edit application code.",
   "pi": {
     "name": "browser-tester",
-    "description": "Read-only browser validation tester",
     "skills": "chrome-devtools-axi, agent-browser",
     "tools": "@inspect, safe_bash, write_report, contact_supervisor",
     "thinking": "medium",
@@ -12,5 +11,19 @@
     "defaultContext": "fresh",
     "acceptanceRole": "read-only",
     "completionGuard": "false"
+  },
+  "codex": {
+    "name": "browser_tester",
+    "model": "gpt-5.6-terra",
+    "model_reasoning_effort": "high",
+    "sandbox_mode": "workspace-write",
+    "mcp_servers": {
+      "chrome_devtools": {
+        "command": "npx",
+        "args": [
+          "chrome-devtools-mcp@latest"
+        ]
+      }
+    }
   }
 }

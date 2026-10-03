@@ -515,9 +515,36 @@ test("malformed agent JSON reports its filename without exposing source contents
   }
 });
 
-test("the canonical catalog renders 18 identical Codex profiles with independently parseable native settings", async () => {
+test("the selected catalog renders 17 Pi and 19 Codex agents with one combined browser role", async () => {
   const sources = await loadCanonicalSources(path.resolve(import.meta.dir, "../../.."));
-  expect(sources.agents).toHaveLength(22);
+  expect(sources.agents!.map(({ id }) => id)).toEqual([
+    "api-reviewer",
+    "architect",
+    "browser-tester",
+    "code-reviewer",
+    "factual-researcher",
+    "librarian",
+    "oracle",
+    "performance-reviewer",
+    "pi-expert",
+    "plan-reviewer",
+    "qa-tester",
+    "quick-reviewer",
+    "quick-worker",
+    "scout",
+    "security-reviewer",
+    "style-reviewer",
+    "test-engineer",
+    "videographer",
+    "worker",
+  ]);
+  for (const agent of sources.agents!) {
+    if (["scout", "worker"].includes(agent.id)) expect(agent.pi).toBeUndefined();
+    else expect(agent.pi).toBeDefined();
+    expect(agent.codex).toBeDefined();
+    expect(agent.pi?.description).not.toBe(agent.description);
+    expect(agent.codex!.description).not.toBe(agent.description);
+  }
   const config: PolicyConfig = {
     schemaVersion: 1,
     resources: { instructions: false, agents: true },
@@ -535,7 +562,7 @@ test("the canonical catalog renders 18 identical Codex profiles with independent
   expect(targets.filter(({ id }) => id.startsWith("pi-agent-"))).toHaveLength(17);
   const primary = targets.filter(({ id }) => id.startsWith("codex-agent-"));
   const windows = targets.filter(({ id }) => id.startsWith("codex-windows-agent-"));
-  expect(primary).toHaveLength(18);
+  expect(primary).toHaveLength(19);
   expect(windows.map(({ desired }) => desired)).toEqual(primary.map(({ desired }) => desired));
   const parsed = JSON.parse(
     execFileSync(
@@ -553,11 +580,19 @@ test("the canonical catalog renders 18 identical Codex profiles with independent
     expect(native.developer_instructions).toContain(agent.role.trimEnd());
     delete native.developer_instructions;
     expect(native).toEqual({ description: agent.description, ...agent.codex });
+    if (agent.id === "browser-tester") {
+      expect(native.name).toBe("browser_tester");
+      expect(target.path).toBe("/codex/agents/browser-tester.toml");
+    }
   }
+  const piBrowser = targets.find(({ id }) => id === "pi-agent-browser-tester")!;
+  expect(piBrowser.path).toBe("/pi/agents/browser-tester.md");
+  expect(piBrowser.desired).toContain("Use agent-browser when available.");
+  expect(piBrowser.desired).not.toContain("AXI first");
 });
 
 test.skipIf(!(await fs.exists(piParser)))(
-  "the canonical Pi catalog preserves every imported frontmatter field in the installed parser",
+  "the canonical Pi catalog preserves native fields and inherits descriptions in the installed parser",
   async () => {
     const sources = await loadCanonicalSources(path.resolve(import.meta.dir, "../../.."));
     const { parseFrontmatter } = await import(pathToFileURL(piParser).href);
@@ -572,7 +607,10 @@ test.skipIf(!(await fs.exists(piParser)))(
     };
     for (const target of renderTargets(config, sources)) {
       const agent = sources.agents!.find((agent) => `pi-agent-${agent.id}` === target.id)!;
-      expect(parseFrontmatter(target.desired).frontmatter).toEqual(agent.pi);
+      expect(parseFrontmatter(target.desired).frontmatter).toEqual({
+        description: agent.description,
+        ...agent.pi,
+      });
     }
   },
 );

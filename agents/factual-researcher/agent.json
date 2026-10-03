@@ -2,7 +2,6 @@
   "description": "Researcher specialist that use multiple mcp tools for factual research.",
   "pi": {
     "name": "factual-researcher",
-    "description": "Fact-finding agent responsible for providing accurate, up-to-date and relevant information to support strategic/operational/technical decision-making.",
     "model": "cpa/gemini-3.6-flash-high",
     "systemPromptMode": "replace",
     "defaultContext": "fresh",
@@ -14,7 +13,6 @@
   },
   "codex": {
     "name": "factual-researcher",
-    "description": "Researcher specialist that use multiple mcp tools for factual research.",
     "model": "gpt-6-luna",
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "read-only",

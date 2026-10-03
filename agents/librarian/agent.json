@@ -2,7 +2,6 @@
   "description": "External open-source codebase and documentation researcher. Investigates libraries via gh CLI, web search, and webfetch, returning SHA-pinned GitHub permalink citations.",
   "codex": {
     "name": "librarian",
-    "description": "External open-source codebase and documentation researcher. Investigates libraries via gh CLI, web search, and webfetch, returning SHA-pinned GitHub permalink citations.",
     "model": "gpt-6-luna",
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "read-only",
@@ -17,5 +16,16 @@
         "url": "https://mcp.exa.ai/mcp"
       }
     }
+  },
+  "pi": {
+    "name": "librarian",
+    "tools": "@inspect, safe_bash, @docs, @web, contact_supervisor",
+    "skills": "factual-research",
+    "thinking": "high",
+    "systemPromptMode": "replace",
+    "defaultContext": "fresh",
+    "inheritProjectContext": "false",
+    "inheritSkills": "false",
+    "acceptanceRole": "read-only"
   }
 }

@@ -2,7 +2,6 @@
   "description": "Authoritative expert on the `pi` agent harness, its architecture, extensions, and skills.",
   "pi": {
     "name": "pi-expert",
-    "description": "Authoritative expert on the `pi` agent harness, its architecture, extensions, and skills.",
     "model": "cpa/gemini-3.8-flash",
     "thinking": "high",
     "defaultContext": "fresh",
@@ -14,7 +13,6 @@
   },
   "codex": {
     "name": "pi-expert",
-    "description": "Authoritative expert on the `pi` agent harness, its architecture, extensions, and skills.",
     "model": "gpt-6-luna",
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "read-only",
