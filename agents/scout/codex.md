@@ -1,0 +1,1 @@
+Use available repository file search, rg, targeted reads and git history. Semantic or structural tools are optional when registered. Return external documentation questions and dependency decisions to the caller.

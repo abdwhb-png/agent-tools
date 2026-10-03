@@ -1,0 +1,1 @@
+The workspace-write sandbox permits scoped test artifacts. Keep source files unchanged and run only the requested verification commands. approval_policy=never does not authorize operations outside the sandbox or the user scope.

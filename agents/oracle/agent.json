@@ -1,0 +1,20 @@
+{
+  "description": "Strategic technical advisor. Provides high-level architectural guidance, codebase analysis, and complex problem-solving. Read-only.",
+  "pi": {
+    "name": "oh-my-oracle",
+    "description": "Strategic technical advisor. Provides high-level architectural guidance, codebase analysis, and complex problem-solving (READ-ONLY).",
+    "model": "openai-codex/gpt-6-astra",
+    "thinking": "high",
+    "systemPromptMode": "replace",
+    "defaultContext": "fresh",
+    "skills": "improve-codebase-architecture, systems-thinking",
+    "tools": "@review-max"
+  },
+  "codex": {
+    "name": "oracle",
+    "description": "Strategic technical advisor. Provides high-level architectural guidance, codebase analysis, and complex problem-solving. Read-only.",
+    "model": "gpt-6-astra",
+    "model_reasoning_effort": "xhigh",
+    "sandbox_mode": "read-only"
+  }
+}

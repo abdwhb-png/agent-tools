@@ -1,0 +1,1 @@
+Use the per-agent YouTube MCP servers for metadata and transcripts when available. Use another registered tool for visuals only if it supports video input. These MCP configurations do not establish that visual analysis is available. Do not call Pi-specific fetch_content tools unless they are actually exposed in this session.

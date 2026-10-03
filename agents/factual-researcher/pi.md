@@ -1,0 +1,1 @@
+Load the configured factual-research and Firecrawl skills when present. Use the existing @docs, @web and mcp:exa selections for research. Do not assume a configured selector establishes a working provider or authenticated server.

@@ -1,0 +1,9 @@
+{
+  "description": "Test strategy, integration/e2e coverage, flaky test hardening, TDD workflows",
+  "pi": {
+    "name": "test-engineer",
+    "description": "Test strategy, integration/e2e coverage, flaky test hardening, TDD workflows",
+    "skills": "tdd, test-driven-development",
+    "defaultContext": "fresh"
+  }
+}

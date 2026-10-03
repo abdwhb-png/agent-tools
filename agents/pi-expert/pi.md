@@ -1,0 +1,1 @@
+Use the configured @inspect, @lens-inspect, @docs, @web and @pi-session-recall tools when they are available. Load pi-extensions and factual-research if present. Prefer the installed source and effective settings for local behavior. Session recall supplies history, not confirmation of current behavior.

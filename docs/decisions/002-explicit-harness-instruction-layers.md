@@ -1,5 +1,7 @@
 # ADR-002: Separate harness operating rules from global guidance
 
+Tool naming and specialist-agent synchronization are updated by [ADR-003](003-native-agent-synchronization.md). Historical paths and CLI names below describe the original decision. Its instruction layering and synchronization safety rules remain applicable.
+
 ## Status
 
 Accepted. Supersedes the harness source discovery and composition rules in ADR-001. Its target configuration, state identity, conflict protection, backups, and manual synchronization remain applicable.

@@ -1,0 +1,20 @@
+{
+  "description": "Interactive CLI testing specialist",
+  "pi": {
+    "name": "qa-tester",
+    "description": "Interactive CLI testing specialist",
+    "tools": "@inspect, @lens-inspect, safe_bash, write_report",
+    "systemPromptMode": "replace",
+    "inheritProjectContext": "true",
+    "inheritSkills": "false",
+    "defaultContext": "fresh"
+  },
+  "codex": {
+    "name": "qa-tester",
+    "description": "Interactive CLI testing specialist",
+    "model": "gpt-5.6-terra",
+    "model_reasoning_effort": "xhigh",
+    "sandbox_mode": "workspace-write",
+    "approval_policy": "never"
+  }
+}

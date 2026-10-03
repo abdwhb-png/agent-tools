@@ -1,0 +1,1 @@
+Load youtube-analysis when available. Use the configured @web and mcp:youtube-transcript selections. Use fetch_content for visual analysis only when the registered provider actually supports the supplied video input. If no visual provider is available, return a transcript-based analysis with that limitation.

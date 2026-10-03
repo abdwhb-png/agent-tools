@@ -2,10 +2,7 @@
 
 Reusable instructions, skills, and supporting tools for AI coding agents.
 
-The repository keeps agent behavior portable across harnesses without treating
-one harness's file format as the source of truth. Canonical instruction content
-lives in this repository; harness-specific files are adapters or generated
-outputs.
+The repository keeps agent behavior portable across harnesses without treating one harness's file format as the source of truth. Canonical instruction content lives in this repository; harness-specific files are adapters or generated outputs.
 
 ## Contents
 
@@ -55,12 +52,54 @@ The Pi shell rule lives in [`pi/system/specific-tools.md`](instructions/pi/syste
 
 ### Skills
 
-The [`skills/`](skills/) directory contains reusable agent skills. Each skill is
-self-contained under its own directory with a `SKILL.md` entrypoint and, when
-needed, references, scripts, or evaluations.
+The [`skills/`](skills/) directory contains reusable agent skills. Each skill is self-contained under its own directory with a `SKILL.md` entrypoint and, when needed, references, scripts, or evaluations.
 
-Install or link a skill through the target harness's supported skill mechanism.
-Preserve the complete skill directory so relative references continue to work.
+Install or link a skill through the target harness's supported skill mechanism. Preserve the complete skill directory so relative references continue to work.
+
+### Specialist agents
+
+[`agents/`](agents/) owns the canonical specialist definitions. This directory is separate from `instructions/<harness>/agents/`, which contains global personal guidance.
+
+```text
+agents/<role>/role.md      # shared responsibilities and evidence standards
+agents/<role>/agent.json   # shared description and explicit native settings
+agents/<role>/pi.md        # optional Pi procedure
+agents/<role>/codex.md     # optional Codex procedure
+```
+
+For example:
+
+```json
+{
+  "description": "Reviews code and reports evidence",
+  "pi": {
+    "name": "reviewer",
+    "tools": ["@review", "mcp:context7"],
+    "inheritSkills": false,
+    "turnBudget": "{ \"maxTurns\": 20 }"
+  },
+  "codex": {
+    "name": "reviewer",
+    "model": "gpt-6-luna",
+    "model_reasoning_effort": "high",
+    "sandbox_mode": "read-only",
+    "mcp_servers": {
+      "docs": {
+        "command": "node",
+        "args": ["/absolute/path/to/docs-server.js"],
+        "env_vars": ["DOCS_TOKEN"],
+        "enabled_tools": ["search"]
+      }
+    }
+  }
+}
+```
+
+An absent native section omits that harness's output. Native descriptions can override the shared description. Pi filenames follow the native name. Codex filenames follow the canonical role directory, with the native `name` remaining authoritative. Role directory IDs are stable ownership identities. Renaming one into an existing managed filename blocks synchronization rather than deleting a path that is still generated.
+
+Pi accepts scalar frontmatter, string arrays for native list fields and scalar extension fields. Encode extension JSON as a string, as the current frontmatter does. Codex supports names, descriptions, nicknames, model and reasoning settings, sandbox and approval settings, web-search/image controls, skill configuration and per-agent MCP settings. Unknown keys or unrepresentable values fail before writes. Extend the explicit validator against the native documentation when introducing another Codex setting. Codex's `tools` table supports `web_search` and `view_image`, not an arbitrary tool-name allowlist. MCP selections use native `enabled_tools`, `disabled_tools` and per-tool settings. No settings are translated between harnesses.
+
+Global MCP setup stays outside this tool. Reference credentials through native `env_vars`, `bearer_token_env_var` or `env_http_headers` rather than committing their values. Rendering and parsing a server definition does not verify its startup or authentication.
 
 ## Quick Start
 
@@ -71,18 +110,13 @@ git clone https://github.com/abdwhb-png/agent-tools.git
 cd agent-tools
 ```
 
-No repository-wide installation step is currently required. Individual skills
-may have their own documented requirements.
+No repository-wide installation step is currently required. Individual skills may have their own documented requirements.
 
 ## Architecture
 
-The accepted architecture introduces a portable TypeScript synchronizer under
-`tools/instruction-sync/`. It will render the canonical instructions into the
-native formats expected by Pi, Codex, VS Code, and Zed while preserving each
-harness's instruction layering.
+The portable TypeScript package under `tools/harness-sync/` provides independent instruction and agent commands. Two thin entrypoints use one shared CLI, planner and file transaction. Instructions target Pi, Codex, VS Code and Zed. Native specialist agents target Pi and Codex. Each command preserves the native target format and has its own configuration and ownership state.
 
-Version 1 uses explicit manual synchronization. Startup hooks are deliberately
-deferred until the file-based workflow has been implemented and validated.
+Version 1 uses explicit manual synchronization. Startup hooks are deliberately deferred until the file-based workflow has been implemented and validated.
 
 See [ADR-001](docs/decisions/001-cross-harness-instruction-synchronization.md) for the synchronization safety model and [ADR-002](docs/decisions/002-explicit-harness-instruction-layers.md) for the accepted source layout, native target mapping, migration, and validation requirements.
 
@@ -90,73 +124,98 @@ See [ADR-001](docs/decisions/001-cross-harness-instruction-synchronization.md) f
 
 - Canonical instruction sources: available
 - Reusable skills: available
-- Cross-harness instruction synchronizer: architecture accepted, implementation
-  available at [`tools/instruction-sync/`](tools/instruction-sync/)
+- Instructions and agent synchronizer: available at [`tools/harness-sync/`](tools/harness-sync/)
+- Canonical specialist agents: 22 roles in [`agents/`](agents/), producing 17 Pi and 18 Codex agents
 
 ## Instruction synchronization
 
-The synchronizer is a self-contained Node 24+ CLI. A clone can run the checked
-in artifact without installing dependencies:
+Run the standalone Node 24+ artifact without installing dependencies:
 
 ```bash
-node tools/instruction-sync/dist/agent-policy.mjs configure --apply
-node tools/instruction-sync/dist/agent-policy.mjs doctor
-node tools/instruction-sync/dist/agent-policy.mjs check
-node tools/instruction-sync/dist/agent-policy.mjs sync
+node tools/harness-sync/dist/instruction-sync.mjs configure
+node tools/harness-sync/dist/instruction-sync.mjs configure --apply
+node tools/harness-sync/dist/instruction-sync.mjs doctor
+node tools/harness-sync/dist/instruction-sync.mjs sync --dry-run
+node tools/harness-sync/dist/instruction-sync.mjs sync
+node tools/harness-sync/dist/instruction-sync.mjs check
 ```
 
-The default configuration is
-[`tools/instruction-sync/config.json`](tools/instruction-sync/config.json),
-next to the executable. `configure` is optional: you may instead copy
-[`config.example.json`](tools/instruction-sync/config.example.json) there,
-edit its absolute target paths, or use `--config /path/to/config.json` to
-override the default. The file supports enabling or disabling each harness and
-a list of VS Code instruction destinations.
+Configuration defaults to the Git-ignored `tools/harness-sync/instructions.config.json`. Copy [instructions.config.example.json](tools/harness-sync/instructions.config.example.json) there and edit its absolute destinations, or use `configure` to preview and apply changes. Its `kind` is `instructions`, its `enabled` switch controls this workflow, and its harness settings cover Pi, Codex, VS Code and Zed. Use `--config PATH` and `--state PATH` for explicit overrides.
 
-Codex can have a primary home plus named additional homes. From WSL, point an
-additional home at the Windows Codex directory using its mounted path (for
-example `/mnt/c/Users/<you>/.codex`). Confirm the actual Windows `CODEX_HOME`
-first if it is customized. Add it to the machine-local configuration with:
+Codex supports a primary home and named additional homes. From WSL, use mounted absolute paths for Windows homes and confirm the effective Windows `CODEX_HOME` if customized:
 
 ```bash
-node tools/instruction-sync/dist/agent-policy.mjs configure --codex-additional-home windows=/mnt/c/Users/<you>/.codex
-node tools/instruction-sync/dist/agent-policy.mjs configure --codex-additional-home windows=/mnt/c/Users/<you>/.codex --apply
-node tools/instruction-sync/dist/agent-policy.mjs doctor
+node tools/harness-sync/dist/instruction-sync.mjs configure --codex-additional-home windows=/mnt/c/Users/example/.codex
+node tools/harness-sync/dist/instruction-sync.mjs configure --codex-additional-home windows=/mnt/c/Users/example/.codex --apply
 ```
 
-The first command previews the configuration. The existing Codex home retains
-its target IDs and sync state; the new home uses `codex-windows-config` and
-`codex-windows-agents`. If its `config.toml` already has unmanaged
-`developer_instructions`, `sync` reports a conflict until that target is
-explicitly adopted.
-
-Zed's native agent reads personal `AGENTS.md` from `%APPDATA%\Zed` on Windows
-and `~/.config/zed` on Linux. From WSL, configure the Windows home as the
-primary target with its mounted absolute path, then add the Linux home by name:
+Zed's native agent reads personal `AGENTS.md` from `%APPDATA%\Zed` on Windows and `~/.config/zed` on Linux. Configure its homes through the instruction command:
 
 ```bash
-node tools/instruction-sync/dist/agent-policy.mjs configure --zed-home /mnt/c/Users/<you>/AppData/Roaming/Zed --zed-additional-home linux=/home/<you>/.config/zed --enable-zed
-node tools/instruction-sync/dist/agent-policy.mjs configure --zed-home /mnt/c/Users/<you>/AppData/Roaming/Zed --zed-additional-home linux=/home/<you>/.config/zed --enable-zed --apply
-node tools/instruction-sync/dist/agent-policy.mjs doctor
+node tools/harness-sync/dist/instruction-sync.mjs configure --zed-home /mnt/c/Users/example/AppData/Roaming/Zed --zed-additional-home linux=/home/example/.config/zed --enable-zed
+node tools/harness-sync/dist/instruction-sync.mjs configure --zed-home /mnt/c/Users/example/AppData/Roaming/Zed --zed-additional-home linux=/home/example/.config/zed --enable-zed --apply
 ```
 
-The first command previews the paths. Existing configs without `zed` remain
-valid, and the Zed target is disabled until configured. The targets are
-`zed-agents` and `zed-linux-agents`. Zed's external agents use their own
-instruction mechanisms; these files target the native Zed Agent.
-When running from WSL, use `/mnt/...` paths; a Windows `C:\...` path is rejected
-because Linux would otherwise treat it as a relative filename.
+Zed's external agents use their own instruction mechanisms. When running from WSL, Windows destinations must use `/mnt/...` paths. Configure flags modify only instruction settings and do not affect agent destinations or enabled status.
 
-`check` never writes and returns non-zero for stale, missing, untracked, or
-conflicted targets. Existing divergent targets require explicit
-`adopt --target <id> --apply` (or `--all`); adoption writes a recovery backup.
+## Agent synchronization
 
-`sync` and `adopt` show one final result per target, with files written during that run labeled `changed` and listed first. Unchanged files show `current`, and missing files remain visible. Backups are reported by directory rather than as a list of individual files. `check` and `doctor` report the files' current state, so a file changed by an earlier command appears as `current` once it matches the sources.
+Agent management has its own command and configuration:
 
-Use `bun run typecheck`, `bun test`, `bun run build`, and `bun run verify:dist`
-from `tools/instruction-sync/` when maintaining the tool. Source maintenance
-requires Bun 1.3.14 and a locally available TypeScript compiler; the committed
-CLI itself requires only Node 24+.
+```bash
+node tools/harness-sync/dist/agent-sync.mjs configure
+node tools/harness-sync/dist/agent-sync.mjs configure --apply
+node tools/harness-sync/dist/agent-sync.mjs doctor
+node tools/harness-sync/dist/agent-sync.mjs sync --dry-run
+node tools/harness-sync/dist/agent-sync.mjs sync
+node tools/harness-sync/dist/agent-sync.mjs check
+```
+
+Configuration defaults to the Git-ignored `tools/harness-sync/agents.config.json`. Copy [agents.config.example.json](tools/harness-sync/agents.config.example.json) there and edit its absolute destinations, or use `configure`. Its `kind` is `agents`, and its settings cover only Pi and Codex. Agent synchronization requires its own configuration, even if instruction synchronization is already configured. Configure accepts Pi and Codex paths and named additional Codex homes. `configure --disable --apply` pauses this workflow while preserving files and ownership. Instruction synchronization continues independently.
+
+Canonical definitions remain in `agents/<role>/`: shared responsibilities in `role.md`, native settings in `agent.json`, and optional `pi.md` and `codex.md` supplements. The 22-role catalog produces 17 Pi and 18 Codex agents. Both configured Codex homes receive the same profile.
+
+Matching unmanaged files can be recorded by sync. Divergent files require explicit adoption. Source removal deletes only recorded agents in enabled output directories whose current hash matches their ownership record. Independent edits block removal and sibling writes. Moving or disabling a harness preserves its previously managed files and records.
+
+For a known legacy Codex alias, put its exact basename in `retiredAgents` on the primary Codex settings or a named additional home. For example, `additionalHomes: [{ "id": "windows", "home": "/mnt/c/Users/example/.codex", "retiredAgents": ["explore.toml"] }]`. Adopt its reported target ID before removal:
+
+```bash
+node tools/harness-sync/dist/agent-sync.mjs adopt --target codex-windows-agent-retired-explore --dry-run
+node tools/harness-sync/dist/agent-sync.mjs adopt --target codex-windows-agent-retired-explore --apply
+node tools/harness-sync/dist/agent-sync.mjs sync --dry-run
+node tools/harness-sync/dist/agent-sync.mjs sync
+```
+
+Adoption records ownership of a retired alias without deleting it. Sync checks ownership again, backs up the file and removes it. Remove the retirement list afterward. Active generated files cannot also be listed for retirement.
+
+## Preview, adoption and safety
+
+Both commands share these rules. `configure` previews by default and writes only with `--apply`. `sync --dry-run` previews creations, updates, removals, ownership changes and conflicts. `sync` applies the same plan through the shared transaction. `adopt` requires either `--dry-run` or `--apply` plus `--target ID` or `--all`. Adoption selects only existing targets in that command's domain. `--apply` and `--dry-run` cannot be combined.
+
+Dry-run performs no mutating filesystem operations, including state writes, temporary files, directories and backups. A feasible preview exits 0 even when changes are proposed. Invalid or blocked operations exit 2. `doctor` and `check` never write and exit 1 for stale, missing, untracked, obsolete or conflicted targets. Use `--help` on either command for its own options. The combined `--only` selector no longer exists.
+
+Applied operations report one result per target, with changed targets first and backups summarized by directory. Configuration, imports, runtime replacements, deletions and ownership writes reuse one transaction with private backups, concurrent-change checks and rollback. An instruction conflict cannot block agent synchronization. Neither workflow manages global MCP registries, installs tools or restarts runtimes.
+
+## Migrating the combined configuration
+
+The former `harness-sync` executable prints replacement commands and performs no synchronization. Import each domain independently from the old adjacent `config.json` and shared state:
+
+```bash
+node tools/harness-sync/dist/instruction-sync.mjs configure --import-legacy --dry-run
+node tools/harness-sync/dist/agent-sync.mjs configure --import-legacy --dry-run
+node tools/harness-sync/dist/instruction-sync.mjs configure --import-legacy --apply
+node tools/harness-sync/dist/agent-sync.mjs configure --import-legacy --apply
+```
+
+Use `--legacy-config PATH` and `--legacy-state PATH` when the old files are elsewhere. `--config PATH` and `--state PATH` choose the new destinations. Import preserves native destinations, named homes, disabled workflows, retirement settings where applicable, ownership IDs, paths and hashes. Runtime files and instruction markers remain untouched. The original inputs remain in place and receive private recovery copies. Divergent destination settings or ownership block the entire import. Repeating an identical import does nothing. Apply imports before ordinary configuration changes. If agents were disabled in the legacy configuration, enable the imported workflow explicitly with `agent-sync configure --enable --apply` using its Node artifact.
+
+Default ownership state remains under the platform-specific `agent-policy` directory, split into `instructions/state.json` and `agents/state.json`. On Linux these default to `~/.local/state/agent-policy/instructions/state.json` and `~/.local/state/agent-policy/agents/state.json`, honoring `XDG_STATE_HOME`. Windows uses `LOCALAPPDATA`, and macOS uses `~/Library/Application Support`.
+
+## Maintaining the package
+
+Run `bun run typecheck`, `bun test`, `bun run build` and `bun run verify:dist` from `tools/harness-sync/`. Maintenance requires Bun 1.3.14 and a locally available TypeScript compiler. The generated CLIs require only Node 24+. Both standalone bundles are generated from the same shared implementation. Their duplicated compiled code is a distribution boundary, and the shared build and verification scripts keep both artifacts current.
+
+Native TOML tests use Python 3.11+. Pi parser integration tests use an installed `pi-subagents` package from the default user installation or `PI_SUBAGENTS_DIR` and report a skip when absent. These are validation tools rather than runtime dependencies. Parsing does not establish MCP startup or authentication. See [ADR-004](docs/decisions/004-separate-synchronization-commands.md) for interface separation, centralized mechanisms and migration, and [ADR-003](docs/decisions/003-native-agent-synchronization.md) for native agent definitions.
 
 ## Contributing
 

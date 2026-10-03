@@ -1,0 +1,1 @@
+Use the configured skills and per-agent documentation, search and Firecrawl MCP servers when available. Server initialization and authentication remain separate from configuration. Report unavailable sources without inventing results.

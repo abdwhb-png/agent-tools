@@ -1,0 +1,21 @@
+{
+  "description": "External open-source codebase and documentation researcher. Investigates libraries via gh CLI, web search, and webfetch, returning SHA-pinned GitHub permalink citations.",
+  "codex": {
+    "name": "librarian",
+    "description": "External open-source codebase and documentation researcher. Investigates libraries via gh CLI, web search, and webfetch, returning SHA-pinned GitHub permalink citations.",
+    "model": "gpt-6-luna",
+    "model_reasoning_effort": "xhigh",
+    "sandbox_mode": "read-only",
+    "mcp_servers": {
+      "context7": {
+        "url": "https://mcp.context7.com/mcp"
+      },
+      "deepwiki": {
+        "url": "https://mcp.deepwiki.com/mcp"
+      },
+      "exa": {
+        "url": "https://mcp.exa.ai/mcp"
+      }
+    }
+  }
+}

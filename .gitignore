@@ -9,4 +9,6 @@
 skills-lock.json
 
 
-tools/instruction-sync/config.json
+tools/harness-sync/config.json
+tools/harness-sync/instructions.config.json
+tools/harness-sync/agents.config.json

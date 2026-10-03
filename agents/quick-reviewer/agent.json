@@ -1,0 +1,10 @@
+{
+  "description": "Code reviewer focused on correctness, security, and missing tests - (READ ONLY).",
+  "codex": {
+    "name": "quick-reviewer",
+    "description": "Code reviewer focused on correctness, security, and missing tests - (READ ONLY).",
+    "model": "gpt-5.6-terra",
+    "model_reasoning_effort": "high",
+    "sandbox_mode": "read-only"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "description": "Authoritative expert on the `pi` agent harness, its architecture, extensions, and skills.",
+  "pi": {
+    "name": "pi-expert",
+    "description": "Authoritative expert on the `pi` agent harness, its architecture, extensions, and skills.",
+    "model": "cpa/gemini-3.8-flash",
+    "thinking": "high",
+    "defaultContext": "fresh",
+    "inheritProjectContext": "false",
+    "inheritSkills": "false",
+    "turnBudget": "{ \"maxTurns\": 20, \"graceTurns\": 6 }",
+    "skills": "pi-extensions, factual-research",
+    "tools": "@inspect, @lens-inspect, @docs, @web, @pi-session-recall, safe_bash, contact_supervisor"
+  },
+  "codex": {
+    "name": "pi-expert",
+    "description": "Authoritative expert on the `pi` agent harness, its architecture, extensions, and skills.",
+    "model": "gpt-6-luna",
+    "model_reasoning_effort": "xhigh",
+    "sandbox_mode": "read-only",
+    "nickname_candidates": [
+      "Pi Expert"
+    ],
+    "mcp_servers": {
+      "pi-session-recall": {
+        "command": "node",
+        "args": [
+          "/home/abdwhb/engineering/pi-integrations/pi-session-recall/dist/mcp-bin.js",
+          "--project-dir",
+          "/home/abdwhb/.pi"
+        ],
+        "default_tools_approval_mode": "approve"
+      }
+    }
+  }
+}

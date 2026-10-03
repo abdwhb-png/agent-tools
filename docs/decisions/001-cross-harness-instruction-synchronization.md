@@ -1,5 +1,7 @@
 # ADR-001: Synchronize global instructions across agent harnesses
 
+Tool naming and specialist-agent synchronization are updated by [ADR-003](003-native-agent-synchronization.md). Historical paths and CLI names below describe the original decision. Its instruction layering and synchronization safety rules remain applicable.
+
 ## Status
 
 Accepted. Harness source discovery and composition are superseded by [ADR-002](002-explicit-harness-instruction-layers.md). The original mapping below records the previous design.

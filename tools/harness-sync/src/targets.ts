@@ -1,0 +1,119 @@
+import path from "node:path";
+import { renderPiAgent, renderCodexAgent } from "./agents.js";
+import type { HomeHarnessConfig, PolicyConfig, RenderedTarget } from "./types.js";
+import {
+  renderCodexConfig,
+  renderInstructionModules,
+  renderVsCode,
+} from "./renderers.js";
+import {
+  composeInstructions,
+  HARNESS_NAMES,
+  type HarnessName,
+  type CanonicalSources,
+} from "./sources.js";
+
+function namedHomes(name: string, config: HomeHarnessConfig): { id: string; home: string }[] {
+  return [
+    { id: name, home: config.home! },
+    ...(config.additionalHomes || []).map(({ id, home }) => ({ id: `${name}-${id}`, home })),
+  ];
+}
+
+export function agentDirectories(config: PolicyConfig): { id: string; directory: string; extension: string }[] {
+  if (config.resources?.agents !== true) return [];
+  return [
+    ...(config.harnesses.pi.enabled ? [{ id: "pi", directory: path.join(config.harnesses.pi.agentDir!, "agents"), extension: ".md" }] : []),
+    ...(config.harnesses.codex.enabled ? namedHomes("codex", config.harnesses.codex).map(({ id, home }) => ({ id, directory: path.join(home, "agents"), extension: ".toml" })) : []),
+  ];
+}
+
+export function renderTargets(config: PolicyConfig, sources: CanonicalSources, codexConfigs: Record<string, string | undefined> = {}, adoptUnmanaged = false): RenderedTarget[] {
+  const targets: RenderedTarget[] = [];
+  if (config.resources?.instructions !== false) {
+    const layers = {} as Record<HarnessName, { system: string; agents: string }>;
+    for (const harness of HARNESS_NAMES) {
+      const systemModules = renderInstructionModules(
+        sources.harnessInstructions[harness].system,
+      );
+      const agentsModules = renderInstructionModules(
+        sources.harnessInstructions[harness].agents,
+      );
+      const introduction = systemModules || agentsModules
+        ? "Follow the instructions in the tagged modules below."
+        : "";
+      layers[harness] = {
+        system: composeInstructions([
+          sources.invariants,
+          introduction,
+          systemModules,
+        ]),
+        agents: composeInstructions([
+          sources.preferences,
+          sources.technologyDefaults,
+          agentsModules,
+        ]),
+      };
+    }
+    if (config.harnesses.pi.enabled) {
+      const agentDir = config.harnesses.pi.agentDir!;
+      const piInstructions = composeInstructions([sources.piAppendSystem]);
+      targets.push(
+        { id: "pi-system", kind: "file", path: path.join(agentDir, "SYSTEM.md"), desired: layers.pi.system, owned: layers.pi.system },
+        { id: "pi-agents", kind: "file", path: path.join(agentDir, "AGENTS.md"), desired: layers.pi.agents, owned: layers.pi.agents },
+        { id: "pi-append-system", kind: "file", path: path.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions },
+      );
+    }
+    if (config.harnesses.codex.enabled) {
+      for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
+        const target = renderCodexConfig(codexConfigs[id], layers.codex.system, adoptUnmanaged);
+        targets.push({ id: `${id}-config`, kind: "codex", path: path.join(home, "config.toml"), ...target });
+        targets.push({ id: `${id}-agents`, kind: "file", path: path.join(home, "AGENTS.md"), desired: layers.codex.agents, owned: layers.codex.agents });
+      }
+    }
+    if (config.harnesses.zed?.enabled) {
+      const instructions = composeInstructions([
+        layers.zed.system,
+        layers.zed.agents,
+      ]);
+      for (const { id, home } of namedHomes("zed", config.harnesses.zed)) {
+        targets.push({ id: `${id}-agents`, kind: "file", path: path.join(home, "AGENTS.md"), desired: instructions, owned: instructions });
+      }
+    }
+    if (config.harnesses.vscode.enabled) {
+      const output = renderVsCode(
+        layers.vscode.system,
+        layers.vscode.agents,
+      );
+      for (const [index, target] of config.harnesses.vscode.targets!.entries()) {
+        targets.push({ id: `vscode-${index}`, kind: "file", path: target, desired: output, owned: output });
+      }
+    }
+  }
+  if (config.resources?.agents === true) {
+    for (const agent of sources.agents || []) {
+      if (config.harnesses.pi.enabled && agent.pi) {
+        const desired = renderPiAgent(agent);
+        targets.push({ id: `pi-agent-${agent.id}`, kind: "file", path: path.join(config.harnesses.pi.agentDir!, "agents", `${agent.pi.name}.md`), desired, owned: desired, agentDirectory: path.join(config.harnesses.pi.agentDir!, "agents") });
+      }
+      if (config.harnesses.codex.enabled && agent.codex) {
+        const desired = renderCodexAgent(agent);
+        for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
+          targets.push({ id: `${id}-agent-${agent.id}`, kind: "file", path: path.join(home, "agents", `${agent.id}.toml`), desired, owned: desired, agentDirectory: path.join(home, "agents") });
+        }
+      }
+    }
+    if (config.harnesses.codex.enabled) {
+      const homes = [{ id: "codex", home: config.harnesses.codex.home!, retiredAgents: config.harnesses.codex.retiredAgents }, ...(config.harnesses.codex.additionalHomes || []).map((home) => ({ ...home, id: `codex-${home.id}` }))];
+      for (const home of homes) {
+        for (const file of home.retiredAgents || []) targets.push({ id: `${home.id}-agent-retired-${file.slice(0, -5)}`, kind: "file", path: path.join(home.home, "agents", file), desired: "", owned: "", agentDirectory: path.join(home.home, "agents"), operation: "delete" });
+      }
+    }
+  }
+  const paths = new Set<string>();
+  for (const target of targets) {
+    if (paths.has(target.path)) throw new Error(`duplicate target path: ${target.path}`);
+    paths.add(target.path);
+  }
+  return targets;
+}

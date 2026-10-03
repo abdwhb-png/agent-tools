@@ -1,0 +1,10 @@
+{
+  "description": "Codebase search specialist for finding files and code patterns (READ-ONLY)",
+  "codex": {
+    "name": "scout",
+    "description": "Codebase search specialist for finding files and code patterns (READ-ONLY)",
+    "model": "gpt-6-luna",
+    "model_reasoning_effort": "high",
+    "sandbox_mode": "read-only"
+  }
+}

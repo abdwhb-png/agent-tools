@@ -1,0 +1,1 @@
+Use the configured safe_bash tool for authorized execution and write_report for the requested report. Apply the project context and permission rules. If execution is blocked, return the evidence gap to the caller.

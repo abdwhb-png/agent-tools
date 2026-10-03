@@ -1,0 +1,17 @@
+{
+  "description": "Security vulnerability detection specialist (OWASP Top 10, secrets, unsafe patterns)",
+  "pi": {
+    "name": "security-reviewer",
+    "description": "Security vulnerability detection specialist (OWASP Top 10, secrets, unsafe patterns)",
+    "model": "openai-codex/gpt-6.1-sol",
+    "thinking": "high",
+    "tools": "@review-max"
+  },
+  "codex": {
+    "name": "security-reviewer",
+    "description": "Security vulnerability detection specialist (OWASP Top 10, secrets, unsafe patterns)",
+    "model": "gpt-6-sol",
+    "model_reasoning_effort": "xhigh",
+    "sandbox_mode": "read-only"
+  }
+}

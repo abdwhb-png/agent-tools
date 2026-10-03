@@ -1,0 +1,16 @@
+{
+  "description": "Read-only browser validation tester",
+  "pi": {
+    "name": "browser-tester",
+    "description": "Read-only browser validation tester",
+    "skills": "chrome-devtools-axi, agent-browser",
+    "tools": "@inspect, safe_bash, write_report, contact_supervisor",
+    "thinking": "medium",
+    "systemPromptMode": "replace",
+    "inheritProjectContext": "true",
+    "inheritSkills": "false",
+    "defaultContext": "fresh",
+    "acceptanceRole": "read-only",
+    "completionGuard": "false"
+  }
+}

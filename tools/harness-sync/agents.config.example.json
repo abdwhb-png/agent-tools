@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "kind": "agents",
+  "enabled": true,
+  "harnesses": {
+    "pi": { "enabled": true, "agentDir": "/absolute/path/to/.pi/agent" },
+    "codex": {
+      "enabled": true,
+      "home": "/absolute/path/to/.codex",
+      "additionalHomes": [{ "id": "windows", "home": "/mnt/c/Users/example/.codex" }]
+    }
+  }
+}

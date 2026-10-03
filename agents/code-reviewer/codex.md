@@ -1,0 +1,1 @@
+Use available repository search, file reads and git diff. Run focused diagnostics or tests only within the current sandbox and task permissions. Use an installed ast-grep CLI when useful. If a check is blocked or unavailable, report its exact command and the evidence gap to the caller. Delegate only with explicit authorization.

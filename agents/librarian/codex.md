@@ -1,0 +1,1 @@
+Use the per-agent documentation/search MCP servers, available GitHub tools or gh API. The read-only sandbox may block temporary clones. Prefer remote source reads or an existing checkout in that case, and report the restriction if a required source cannot be retrieved.

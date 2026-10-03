@@ -1,0 +1,1 @@
+Inspect the installed Pi source and configuration with available filesystem and shell tools. Use configured documentation access when available. The per-agent pi-session-recall MCP setting provides historical context when that server is available. Report missing skills or tools and continue from verified source evidence.

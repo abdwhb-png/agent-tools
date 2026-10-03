@@ -1,0 +1,17 @@
+{
+  "description": "API contracts, backward compatibility, versioning, error semantics (READ-ONLY)",
+  "pi": {
+    "name": "api-reviewer",
+    "description": "API contracts, backward compatibility, versioning, error semantics (READ-ONLY)",
+    "tools": "@review",
+    "thinking": "xhigh",
+    "defaultContext": "fresh"
+  },
+  "codex": {
+    "name": "api-reviewer",
+    "description": "API contracts, backward compatibility, versioning, error semantics (READ-ONLY)",
+    "model": "gpt-5.6-terra",
+    "model_reasoning_effort": "xhigh",
+    "sandbox_mode": "read-only"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "description": "Analyze YouTube videos, local video files, and screen recordings. Combines Gemini visual analysis with structured metadata and description-link deep-dives. Use for video research, tutorial analysis, conference talk breakdown, and screen recording review.",
+  "pi": {
+    "name": "videographer",
+    "description": "Analyze YouTube videos, local video files, and screen recordings. Combines Gemini visual analysis with structured metadata and description-link deep-dives. Use for video research, tutorial analysis, conference talk breakdown, and screen recording review.",
+    "model": "cpa/ocz/mimo-v2.5-free",
+    "tools": "@web, mcp:youtube-transcript",
+    "skills": "youtube-analysis",
+    "systemPromptMode": "replace",
+    "inheritProjectContext": "false",
+    "inheritSkills": "false",
+    "defaultContext": "fresh",
+    "output": "video-analysis.md",
+    "defaultReads": "",
+    "defaultProgress": "true",
+    "completionGuard": "false",
+    "maxExecutionTimeMs": "600000"
+  },
+  "codex": {
+    "name": "videographer",
+    "description": "Analyze YouTube videos, local video files, and screen recordings. Combines Gemini visual analysis with structured metadata and description-link deep-dives. Use for video research, tutorial analysis, conference talk breakdown, and screen recording review.",
+    "model": "gpt-5.6-terra",
+    "model_reasoning_effort": "high",
+    "sandbox_mode": "read-only",
+    "mcp_servers": {
+      "youtube-transcript": {
+        "command": "uvx",
+        "args": [
+          "--from",
+          "git+https://github.com/jkawamoto/mcp-youtube-transcript",
+          "mcp-youtube-transcript"
+        ],
+        "default_tools_approval_mode": "approve"
+      },
+      "youtube-mcp-server": {
+        "command": "node",
+        "args": [
+          "/mnt/d/AGENTS-PLAYGROUND/mcpServers/youtube-mcp-server/dist/index.js"
+        ],
+        "default_tools_approval_mode": "approve",
+        "env_vars": [
+          "YOUTUBE_API_KEY"
+        ]
+      }
+    }
+  }
+}
