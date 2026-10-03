@@ -596,6 +596,10 @@ async function loadAgentSources(root) {
       return [];
     throw error;
   }
+  const sharedInstructions = {
+    pi: await optionalMarkdown(path4.join(directory, "pi.md")),
+    codex: await optionalMarkdown(path4.join(directory, "codex.md"))
+  };
   const agents = [];
   for (const entry of entries.filter((entry2) => entry2.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
     if (!/^[a-z][a-z0-9-]*$/.test(entry.name))
@@ -619,6 +623,7 @@ async function loadAgentSources(root) {
       throw new Error(`${source}/role.md must not be empty`);
     if (raw.pi === undefined && raw.codex === undefined)
       throw new Error(`${source} requires a native pi or codex profile`);
+    const instructions = { pi: "", codex: "" };
     for (const harness of ["pi", "codex"]) {
       if (raw[harness] === undefined)
         continue;
@@ -632,6 +637,11 @@ async function loadAgentSources(root) {
         validatePi({ description: raw.description, ...native }, `${source}.pi`);
       else
         validateCodex(native, `${source}.codex`);
+      instructions[harness] = composeInstructions([
+        sharedInstructions[harness],
+        role,
+        await optionalMarkdown(path4.join(source, `${harness}.md`))
+      ]);
     }
     agents.push({
       id: entry.name,
@@ -639,8 +649,8 @@ async function loadAgentSources(root) {
       role,
       pi: raw.pi,
       codex: raw.codex,
-      piInstructions: await optionalMarkdown(path4.join(source, "pi.md")),
-      codexInstructions: await optionalMarkdown(path4.join(source, "codex.md"))
+      piInstructions: instructions.pi,
+      codexInstructions: instructions.codex
     });
   }
   for (const harness of ["pi", "codex"]) {
@@ -677,7 +687,7 @@ ${lines.join(`
 `)}
 ---
 
-${composeInstructions([agent.role, agent.piInstructions])}`;
+${agent.piInstructions}`;
 }
 function tomlString(value) {
   return JSON.stringify(value).replace(/\u007f/g, "\\u007f");
@@ -695,8 +705,7 @@ function tomlValue(value) {
 function renderCodexAgent(agent) {
   const config = { description: agent.description, ...agent.codex };
   const lines = Object.keys(config).sort().map((key) => `${tomlKey(key)} = ${tomlValue(config[key])}`);
-  const instructions = composeInstructions([agent.role, agent.codexInstructions]);
-  const escaped = [...instructions].map((char) => char === `
+  const escaped = [...agent.codexInstructions].map((char) => char === `
 ` ? `
 ` : tomlString(char).slice(1, -1)).join("");
   return `${lines.join(`

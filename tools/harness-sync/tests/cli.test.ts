@@ -290,6 +290,20 @@ test.each(["instructions", "agents"] as const)(
   },
 );
 
+test("instruction CLI ignores unreadable shared subagent instructions", async () => {
+  const f = await fixture();
+  const sharedPi = path.join(f.root, "agents", "pi.md");
+  await fs.mkdir(sharedPi, { recursive: true });
+  expect(f.run("sync").code).toBe(0);
+  const instructionState = await fs.readFile(f.statePath, "utf8");
+  const agents = f.runAgent("sync", "--dry-run");
+  expect(agents.code).toBe(2);
+  expect(agents.stderr).toContain("EISDIR");
+  expect(f.run("check").code).toBe(0);
+  expect(await fs.readFile(f.statePath, "utf8")).toBe(instructionState);
+  expect(await fs.exists(f.agentsStatePath)).toBe(false);
+});
+
 test("instruction loading ignores malformed specialist agents and agent loading ignores malformed instruction sources", async () => {
   const f = await fixture();
   const directory = path.join(f.root, "agents", "scout");

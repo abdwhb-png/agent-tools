@@ -1,1 +1,1 @@
-Use chrome-devtools-axi and agent-browser when available, with AXI first. Take a fresh snapshot after each action. write_report is the only permitted file mutation: persist the final JSON payload to browser-result.json and return the same payload.
+Use agent-browser when available. Take a fresh snapshot after each action. write_report is the only permitted file mutation: persist the final JSON payload to browser-result.json and return the same payload.

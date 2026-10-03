@@ -184,6 +184,10 @@ export async function loadAgentSources(root: string): Promise<AgentSource[]> {
   let entries: Array<{ name: string; isDirectory(): boolean }>;
   try { entries = await fs.readdir(directory, { withFileTypes: true }); }
   catch (error: any) { if (error?.code === "ENOENT") return []; throw error; }
+  const sharedInstructions = {
+    pi: await optionalMarkdown(path.join(directory, "pi.md")),
+    codex: await optionalMarkdown(path.join(directory, "codex.md")),
+  };
   const agents: AgentSource[] = [];
   for (const entry of entries.filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
     if (!/^[a-z][a-z0-9-]*$/.test(entry.name)) throw new Error(`invalid canonical agent directory: ${entry.name}`);
@@ -200,6 +204,7 @@ export async function loadAgentSources(root: string): Promise<AgentSource[]> {
     const role = normalizeInstruction(await fs.readFile(path.join(source, "role.md"), "utf8"));
     if (!role.trim()) throw new Error(`${source}/role.md must not be empty`);
     if (raw.pi === undefined && raw.codex === undefined) throw new Error(`${source} requires a native pi or codex profile`);
+    const instructions = { pi: "", codex: "" };
     for (const harness of ["pi", "codex"] as const) {
       if (raw[harness] === undefined) continue;
       const native = assertObject(raw[harness], `${source}.${harness}`);
@@ -208,9 +213,12 @@ export async function loadAgentSources(root: string): Promise<AgentSource[]> {
       if (native.description !== undefined) assertString(native.description, `${source}.${harness}.description`);
       if (harness === "pi") validatePi({ description: raw.description, ...native }, `${source}.pi`);
       else validateCodex(native, `${source}.codex`);
+      instructions[harness] = composeInstructions([
+        sharedInstructions[harness], role, await optionalMarkdown(path.join(source, `${harness}.md`)),
+      ]);
     }
     agents.push({ id: entry.name, description: raw.description as string, role, pi: raw.pi as NativeConfig | undefined, codex: raw.codex as NativeConfig | undefined,
-      piInstructions: await optionalMarkdown(path.join(source, "pi.md")), codexInstructions: await optionalMarkdown(path.join(source, "codex.md")) });
+      piInstructions: instructions.pi, codexInstructions: instructions.codex });
   }
   for (const harness of ["pi", "codex"] as const) {
     const names = new Set<string>();
@@ -234,7 +242,7 @@ function piScalar(value: NativeValue): string {
 export function renderPiAgent(agent: AgentSource): string {
   const config: NativeConfig = { description: agent.description, ...agent.pi! };
   const lines = Object.keys(config).sort().map((key) => `${key}:${config[key] === "" ? "" : ` ${piScalar(config[key])}`}`);
-  return `---\n${lines.join("\n")}\n---\n\n${composeInstructions([agent.role, agent.piInstructions])}`;
+  return `---\n${lines.join("\n")}\n---\n\n${agent.piInstructions}`;
 }
 
 function tomlString(value: string): string { return JSON.stringify(value).replace(/\u007f/g, "\\u007f"); }
@@ -249,7 +257,6 @@ function tomlValue(value: NativeValue): string {
 export function renderCodexAgent(agent: AgentSource): string {
   const config: NativeConfig = { description: agent.description, ...agent.codex! };
   const lines = Object.keys(config).sort().map((key) => `${tomlKey(key)} = ${tomlValue(config[key])}`);
-  const instructions = composeInstructions([agent.role, agent.codexInstructions]);
-  const escaped = [...instructions].map((char) => char === "\n" ? "\n" : tomlString(char).slice(1, -1)).join("");
+  const escaped = [...agent.codexInstructions].map((char) => char === "\n" ? "\n" : tomlString(char).slice(1, -1)).join("");
   return `${lines.join("\n")}\ndeveloper_instructions = """\n${escaped}"""\n`;
 }

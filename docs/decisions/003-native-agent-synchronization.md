@@ -12,6 +12,8 @@ Rename the existing instruction synchronizer to `harness-sync` and extend its fi
 
 Canonical specialist agents live under `agents/<role>/`. Shared responsibilities belong in `role.md`. `agent.json` contains a shared description and explicit native `pi` and `codex` configurations. Optional Markdown supplements describe native procedures. These sources are distinct from global instruction modules under `instructions/<harness>/agents/`.
 
+Optional root-level `agents/pi.md` and `agents/codex.md` files contain instructions shared by every generated agent for that harness. The agent loader owns the composition order: shared harness instructions, shared role guidance, then the role-specific harness supplement. Native renderers consume the composed prompt without recomposing it. Empty or absent shared files preserve existing output. This layer does not create agent profiles, alter native controls, read tool-group registries or depend on instruction synchronization. Pi alias semantics belong in its shared prompt; actual group resolution remains owned by the Pi harness. Tool membership is not copied into generated prompts.
+
 The first catalog contains 22 roles, producing 17 Pi agents and 18 Codex agents. Pi retains `oh-my-oracle` as its native oracle name. Codex retains the `browser-debugger.toml` filename and `browser_debugger` native name. Both configured Codex homes use the fuller WSL profile, including its names, models and per-agent settings. Windows aliases map as follows:
 
 | Retired Windows alias | Canonical Codex role |

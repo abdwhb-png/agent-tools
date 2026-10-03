@@ -175,6 +175,8 @@ Configuration defaults to the Git-ignored `tools/harness-sync/agents.config.json
 
 Canonical definitions remain in `agents/<role>/`: shared responsibilities in `role.md`, native settings in `agent.json`, and optional `pi.md` and `codex.md` supplements. The 22-role catalog produces 17 Pi and 18 Codex agents. Both configured Codex homes receive the same profile.
 
+Harness-wide subagent instructions belong in [agents/pi.md](agents/pi.md) and [agents/codex.md](agents/codex.md). Every generated agent receives its harness's shared instructions, then its role, then its role-specific harness supplement. Missing or empty shared files preserve the previous output. The loader composes each prompt once, and native renderers only serialize it. These sources are managed exclusively by `agent-sync` and are separate from global instruction modules. The Pi file explains tool-group aliases without copying their members. The Codex file is initially empty.
+
 Matching unmanaged files can be recorded by sync. Divergent files require explicit adoption. Source removal deletes only recorded agents in enabled output directories whose current hash matches their ownership record. Independent edits block removal and sibling writes. Moving or disabling a harness preserves its previously managed files and records.
 
 For a known legacy Codex alias, put its exact basename in `retiredAgents` on the primary Codex settings or a named additional home. For example, `additionalHomes: [{ "id": "windows", "home": "/mnt/c/Users/example/.codex", "retiredAgents": ["explore.toml"] }]`. Adopt its reported target ID before removal:

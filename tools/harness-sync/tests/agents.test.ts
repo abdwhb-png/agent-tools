@@ -108,6 +108,94 @@ test("loads native profiles and renders one shared role with isolated native set
   expect(targets[2].desired).toBe(targets[1].desired);
 });
 
+test("shared harness instructions precede the role and native supplement exactly once", async () => {
+  const f = await fixture();
+  await fs.writeFile(path.join(f.root, "agents", "pi.md"), "\uFEFFShared Pi guidance.\r\n");
+  await fs.writeFile(path.join(f.root, "agents", "codex.md"), "Shared Codex guidance.\n");
+  const helper = path.join(f.root, "agents", "helper");
+  await fs.mkdir(helper);
+  await fs.writeFile(path.join(helper, "role.md"), "Different role.\n");
+  await fs.writeFile(
+    path.join(helper, "agent.json"),
+    JSON.stringify({ description: "Pi-only helper", pi: { name: "pi-helper", tools: "@inspect" } }),
+  );
+  const targets = renderTargets(f.config, await loadCanonicalSources(f.root));
+  expect(targets).toHaveLength(4);
+  const piHelper = targets.find(({ id }) => id === "pi-agent-helper")!;
+  expect(piHelper.desired).toEndWith("Shared Pi guidance.\n\nDifferent role.\n");
+  expect(piHelper.desired.match(/Shared Pi guidance\./g)).toHaveLength(1);
+  expect(piHelper.desired).not.toContain("Shared Codex guidance.");
+  const pi = targets.find(({ id }) => id === "pi-agent-reviewer")!;
+  expect(pi.desired).toEndWith(
+    "Shared Pi guidance.\n\nInspect the requested change.\n\nUse the configured Pi inspection tools.\n",
+  );
+  expect(pi.desired.match(/Shared Pi guidance\./g)).toHaveLength(1);
+  expect(pi.desired).not.toContain("Shared Codex guidance.");
+  expect(pi.desired).toContain("tools: @review, mcp:context7\n");
+  const codex = targets.filter(({ id }) => id.startsWith("codex"));
+  for (const target of codex) {
+    const native = JSON.parse(
+      execFileSync(
+        "python3",
+        ["-c", "import tomllib,json,sys;print(json.dumps(tomllib.loads(sys.stdin.read())))"],
+        { input: target.desired, encoding: "utf8" },
+      ),
+    );
+    expect(native).toEqual({
+      ...f.definition.codex,
+      description: f.definition.description,
+      developer_instructions:
+        "Shared Codex guidance.\n\nInspect the requested change.\n\nRun permitted repository checks.\n",
+    });
+    expect(native.developer_instructions.match(/Shared Codex guidance\./g)).toHaveLength(1);
+    expect(native.developer_instructions).not.toContain("Shared Pi guidance.");
+  }
+  expect(codex[0].desired).toBe(codex[1].desired);
+});
+
+test("changing or removing shared instructions updates only that harness's managed prompts", async () => {
+  const f = await fixture();
+  const sharedPi = path.join(f.root, "agents", "pi.md");
+  const sharedCodex = path.join(f.root, "agents", "codex.md");
+  const statePath = path.join(f.root, "state.json");
+  await fs.writeFile(sharedPi, "Original shared Pi guidance.\n");
+  await fs.writeFile(sharedCodex, "");
+  await synchronize(f.config, emptyState(), statePath, await loadCanonicalSources(f.root));
+  const piFile = path.join(f.root, "pi", "agents", "pi-reviewer.md");
+  const codexFile = path.join(f.root, "codex", "agents", "reviewer.toml");
+  const originalCodex = await fs.readFile(codexFile, "utf8");
+  const originalState = await fs.readFile(statePath, "utf8");
+  await fs.writeFile(sharedPi, "Updated shared Pi guidance.\n");
+  const sources = await loadCanonicalSources(f.root);
+  const preview = await synchronize(f.config, await loadState(statePath), statePath, sources, {
+    dryRun: true,
+  });
+  expect(preview.actions.filter(({ action }) => action === "update").map(({ id }) => id)).toEqual([
+    "pi-agent-reviewer",
+  ]);
+  expect(await fs.readFile(statePath, "utf8")).toBe(originalState);
+  expect(await fs.readFile(piFile, "utf8")).toContain("Original shared Pi guidance.");
+  expect(
+    (await synchronize(f.config, await loadState(statePath), statePath, sources)).changed,
+  ).toEqual(["pi-agent-reviewer"]);
+  expect(await fs.readFile(piFile, "utf8")).toContain("Updated shared Pi guidance.");
+  expect(await fs.readFile(codexFile, "utf8")).toBe(originalCodex);
+  await fs.unlink(sharedPi);
+  expect(
+    (
+      await synchronize(
+        f.config,
+        await loadState(statePath),
+        statePath,
+        await loadCanonicalSources(f.root),
+      )
+    ).changed,
+  ).toEqual(["pi-agent-reviewer"]);
+  expect(await fs.readFile(piFile, "utf8")).not.toContain("shared Pi guidance.");
+  expect(await fs.readFile(codexFile, "utf8")).toBe(originalCodex);
+  expect(Object.keys((await loadState(statePath)).targets)).toHaveLength(3);
+});
+
 test("removes only unchanged managed agents when their source disappears", async () => {
   const f = await fixture();
   const statePath = path.join(f.root, "state.json");
