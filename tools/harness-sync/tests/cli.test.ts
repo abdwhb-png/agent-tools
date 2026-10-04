@@ -177,7 +177,7 @@ test("agent CLI resolves local path bindings in both native formats and preserve
   expect(native).not.toContain("${paths.");
   expect(await fs.readFile(path.join(windows, "agents", "reviewer.toml"), "utf8")).toBe(native);
   const pi = await fs.readFile(path.join(f.output, "pi", "agents", "reviewer.md"), "utf8");
-  expect(pi).toContain("skills: /fixtures/review/SKILL.md");
+  expect(pi).toContain("skills: '/fixtures/review/SKILL.md'");
   expect(pi).toContain("inheritSkills: false");
   expect(await fs.readFile(path.join(directory, "agent.json"), "utf8")).toBe(definition);
   const firstState = await fs.readFile(f.agentsStatePath, "utf8");

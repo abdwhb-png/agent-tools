@@ -231,12 +231,19 @@ export async function loadAgentSources(root: string): Promise<AgentSource[]> {
   return agents;
 }
 
-function piScalar(value: NativeValue): string {
-  if (Array.isArray(value)) return value.join(", ");
-  const scalar = String(value);
-  if (scalar.includes("\n")) return `|\n${scalar.split("\n").map((line) => `  ${line}`).join("\n")}`;
-  if (["|", "|-", ">", ">-"].includes(scalar) || scalar.trim() !== scalar || /^(["']).*\1$/.test(scalar) || /^["']$/.test(scalar)) return `"${scalar}"`;
-  return scalar;
+function piScalar(value: NativeValue, key: string): string {
+  const scalar = Array.isArray(value) ? value.join(", ") : value;
+  if (typeof scalar !== "string") return String(scalar);
+  if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/.test(scalar))
+    throw new Error(`Pi frontmatter ${key} cannot preserve control characters in both parsers`);
+  // pi-subagents strips outer quotes but does not decode YAML escapes.
+  if (!scalar.includes("\n")) {
+    if (!scalar.includes("'")) return `'${scalar}'`;
+    if (!/["\\]/.test(scalar)) return `"${scalar}"`;
+  }
+  if (/^\s/.test(scalar) || scalar.endsWith("\n\n"))
+    throw new Error(`Pi frontmatter ${key} cannot preserve this block scalar's whitespace in both parsers`);
+  return `${scalar.endsWith("\n") ? "|" : "|-"}\n${scalar.split("\n").map((line) => `  ${line}`).join("\n")}`;
 }
 
 function resolvePathBindings(
@@ -282,7 +289,7 @@ function resolvedAgentConfig(
 
 export function renderPiAgent(agent: AgentSource, paths: Record<string, string> = {}): string {
   const config = resolvedAgentConfig(agent, "pi", paths);
-  const lines = Object.keys(config).sort().map((key) => `${key}:${config[key] === "" ? "" : ` ${piScalar(config[key])}`}`);
+  const lines = Object.keys(config).sort().map((key) => `${key}: ${piScalar(config[key], key)}`);
   return `---\n${lines.join("\n")}\n---\n\n${agent.piInstructions}`;
 }
 

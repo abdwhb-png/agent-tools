@@ -680,19 +680,28 @@ async function loadAgentSources(root) {
   }
   return agents;
 }
-function piScalar(value) {
-  if (Array.isArray(value))
-    return value.join(", ");
-  const scalar = String(value);
-  if (scalar.includes(`
+function piScalar(value, key) {
+  const scalar = Array.isArray(value) ? value.join(", ") : value;
+  if (typeof scalar !== "string")
+    return String(scalar);
+  if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/.test(scalar))
+    throw new Error(`Pi frontmatter ${key} cannot preserve control characters in both parsers`);
+  if (!scalar.includes(`
+`)) {
+    if (!scalar.includes("'"))
+      return `'${scalar}'`;
+    if (!/["\\]/.test(scalar))
+      return `"${scalar}"`;
+  }
+  if (/^\s/.test(scalar) || scalar.endsWith(`
+
 `))
-    return `|
+    throw new Error(`Pi frontmatter ${key} cannot preserve this block scalar's whitespace in both parsers`);
+  return `${scalar.endsWith(`
+`) ? "|" : "|-"}
 ${scalar.split(`
 `).map((line) => `  ${line}`).join(`
 `)}`;
-  if (["|", "|-", ">", ">-"].includes(scalar) || scalar.trim() !== scalar || /^(["']).*\1$/.test(scalar) || /^["']$/.test(scalar))
-    return `"${scalar}"`;
-  return scalar;
 }
 function resolvePathBindings(value, paths, label) {
   if (typeof value === "string") {
@@ -723,7 +732,7 @@ function resolvedAgentConfig(agent, harness, paths) {
 }
 function renderPiAgent(agent, paths = {}) {
   const config = resolvedAgentConfig(agent, "pi", paths);
-  const lines = Object.keys(config).sort().map((key) => `${key}:${config[key] === "" ? "" : ` ${piScalar(config[key])}`}`);
+  const lines = Object.keys(config).sort().map((key) => `${key}: ${piScalar(config[key], key)}`);
   return `---
 ${lines.join(`
 `)}

@@ -366,6 +366,8 @@ The owning [agent module](src/agents.ts) validates supported settings before wri
 
 Pi accepts scalar frontmatter fields and scalar extension fields. Native list fields such as `tools`, `excludeTools`, `skills`, `allowedAgents`, `extensions` and `mutationTools` accept comma-separated strings or arrays of strings. Arrays render as comma-separated lists, and an item cannot be blank or contain commas or newlines. Boolean controls such as `inheritProjectContext`, `inheritSkills`, `interactive` and `completionGuard` accept booleans or the strings `"true"` and `"false"`. Encode nested extension JSON as a string, as shown for `turnBudget`. Invalid frontmatter keys or values that cannot survive the installed parser's format are rejected. Native `@group` and `mcp:` selectors remain unchanged.
 
+Pi output must preserve values through both Pi core's YAML parser and pi-subagents' simple frontmatter parser. Strings use quotes without escapes or literal blocks because pi-subagents does not decode YAML escapes. The renderer rejects control characters, multiple trailing newlines in metadata, and leading whitespace in metadata requiring a literal block when the two parsers cannot preserve them identically. These restrictions apply to frontmatter, not the Markdown prompt body. Invalid metadata blocks synchronization before any target is written.
+
 Codex supports the following top-level fields:
 
 | Category | Fields |
@@ -492,7 +494,9 @@ bun run verify:dist
 | `bun run build` | Generate both standalone Node commands and the legacy replacement stub. |
 | `bun run verify:dist` | Rebuild in a temporary directory, compare each artifact and check its Node help entrypoint. |
 
-Native TOML tests need Python 3.11+ for an independent `tomllib` parser. Pi parser integration uses an installed `pi-subagents` package at the default user location or the package root supplied by `PI_SUBAGENTS_DIR`, and skips when that parser is absent. These are validation requirements, not dependencies of the distributed CLIs. Static checks do not establish live agent behavior or MCP startup/authentication.
+Native TOML tests need Python 3.11+ for an independent `tomllib` parser. Pi parser integration uses installed `pi-subagents` and `@earendil-works/pi-coding-agent` packages at their default user locations, or package roots supplied by `PI_SUBAGENTS_DIR` and `PI_CORE_PACKAGE_DIR`. Integration tests skip when their parsers are absent. Before deploying Pi agent changes, run `bun test tests/pi-frontmatter.integration.test.ts` with both parsers present and no skipped tests. These are validation requirements, not dependencies of the distributed CLIs. Static checks do not establish live agent behavior or MCP startup/authentication.
+
+Agent tests use temporary catalogs and assert that rendering preserves their configured values and prompt bodies. Do not pin the names, count, model choices, or wording of the personal catalog under `agents/` in standard tests.
 
 Keep shared rules centralized: the two thin entrypoints in [src/instruction-sync.ts](src/instruction-sync.ts) and [src/agent-sync.ts](src/agent-sync.ts) bind a fixed domain and call [src/commands.ts](src/commands.ts). Configuration/state validation, migration, planning and file transactions each have one owning module. Native agent validation, path resolution and rendering stay in [src/agents.ts](src/agents.ts), and instruction rendering in [src/renderers.ts](src/renderers.ts). Both standalone bundles embed the same shared source implementation for independent Node execution. Rebuild generated artifacts rather than editing them directly.
 

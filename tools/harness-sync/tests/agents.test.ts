@@ -145,6 +145,17 @@ test("native validation rejects a resolved Pi list item that cannot be represent
   expect(await fs.exists(path.join(f.root, "state.json"))).toBe(false);
 });
 
+test("unrepresentable Pi metadata blocks synchronization before any target is written", async () => {
+  const f = await fixture();
+  f.definition.description = "invalid\u0000control";
+  await fs.writeFile(path.join(f.directory, "agent.json"), JSON.stringify(f.definition));
+  await expect(synchronize(
+    f.config, emptyState(), path.join(f.root, "state.json"), await loadCanonicalSources(f.root),
+  )).rejects.toThrow("description cannot preserve");
+  for (const name of ["pi", "codex", "windows", "state.json"])
+    expect(await fs.exists(path.join(f.root, name))).toBe(false);
+});
+
 test("loads native profiles and renders one shared role with isolated native settings", async () => {
   const f = await fixture();
   const targets = renderTargets(f.config, await loadCanonicalSources(f.root));
@@ -155,9 +166,7 @@ test("loads native profiles and renders one shared role with isolated native set
   ]);
   expect(targets[0].path).toBe(path.join(f.root, "pi", "agents", "pi-reviewer.md"));
   expect(targets[1].path).toBe(path.join(f.root, "codex", "agents", "reviewer.toml"));
-  expect(targets[0].desired).toContain("tools: @review, mcp:context7\n");
   expect(targets[0].desired).toContain("inheritSkills: false\n");
-  expect(targets[0].desired).toContain('turnBudget: { "maxTurns": 20, "graceTurns": 8 }\n');
   expect(targets[0].desired).toContain(
     "Inspect the requested change.\n\nUse the configured Pi inspection tools.\n",
   );
@@ -200,7 +209,6 @@ test("shared harness instructions precede the role and native supplement exactly
   );
   expect(pi.desired.match(/Shared Pi guidance\./g)).toHaveLength(1);
   expect(pi.desired).not.toContain("Shared Codex guidance.");
-  expect(pi.desired).toContain("tools: @review, mcp:context7\n");
   const codex = targets.filter(({ id }) => id.startsWith("codex"));
   for (const target of codex) {
     const native = JSON.parse(
@@ -315,10 +323,12 @@ test.skipIf(!(await fs.exists(piParser)))(
 
 test("Codex TOML preserves escaped control characters and multiline prompt delimiters", async () => {
   const f = await fixture();
+  f.config.harnesses.pi.enabled = false;
   f.definition.description = "Control \x7f and emoji 😀";
   await fs.writeFile(path.join(f.directory, "agent.json"), JSON.stringify(f.definition));
   await fs.writeFile(path.join(f.directory, "role.md"), 'Inspect """ and C:\\new\\file.\n');
-  const target = renderTargets(f.config, await loadCanonicalSources(f.root))[1];
+  const target = renderTargets(f.config, await loadCanonicalSources(f.root))
+    .find(({ id }) => id === "codex-agent-reviewer")!;
   const native = JSON.parse(
     execFileSync(
       "python3",
@@ -584,128 +594,44 @@ test("malformed agent JSON reports its filename without exposing source contents
   }
 });
 
-test("the selected catalog renders 17 Pi and 19 Codex agents with one combined browser role", async () => {
-  const sources = await loadCanonicalSources(path.resolve(import.meta.dir, "../../.."));
-  expect(sources.agents!.map(({ id }) => id)).toEqual([
-    "api-reviewer",
-    "architect",
-    "browser-tester",
-    "code-reviewer",
-    "factual-researcher",
-    "librarian",
-    "oracle",
-    "performance-reviewer",
-    "pi-expert",
-    "plan-reviewer",
-    "qa-tester",
-    "quick-reviewer",
-    "quick-worker",
-    "scout",
-    "security-reviewer",
-    "style-reviewer",
-    "test-engineer",
-    "videographer",
-    "worker",
+test("customizing agent metadata and prompts preserves independent harness profiles", async () => {
+  const f = await fixture();
+  f.definition.description = 'New role: "custom" instructions';
+  f.definition.pi.name = "custom-planner";
+  f.definition.pi.tools = ["@inspect"];
+  f.definition.codex.name = "custom_planner";
+  await fs.writeFile(path.join(f.directory, "agent.json"), JSON.stringify(f.definition));
+  await fs.writeFile(path.join(f.directory, "role.md"), "Entirely revised personal instructions.\n");
+  const targets = renderTargets(f.config, await loadCanonicalSources(f.root));
+  expect(targets.map(({ id }) => id)).toEqual([
+    "pi-agent-reviewer", "codex-agent-reviewer", "codex-windows-agent-reviewer",
   ]);
-  for (const agent of sources.agents!) {
-    if (["scout", "worker"].includes(agent.id)) expect(agent.pi).toBeUndefined();
-    else expect(agent.pi).toBeDefined();
-    expect(agent.codex).toBeDefined();
-    expect(agent.pi?.description).not.toBe(agent.description);
-    expect(agent.codex!.description).not.toBe(agent.description);
-  }
-  const config: PolicyConfig = {
-    schemaVersion: 1,
-    resources: { instructions: false, agents: true },
-    paths: {
-      piSessionRecallScript: "/fixtures/pi-session-recall/mcp-bin.js",
-      piProjectDir: "/fixtures/pi",
-      factualResearchSkill: "/fixtures/factual-research/SKILL.md",
-      youtubeServerScript: "/fixtures/youtube/index.js",
-    },
-    harnesses: {
-      pi: { enabled: true, agentDir: "/pi" },
-      codex: {
-        enabled: true,
-        home: "/codex",
-        additionalHomes: [{ id: "windows", home: "/windows" }],
-      },
-      vscode: { enabled: false },
-    },
-  };
-  const targets = renderTargets(config, sources);
-  expect(targets.filter(({ id }) => id.startsWith("pi-agent-"))).toHaveLength(17);
-  const primary = targets.filter(({ id }) => id.startsWith("codex-agent-"));
-  const windows = targets.filter(({ id }) => id.startsWith("codex-windows-agent-"));
-  expect(primary).toHaveLength(19);
-  expect(windows.map(({ desired }) => desired)).toEqual(primary.map(({ desired }) => desired));
-  const parsed = JSON.parse(
-    execFileSync(
-      "python3",
-      [
-        "-c",
-        "import tomllib,json,sys;print(json.dumps([tomllib.loads(s) for s in json.load(sys.stdin)]))",
-      ],
-      { input: JSON.stringify(primary.map(({ desired }) => desired)), encoding: "utf8" },
-    ),
+  expect(targets[0].path).toBe(path.join(f.root, "pi", "agents", "custom-planner.md"));
+  expect(targets[0].desired).toEndWith(
+    "Entirely revised personal instructions.\n\nUse the configured Pi inspection tools.\n",
   );
-  for (const [index, target] of primary.entries()) {
-    const native = parsed[index];
-    const agent = sources.agents!.find((agent) => `codex-agent-${agent.id}` === target.id)!;
-    expect(native.developer_instructions).toContain(agent.role.trimEnd());
-    delete native.developer_instructions;
-    const expected = JSON.parse(JSON.stringify({ description: agent.description, ...agent.codex }));
-    if (agent.id === "pi-expert") {
-      expect(native.mcp_servers["pi-session-recall"].args).toEqual([
-        "/fixtures/pi-session-recall/mcp-bin.js",
-        "--project-dir",
-        "/fixtures/pi",
-      ]);
-      delete native.mcp_servers["pi-session-recall"].args;
-      delete expected.mcp_servers["pi-session-recall"].args;
-    } else if (agent.id === "factual-researcher") {
-      expect(native.skills.config).toEqual([
-        { path: "/fixtures/factual-research/SKILL.md", enabled: true },
-      ]);
-      delete native.skills;
-      delete expected.skills;
-    } else if (agent.id === "videographer") {
-      expect(native.mcp_servers["youtube-mcp-server"].args).toEqual(["/fixtures/youtube/index.js"]);
-      delete native.mcp_servers["youtube-mcp-server"].args;
-      delete expected.mcp_servers["youtube-mcp-server"].args;
-    }
-    expect(native).toEqual(expected);
-    if (agent.id === "browser-tester") {
-      expect(native.name).toBe("browser_tester");
-      expect(target.path).toBe("/codex/agents/browser-tester.toml");
-    }
-  }
-  const piBrowser = targets.find(({ id }) => id === "pi-agent-browser-tester")!;
-  expect(piBrowser.path).toBe("/pi/agents/browser-tester.md");
-  expect(piBrowser.desired).toContain("Use agent-browser when available.");
-  expect(piBrowser.desired).not.toContain("AXI first");
+  const native = JSON.parse(execFileSync("python3", [
+    "-c", "import tomllib,json,sys;print(json.dumps(tomllib.loads(sys.stdin.read())))",
+  ], { input: targets[1].desired, encoding: "utf8" }));
+  expect(native).toEqual({
+    ...f.definition.codex,
+    description: f.definition.description,
+    developer_instructions: "Entirely revised personal instructions.\n\nRun permitted repository checks.\n",
+  });
+  expect(targets[2].desired).toBe(targets[1].desired);
 });
 
 test.skipIf(!(await fs.exists(piParser)))(
-  "the canonical Pi catalog preserves native fields and inherits descriptions in the installed parser",
+  "Pi profile metadata overrides inherited description without constraining prompt text",
   async () => {
-    const sources = await loadCanonicalSources(path.resolve(import.meta.dir, "../../.."));
-    const { parseFrontmatter } = await import(pathToFileURL(piParser).href);
-    const config: PolicyConfig = {
-      schemaVersion: 1,
-      resources: { instructions: false, agents: true },
-      harnesses: {
-        pi: { enabled: true, agentDir: "/pi" },
-        codex: { enabled: false },
-        vscode: { enabled: false },
-      },
-    };
-    for (const target of renderTargets(config, sources)) {
-      const agent = sources.agents!.find((agent) => `pi-agent-${agent.id}` === target.id)!;
-      expect(parseFrontmatter(target.desired).frontmatter).toEqual({
-        description: agent.description,
-        ...agent.pi,
-      });
-    }
+    const f = await fixture();
+    const definition = { ...f.definition, pi: { ...f.definition.pi, description: "Pi-specific purpose" } };
+    await fs.writeFile(path.join(f.directory, "agent.json"), JSON.stringify(definition));
+    const target = renderTargets(f.config, await loadCanonicalSources(f.root))[0];
+    const { parseFrontmatter, parseFrontmatterList } = await import(pathToFileURL(piParser).href);
+    const parsed = parseFrontmatter(target.desired);
+    expect(parsed.frontmatter.description).toBe("Pi-specific purpose");
+    expect(parseFrontmatterList(parsed.frontmatter.tools)).toEqual(f.definition.pi.tools);
+    expect(parsed.body).toBe("Inspect the requested change.\n\nUse the configured Pi inspection tools.");
   },
 );
