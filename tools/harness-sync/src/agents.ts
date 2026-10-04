@@ -239,8 +239,49 @@ function piScalar(value: NativeValue): string {
   return scalar;
 }
 
-export function renderPiAgent(agent: AgentSource): string {
-  const config: NativeConfig = { description: agent.description, ...agent.pi! };
+function resolvePathBindings(
+  value: NativeValue,
+  paths: Record<string, string>,
+  label: string,
+): NativeValue {
+  if (typeof value === "string") {
+    const reference = /^\$\{paths\.([^{}]+)\}$/.exec(value);
+    if (!reference) {
+      if (value.includes("${paths."))
+        throw new Error(`${label}: path reference must occupy the entire string as \${paths.name}`);
+      return value;
+    }
+    if (!Object.hasOwn(paths, reference[1]))
+      throw new Error(`${label}: missing path binding: paths.${reference[1]}`);
+    return paths[reference[1]];
+  }
+  if (Array.isArray(value))
+    return value.map((item, index) => resolvePathBindings(item, paths, `${label}[${index}]`));
+  if (typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, resolvePathBindings(item, paths, `${label}.${key}`)]),
+    );
+  return value;
+}
+
+function resolvedAgentConfig(
+  agent: AgentSource,
+  harness: "pi" | "codex",
+  paths: Record<string, string>,
+): NativeConfig {
+  const label = `agents/${agent.id}/agent.json.${harness}`;
+  const config = resolvePathBindings(
+    { description: agent.description, ...agent[harness]! },
+    paths,
+    label,
+  ) as NativeConfig;
+  if (harness === "pi") validatePi(config, label);
+  else validateCodex(config, label);
+  return config;
+}
+
+export function renderPiAgent(agent: AgentSource, paths: Record<string, string> = {}): string {
+  const config = resolvedAgentConfig(agent, "pi", paths);
   const lines = Object.keys(config).sort().map((key) => `${key}:${config[key] === "" ? "" : ` ${piScalar(config[key])}`}`);
   return `---\n${lines.join("\n")}\n---\n\n${agent.piInstructions}`;
 }
@@ -254,8 +295,8 @@ function tomlValue(value: NativeValue): string {
   return typeof value === "string" ? tomlString(value) : JSON.stringify(value);
 }
 
-export function renderCodexAgent(agent: AgentSource): string {
-  const config: NativeConfig = { description: agent.description, ...agent.codex! };
+export function renderCodexAgent(agent: AgentSource, paths: Record<string, string> = {}): string {
+  const config = resolvedAgentConfig(agent, "codex", paths);
   const lines = Object.keys(config).sort().map((key) => `${tomlKey(key)} = ${tomlValue(config[key])}`);
   const escaped = [...agent.codexInstructions].map((char) => char === "\n" ? "\n" : tomlString(char).slice(1, -1)).join("");
   return `${lines.join("\n")}\ndeveloper_instructions = """\n${escaped}"""\n`;

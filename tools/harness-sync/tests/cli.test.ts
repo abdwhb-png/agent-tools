@@ -129,6 +129,173 @@ test("instruction CLI dry-run previews writes without creating targets, state or
   expect(await fs.readdir(path.join(f.output, "codex"))).toEqual([]);
 });
 
+test("agent CLI resolves local path bindings in both native formats and preserves them when configuring", async () => {
+  const f = await fixture();
+  const directory = path.join(f.root, "agents", "reviewer");
+  await fs.mkdir(directory, { recursive: true });
+  const definition = JSON.stringify({
+    description: "Reviews code",
+    pi: { name: "reviewer", skills: ["${paths.reviewSkill}"], inheritSkills: false },
+    codex: {
+      name: "reviewer",
+      skills: { config: [{ path: "${paths.reviewSkill}", enabled: true }] },
+      mcp_servers: {
+        docs: {
+          command: "node",
+          args: ["${paths.serverScript}", "--project-dir", "${paths.projectDir}"],
+          env_vars: ["DOCS_TOKEN"],
+        },
+      },
+    },
+  });
+  await fs.writeFile(path.join(directory, "agent.json"), definition);
+  await fs.writeFile(path.join(directory, "role.md"), "Inspect the change.\n");
+  const profile = JSON.parse(await fs.readFile(f.agentsConfigPath, "utf8"));
+  profile.paths = {
+    reviewSkill: "/fixtures/review/SKILL.md",
+    serverScript: "/fixtures/docs/server.js",
+    projectDir: "/fixtures/project",
+  };
+  const windows = path.join(f.output, "windows");
+  profile.harnesses.codex.additionalHomes = [{ id: "windows", home: windows }];
+  await fs.writeFile(f.agentsConfigPath, JSON.stringify(profile));
+
+  const preview = f.runAgent("sync", "--dry-run");
+  expect(preview.stderr).toBe("");
+  expect(preview.code).toBe(0);
+  expect(preview.stdout).toContain("3 create");
+  expect(await fs.exists(f.agentsStatePath)).toBe(false);
+  expect(await fs.exists(path.join(f.output, "pi"))).toBe(false);
+  expect(await fs.exists(path.join(f.root, "backups"))).toBe(false);
+  expect(f.runAgent("sync").code).toBe(0);
+  const native = await fs.readFile(path.join(f.output, "codex", "agents", "reviewer.toml"), "utf8");
+  expect(native).toContain('path = "/fixtures/review/SKILL.md"');
+  expect(native).toContain(
+    'args = ["/fixtures/docs/server.js", "--project-dir", "/fixtures/project"]',
+  );
+  expect(native).toContain('env_vars = ["DOCS_TOKEN"]');
+  expect(native).not.toContain("${paths.");
+  expect(await fs.readFile(path.join(windows, "agents", "reviewer.toml"), "utf8")).toBe(native);
+  const pi = await fs.readFile(path.join(f.output, "pi", "agents", "reviewer.md"), "utf8");
+  expect(pi).toContain("skills: /fixtures/review/SKILL.md");
+  expect(pi).toContain("inheritSkills: false");
+  expect(await fs.readFile(path.join(directory, "agent.json"), "utf8")).toBe(definition);
+  const firstState = await fs.readFile(f.agentsStatePath, "utf8");
+  const moved = {
+    ...profile,
+    paths: { ...profile.paths, serverScript: "/fixtures/moved/server.js" },
+  };
+  await fs.writeFile(f.agentsConfigPath, JSON.stringify(moved));
+  expect(f.runAgent("check").code).toBe(1);
+  const movePreview = f.runAgent("sync", "--dry-run");
+  expect(movePreview.code).toBe(0);
+  expect(movePreview.stdout).toContain("2 update");
+  expect(await fs.readFile(f.agentsStatePath, "utf8")).toBe(firstState);
+  expect(await fs.readFile(path.join(f.output, "codex", "agents", "reviewer.toml"), "utf8")).toBe(
+    native,
+  );
+  expect(f.runAgent("sync").code).toBe(0);
+  const movedNative = await fs.readFile(
+    path.join(f.output, "codex", "agents", "reviewer.toml"),
+    "utf8",
+  );
+  expect(movedNative).toContain('"/fixtures/moved/server.js"');
+  expect(await fs.readFile(path.join(windows, "agents", "reviewer.toml"), "utf8")).toBe(
+    movedNative,
+  );
+  const state = await fs.readFile(f.agentsStatePath, "utf8");
+  expect(f.runAgent("sync").code).toBe(0);
+  expect(await fs.readFile(f.agentsStatePath, "utf8")).toBe(state);
+  expect(await fs.readFile(path.join(f.output, "pi", "agents", "reviewer.md"), "utf8")).toBe(pi);
+  expect(f.runAgent("configure", "--disable-pi", "--apply").code).toBe(0);
+  expect(JSON.parse(await fs.readFile(f.agentsConfigPath, "utf8")).paths).toEqual(moved.paths);
+  expect(f.runAgent("check").code).toBe(0);
+});
+
+test.each([
+  [["doctor"]],
+  [["check"]],
+  [["sync", "--dry-run"]],
+  [["sync"]],
+  [["adopt", "--target", "codex-agent-reviewer", "--dry-run"]],
+  [["adopt", "--target", "codex-agent-reviewer", "--apply"]],
+])("agent CLI %j reports missing bindings with zero mutating filesystem calls", async (args) => {
+  const f = await fixture();
+  const directory = path.join(f.root, "agents", "reviewer");
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, "role.md"), "Inspect the change.\n");
+  await fs.writeFile(
+    path.join(directory, "agent.json"),
+    JSON.stringify({
+      description: "Reviews code",
+      pi: { name: "reviewer" },
+      codex: {
+        name: "reviewer",
+        mcp_servers: { docs: { command: "node", args: ["${paths.constructor}"] } },
+      },
+    }),
+  );
+  const mutations: string[] = [];
+  const io: FileOps = { ...nodeFileOps };
+  for (const operation of ["writeFile", "mkdir", "rename", "unlink"] as const)
+    io[operation] = async () => {
+      mutations.push(operation);
+      throw new Error("unexpected mutation");
+    };
+  const log = spyOn(console, "log").mockImplementation(() => {});
+  const error = spyOn(console, "error").mockImplementation(() => {});
+  const previousExitCode = process.exitCode;
+  try {
+    process.exitCode = undefined;
+    await runCli(
+      "agents",
+      pathToFileURL(path.join(f.root, "tools", "harness-sync", "src", "agent-sync.ts")).href,
+      [...args, "--config", f.agentsConfigPath, "--state", f.agentsStatePath],
+      io,
+    );
+    expect(process.exitCode).toBe(2);
+    expect(error.mock.calls[0][0]).toContain(
+      "agents/reviewer/agent.json.codex.mcp_servers.docs.args[0]",
+    );
+    expect(error.mock.calls[0][0]).toContain("missing path binding: paths.constructor");
+    expect(mutations).toEqual([]);
+    expect(await fs.exists(f.agentsStatePath)).toBe(false);
+    expect(await fs.readdir(f.output)).toEqual(["codex"]);
+  } finally {
+    log.mockRestore();
+    error.mockRestore();
+    // Bun 1.3.14 retains the old code when assigned undefined.
+    process.exitCode = previousExitCode ?? 0;
+  }
+});
+
+test("disabled native profiles and instruction synchronization do not require agent path bindings", async () => {
+  const f = await fixture();
+  const directory = path.join(f.root, "agents", "reviewer");
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, "role.md"), "Inspect the change.\n");
+  await fs.writeFile(
+    path.join(directory, "agent.json"),
+    JSON.stringify({
+      description: "Reviews code",
+      pi: { name: "reviewer" },
+      codex: {
+        name: "reviewer",
+        mcp_servers: { docs: { command: "node", args: ["${paths.serverScript}"] } },
+      },
+    }),
+  );
+  expect(f.run("sync").code).toBe(0);
+  const instructions = await fs.readFile(f.statePath, "utf8");
+  expect(f.runAgent("sync", "--dry-run").code).toBe(2);
+  expect(f.runAgent("configure", "--disable-codex", "--apply").code).toBe(0);
+  expect(f.runAgent("sync", "--dry-run").code).toBe(0);
+  expect(f.runAgent("sync").code).toBe(0);
+  expect(f.runAgent("check").code).toBe(0);
+  expect(await fs.readFile(f.statePath, "utf8")).toBe(instructions);
+  expect(await fs.exists(path.join(f.output, "codex", "agents"))).toBe(false);
+});
+
 test("legacy import previews and preserves instruction ownership without copying agent records", async () => {
   const f = await fixture();
   const legacyConfigPath = path.join(f.root, "legacy-config.json");
@@ -257,7 +424,7 @@ test.each(["instructions", "agents"] as const)(
     const output = spyOn(console, "log").mockImplementation(() => {});
     const previousExitCode = process.exitCode;
     try {
-      process.exitCode = undefined;
+      process.exitCode = 0;
       await runCli(
         domain,
         pathToFileURL(
@@ -280,12 +447,12 @@ test.each(["instructions", "agents"] as const)(
         ],
         io,
       );
-      expect(process.exitCode).toBeUndefined();
+      expect(process.exitCode).toBe(0);
       expect(mutations).toEqual([]);
       expect(await fs.exists(path.join(f.root, "backups"))).toBe(false);
     } finally {
       output.mockRestore();
-      process.exitCode = previousExitCode;
+      process.exitCode = previousExitCode ?? 0;
     }
   },
 );

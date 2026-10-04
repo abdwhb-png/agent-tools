@@ -200,13 +200,28 @@ export function parsePolicyConfig(
   if (!isObject(parsed)) throw new Error("configuration must be an object");
   const profile = parsed.schemaVersion === 2;
   if (profile) {
-    assertKeys(parsed, ["schemaVersion", "kind", "enabled", "harnesses"], "configuration");
+    assertKeys(
+      parsed,
+      ["schemaVersion", "kind", "enabled", "harnesses", ...(parsed.kind === "agents" ? ["paths"] : [])],
+      "configuration",
+    );
     if (parsed.kind !== "instructions" && parsed.kind !== "agents")
       throw new Error("configuration kind must be instructions or agents");
     if (domain && parsed.kind !== domain)
       throw new Error(`configuration belongs to ${parsed.kind}, not ${domain}`);
     if (typeof parsed.enabled !== "boolean")
       throw new Error("configuration enabled must be boolean");
+    if (parsed.paths !== undefined) {
+      if (!isObject(parsed.paths)) throw new Error("paths must be an object of named absolute paths");
+      for (const [name, value] of Object.entries(parsed.paths)) {
+        if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name) || typeof value !== "string")
+          throw new Error("paths entries require a valid name and an absolute path string");
+        if (value.includes("${paths.") || value.includes("\0"))
+          throw new Error(`paths.${name} must be a literal path without references or NUL characters`);
+        if (!value.isWellFormed()) throw new Error(`paths.${name} contains invalid Unicode`);
+        assertAbsolute(value, `paths.${name}`, platform);
+      }
+    }
   } else {
     if (domain) throw new Error("legacy configuration requires configure --import-legacy");
     assertKeys(parsed, ["schemaVersion", "harnesses", "resources"], "configuration");
@@ -256,6 +271,7 @@ export function parsePolicyConfig(
   if (!profile) return parsed as unknown as PolicyConfig;
   return {
     schemaVersion: 1,
+    ...(parsed.paths !== undefined ? { paths: parsed.paths as Record<string, string> } : {}),
     resources: {
       instructions: parsed.kind === "instructions" && parsed.enabled === true,
       agents: parsed.kind === "agents" && parsed.enabled === true,
@@ -277,6 +293,9 @@ export function profileConfig(config: PolicyConfig, domain: SyncDomain): SyncPro
       domain === "instructions"
         ? config.resources?.instructions !== false
         : config.resources?.agents === true,
+    ...(domain === "agents" && config.paths !== undefined
+      ? { paths: structuredClone(config.paths) }
+      : {}),
     harnesses: {
       pi,
       codex,

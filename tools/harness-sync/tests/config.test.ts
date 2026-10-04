@@ -4,6 +4,7 @@ import {
   defaultPolicyConfig,
   defaultStatePath,
   parsePolicyConfig,
+  profileConfig,
 } from "../src/config.js";
 
 test("native agent profiles enforce their domain and exclude instruction destinations", () => {
@@ -32,6 +33,49 @@ test("native agent profiles enforce their domain and exclude instruction destina
       "agents",
     ),
   ).toThrow("unsupported key: vscode");
+});
+
+test("agent path bindings round-trip without leaking into instruction settings", () => {
+  const profile = {
+    schemaVersion: 2,
+    kind: "agents",
+    enabled: true,
+    paths: { serverScript: "/install/server.js" },
+    harnesses: { pi: { enabled: false }, codex: { enabled: false } },
+  };
+  const parsed = parsePolicyConfig(JSON.stringify(profile), "linux", "agents");
+  expect(profileConfig(parsed, "agents")).toEqual(profile);
+  expect(profileConfig(parsed, "instructions").paths).toBeUndefined();
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({ ...profile, kind: "instructions" }),
+      "linux",
+      "instructions",
+    ),
+  ).toThrow("unsupported key: paths");
+  const windows = { ...profile, paths: { serverScript: "C:\\Program Files\\Docs\\server.js" } };
+  expect(parsePolicyConfig(JSON.stringify(windows), "win32", "agents").paths).toEqual(
+    windows.paths,
+  );
+});
+
+test.each([
+  [[], "object"],
+  [{ serverScript: 1 }, "path string"],
+  [{ "bad.name": "/install/server.js" }, "valid name"],
+  [{ serverScript: "relative/server.js" }, "absolute path"],
+  [{ serverScript: "/install/${paths.other}" }, "literal"],
+  [{ serverScript: "/install/server\u0000.js" }, "literal"],
+  [{ serverScript: "/install/server\ud800.js" }, "Unicode"],
+])("rejects malformed agent path bindings %j", (paths, message) => {
+  const profile = {
+    schemaVersion: 2,
+    kind: "agents",
+    enabled: true,
+    paths,
+    harnesses: { pi: { enabled: false }, codex: { enabled: false } },
+  };
+  expect(() => parsePolicyConfig(JSON.stringify(profile), "linux", "agents")).toThrow(message);
 });
 
 test("accepts explicit agent synchronization without enabling it in legacy configurations", () => {

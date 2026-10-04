@@ -33,7 +33,7 @@
       "youtube-mcp-server": {
         "command": "node",
         "args": [
-          "/mnt/d/AGENTS-PLAYGROUND/mcpServers/youtube-mcp-server/dist/index.js"
+          "${paths.youtubeServerScript}"
         ],
         "default_tools_approval_mode": "approve",
         "env_vars": [

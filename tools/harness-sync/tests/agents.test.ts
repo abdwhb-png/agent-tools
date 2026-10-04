@@ -76,6 +76,75 @@ async function fixture() {
   return { root, directory, definition, config };
 }
 
+test.each([
+  "prefix ${paths.serverScript}",
+  "${paths.serverScript}/entry.js",
+  "${paths.serverScript",
+  "${paths.}",
+])(
+  "rejects incomplete or embedded path reference %s before synchronization writes",
+  async (reference) => {
+    const f = await fixture();
+    f.definition.codex.mcp_servers.docs.args = [reference];
+    await fs.writeFile(path.join(f.directory, "agent.json"), JSON.stringify(f.definition));
+    const source = await loadCanonicalSources(f.root);
+    await expect(
+      synchronize(f.config, emptyState(), path.join(f.root, "state.json"), source),
+    ).rejects.toThrow("must occupy the entire string");
+    expect(await fs.exists(path.join(f.root, "pi"))).toBe(false);
+    expect(await fs.exists(path.join(f.root, "codex"))).toBe(false);
+    expect(await fs.exists(path.join(f.root, "state.json"))).toBe(false);
+  },
+);
+
+test("resolved native paths preserve escaping and source definitions across rendering contexts", async () => {
+  const f = await fixture();
+  f.definition.codex.mcp_servers.docs.args = ["${paths.serverScript}", "${UNRELATED_VARIABLE}"];
+  await fs.writeFile(path.join(f.directory, "agent.json"), JSON.stringify(f.definition));
+  const sources = await loadCanonicalSources(f.root);
+  const original = JSON.stringify(sources.agents);
+  f.config.paths = { serverScript: '/fixtures/Docs "quoted"/server\\entry.js' };
+  const targets = renderTargets(f.config, sources);
+  const native = JSON.parse(
+    execFileSync(
+      "python3",
+      ["-c", "import tomllib,json,sys;print(json.dumps(tomllib.loads(sys.stdin.read())))"],
+      { input: targets.find(({ id }) => id === "codex-agent-reviewer")!.desired, encoding: "utf8" },
+    ),
+  );
+  expect(native.mcp_servers.docs.args).toEqual([
+    '/fixtures/Docs "quoted"/server\\entry.js',
+    "${UNRELATED_VARIABLE}",
+  ]);
+  expect(native.mcp_servers.docs.env_vars).toEqual(["DOCS_TOKEN"]);
+  expect(renderTargets(f.config, sources)).toEqual(targets);
+  const moved = renderTargets(
+    { ...f.config, paths: { serverScript: "/moved/server.js" } },
+    sources,
+  );
+  expect(moved.find(({ id }) => id === "codex-agent-reviewer")!.desired).toContain(
+    'args = ["/moved/server.js", "${UNRELATED_VARIABLE}"]',
+  );
+  expect(JSON.stringify(sources.agents)).toBe(original);
+});
+
+test("native validation rejects a resolved Pi list item that cannot be represented", async () => {
+  const f = await fixture();
+  f.definition.pi.skills = ["${paths.reviewSkill}"];
+  f.config.paths = { reviewSkill: "/skills/contains,comma/SKILL.md" };
+  await fs.writeFile(path.join(f.directory, "agent.json"), JSON.stringify(f.definition));
+  await expect(
+    synchronize(
+      f.config,
+      emptyState(),
+      path.join(f.root, "state.json"),
+      await loadCanonicalSources(f.root),
+    ),
+  ).rejects.toThrow("unrepresentable list item");
+  expect(await fs.exists(path.join(f.root, "pi"))).toBe(false);
+  expect(await fs.exists(path.join(f.root, "state.json"))).toBe(false);
+});
+
 test("loads native profiles and renders one shared role with isolated native settings", async () => {
   const f = await fixture();
   const targets = renderTargets(f.config, await loadCanonicalSources(f.root));
@@ -548,6 +617,12 @@ test("the selected catalog renders 17 Pi and 19 Codex agents with one combined b
   const config: PolicyConfig = {
     schemaVersion: 1,
     resources: { instructions: false, agents: true },
+    paths: {
+      piSessionRecallScript: "/fixtures/pi-session-recall/mcp-bin.js",
+      piProjectDir: "/fixtures/pi",
+      factualResearchSkill: "/fixtures/factual-research/SKILL.md",
+      youtubeServerScript: "/fixtures/youtube/index.js",
+    },
     harnesses: {
       pi: { enabled: true, agentDir: "/pi" },
       codex: {
@@ -579,7 +654,27 @@ test("the selected catalog renders 17 Pi and 19 Codex agents with one combined b
     const agent = sources.agents!.find((agent) => `codex-agent-${agent.id}` === target.id)!;
     expect(native.developer_instructions).toContain(agent.role.trimEnd());
     delete native.developer_instructions;
-    expect(native).toEqual({ description: agent.description, ...agent.codex });
+    const expected = JSON.parse(JSON.stringify({ description: agent.description, ...agent.codex }));
+    if (agent.id === "pi-expert") {
+      expect(native.mcp_servers["pi-session-recall"].args).toEqual([
+        "/fixtures/pi-session-recall/mcp-bin.js",
+        "--project-dir",
+        "/fixtures/pi",
+      ]);
+      delete native.mcp_servers["pi-session-recall"].args;
+      delete expected.mcp_servers["pi-session-recall"].args;
+    } else if (agent.id === "factual-researcher") {
+      expect(native.skills.config).toEqual([
+        { path: "/fixtures/factual-research/SKILL.md", enabled: true },
+      ]);
+      delete native.skills;
+      delete expected.skills;
+    } else if (agent.id === "videographer") {
+      expect(native.mcp_servers["youtube-mcp-server"].args).toEqual(["/fixtures/youtube/index.js"]);
+      delete native.mcp_servers["youtube-mcp-server"].args;
+      delete expected.mcp_servers["youtube-mcp-server"].args;
+    }
+    expect(native).toEqual(expected);
     if (agent.id === "browser-tester") {
       expect(native.name).toBe("browser_tester");
       expect(target.path).toBe("/codex/agents/browser-tester.toml");

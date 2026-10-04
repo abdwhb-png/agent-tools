@@ -14,6 +14,7 @@ export interface HomeHarnessConfig extends HarnessConfig {
 export interface PolicyConfig {
   schemaVersion: 1;
   resources?: { instructions?: boolean; agents?: boolean };
+  paths?: Record<string, string>;
   harnesses: {
     pi: HarnessConfig & { agentDir?: string };
     codex: HomeHarnessConfig;
@@ -26,6 +27,7 @@ export interface SyncProfile {
   schemaVersion: 2;
   kind: SyncDomain;
   enabled: boolean;
+  paths?: Record<string, string>;
   harnesses: {
     pi: PolicyConfig["harnesses"]["pi"];
     codex: HomeHarnessConfig;

@@ -23,9 +23,9 @@
       "pi-session-recall": {
         "command": "node",
         "args": [
-          "/home/abdwhb/engineering/pi-integrations/pi-session-recall/dist/mcp-bin.js",
+          "${paths.piSessionRecallScript}",
           "--project-dir",
-          "/home/abdwhb/.pi"
+          "${paths.piProjectDir}"
         ],
         "default_tools_approval_mode": "approve"
       }

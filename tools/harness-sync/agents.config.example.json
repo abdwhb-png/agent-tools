@@ -2,6 +2,12 @@
   "schemaVersion": 2,
   "kind": "agents",
   "enabled": true,
+  "paths": {
+    "piSessionRecallScript": "/absolute/path/to/pi-session-recall/dist/mcp-bin.js",
+    "piProjectDir": "/absolute/path/to/.pi",
+    "factualResearchSkill": "/absolute/path/to/skills/factual-research/SKILL.md",
+    "youtubeServerScript": "/absolute/path/to/youtube-mcp-server/dist/index.js"
+  },
   "harnesses": {
     "pi": { "enabled": true, "agentDir": "/absolute/path/to/.pi/agent" },
     "codex": {

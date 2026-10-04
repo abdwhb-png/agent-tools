@@ -138,13 +138,26 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
     throw new Error("configuration must be an object");
   const profile = parsed.schemaVersion === 2;
   if (profile) {
-    assertKeys(parsed, ["schemaVersion", "kind", "enabled", "harnesses"], "configuration");
+    assertKeys(parsed, ["schemaVersion", "kind", "enabled", "harnesses", ...parsed.kind === "agents" ? ["paths"] : []], "configuration");
     if (parsed.kind !== "instructions" && parsed.kind !== "agents")
       throw new Error("configuration kind must be instructions or agents");
     if (domain && parsed.kind !== domain)
       throw new Error(`configuration belongs to ${parsed.kind}, not ${domain}`);
     if (typeof parsed.enabled !== "boolean")
       throw new Error("configuration enabled must be boolean");
+    if (parsed.paths !== undefined) {
+      if (!isObject(parsed.paths))
+        throw new Error("paths must be an object of named absolute paths");
+      for (const [name, value] of Object.entries(parsed.paths)) {
+        if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name) || typeof value !== "string")
+          throw new Error("paths entries require a valid name and an absolute path string");
+        if (value.includes("${paths.") || value.includes("\x00"))
+          throw new Error(`paths.${name} must be a literal path without references or NUL characters`);
+        if (!value.isWellFormed())
+          throw new Error(`paths.${name} contains invalid Unicode`);
+        assertAbsolute(value, `paths.${name}`, platform);
+      }
+    }
   } else {
     if (domain)
       throw new Error("legacy configuration requires configure --import-legacy");
@@ -186,6 +199,7 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
     return parsed;
   return {
     schemaVersion: 1,
+    ...parsed.paths !== undefined ? { paths: parsed.paths } : {},
     resources: {
       instructions: parsed.kind === "instructions" && parsed.enabled === true,
       agents: parsed.kind === "agents" && parsed.enabled === true
@@ -204,6 +218,7 @@ function profileConfig(config, domain) {
     schemaVersion: 2,
     kind: domain,
     enabled: domain === "instructions" ? config.resources?.instructions !== false : config.resources?.agents === true,
+    ...domain === "agents" && config.paths !== undefined ? { paths: structuredClone(config.paths) } : {},
     harnesses: {
       pi,
       codex,
@@ -679,8 +694,35 @@ ${scalar.split(`
     return `"${scalar}"`;
   return scalar;
 }
-function renderPiAgent(agent) {
-  const config = { description: agent.description, ...agent.pi };
+function resolvePathBindings(value, paths, label) {
+  if (typeof value === "string") {
+    const reference = /^\$\{paths\.([^{}]+)\}$/.exec(value);
+    if (!reference) {
+      if (value.includes("${paths."))
+        throw new Error(`${label}: path reference must occupy the entire string as \${paths.name}`);
+      return value;
+    }
+    if (!Object.hasOwn(paths, reference[1]))
+      throw new Error(`${label}: missing path binding: paths.${reference[1]}`);
+    return paths[reference[1]];
+  }
+  if (Array.isArray(value))
+    return value.map((item, index) => resolvePathBindings(item, paths, `${label}[${index}]`));
+  if (typeof value === "object")
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, resolvePathBindings(item, paths, `${label}.${key}`)]));
+  return value;
+}
+function resolvedAgentConfig(agent, harness, paths) {
+  const label = `agents/${agent.id}/agent.json.${harness}`;
+  const config = resolvePathBindings({ description: agent.description, ...agent[harness] }, paths, label);
+  if (harness === "pi")
+    validatePi(config, label);
+  else
+    validateCodex(config, label);
+  return config;
+}
+function renderPiAgent(agent, paths = {}) {
+  const config = resolvedAgentConfig(agent, "pi", paths);
   const lines = Object.keys(config).sort().map((key) => `${key}:${config[key] === "" ? "" : ` ${piScalar(config[key])}`}`);
   return `---
 ${lines.join(`
@@ -702,8 +744,8 @@ function tomlValue(value) {
     return `{ ${Object.keys(value).sort().map((key) => `${tomlKey(key)} = ${tomlValue(value[key])}`).join(", ")} }`;
   return typeof value === "string" ? tomlString(value) : JSON.stringify(value);
 }
-function renderCodexAgent(agent) {
-  const config = { description: agent.description, ...agent.codex };
+function renderCodexAgent(agent, paths = {}) {
+  const config = resolvedAgentConfig(agent, "codex", paths);
   const lines = Object.keys(config).sort().map((key) => `${tomlKey(key)} = ${tomlValue(config[key])}`);
   const escaped = [...agent.codexInstructions].map((char) => char === `
 ` ? `
@@ -962,11 +1004,11 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
   if (config.resources?.agents === true) {
     for (const agent of sources.agents || []) {
       if (config.harnesses.pi.enabled && agent.pi) {
-        const desired = renderPiAgent(agent);
+        const desired = renderPiAgent(agent, config.paths);
         targets.push({ id: `pi-agent-${agent.id}`, kind: "file", path: path6.join(config.harnesses.pi.agentDir, "agents", `${agent.pi.name}.md`), desired, owned: desired, agentDirectory: path6.join(config.harnesses.pi.agentDir, "agents") });
       }
       if (config.harnesses.codex.enabled && agent.codex) {
-        const desired = renderCodexAgent(agent);
+        const desired = renderCodexAgent(agent, config.paths);
         for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
           targets.push({ id: `${id}-agent-${agent.id}`, kind: "file", path: path6.join(home, "agents", `${agent.id}.toml`), desired, owned: desired, agentDirectory: path6.join(home, "agents") });
         }

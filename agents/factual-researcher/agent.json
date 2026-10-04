@@ -19,7 +19,7 @@
     "skills": {
       "config": [
         {
-          "path": "/home/abdwhb/.agents/skills/factual-research/SKILL.md",
+          "path": "${paths.factualResearchSkill}",
           "enabled": true
         }
       ]

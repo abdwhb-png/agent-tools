@@ -54,7 +54,7 @@ node dist/agent-sync.mjs sync
 node dist/agent-sync.mjs check
 ```
 
-Agent configuration is required separately, even if instruction synchronization is already configured. Review the preview before applying either workflow. After changing canonical sources, use that workflow's `sync --dry-run`, `sync` and `check` commands again.
+Agent configuration is required separately, even if instruction synchronization is already configured. Before syncing the Codex catalog, add the [local path bindings](#local-agent-path-bindings) from the agent example configuration and set their actual installation paths. `configure` preserves existing bindings but does not discover these external installations. Review the preview before applying either workflow. After changing canonical sources or local bindings, use that workflow's `sync --dry-run`, `sync` and `check` commands again.
 
 ## Commands and options
 
@@ -148,6 +148,7 @@ Configuration files are adjacent to this tool and Git-ignored. Create them throu
 | `schemaVersion` | Must be `2` for current configuration. |
 | `kind` | Must match the command: `instructions` or `agents`. |
 | `enabled` | Boolean controlling the whole workflow. |
+| `paths` | Optional map of named, absolute installation paths. Agent configuration only. |
 | `harnesses.pi` | Required object with `enabled` and, when enabled, `agentDir`. |
 | `harnesses.codex` | Required object with `enabled` and, when enabled, `home`. Optional `additionalHomes`. |
 | `harnesses.vscode` | Required for instructions, with `enabled` and a nonempty `targets` array when enabled. Invalid in agent configuration. |
@@ -157,6 +158,40 @@ Configuration files are adjacent to this tool and Git-ignored. Create them throu
 Unknown settings are rejected. Each additional home needs a unique lowercase ID matching `[a-z][a-z0-9-]*` and a distinct absolute path. A harness-level `enabled` switch applies to all its homes. A disabled harness retains its files and ownership records. Moving a harness also preserves the old files, and existing ownership identities can require explicit adoption at the new destination.
 
 On first configuration, Pi defaults to `~/.pi/agent`. Codex uses `CODEX_HOME` when set, otherwise `~/.codex`. Instruction configuration also enables the platform's standard VS Code target and leaves Zed disabled. Agent configuration includes only Pi and Codex. Existing configuration takes precedence over environment-derived defaults.
+
+### Local agent path bindings
+
+Tracked agent definitions reference local installation paths by name. Put the actual values in the Git-ignored `agents.config.json`. For example, the `pi-session-recall` MCP settings in `agents/pi-expert/agent.json` contain:
+
+```json
+{
+  "command": "node",
+  "args": ["${paths.piSessionRecallScript}", "--project-dir", "${paths.piProjectDir}"]
+}
+```
+
+The corresponding top-level setting in your local agent configuration is:
+
+```json
+{
+  "paths": {
+    "piSessionRecallScript": "/absolute/path/to/pi-session-recall/dist/mcp-bin.js",
+    "piProjectDir": "/absolute/path/to/.pi",
+    "factualResearchSkill": "/absolute/path/to/skills/factual-research/SKILL.md",
+    "youtubeServerScript": "/absolute/path/to/youtube-mcp-server/dist/index.js"
+  }
+}
+```
+
+These are excerpts, not complete files. The four bindings above are required by the current Codex catalog. Start from [agents.config.example.json](agents.config.example.json), replace its placeholders, and keep the complete configuration's `schemaVersion`, `kind`, `enabled` and `harnesses` settings. Existing users can add `paths` to their current configuration. These local values are preserved by subsequent `configure` operations.
+
+One shared resolver substitutes references in native string fields, including nested arrays and objects, before the resolved settings are validated and rendered. Use an entire string value such as `"${paths.piSessionRecallScript}"`. Embedded forms such as `"${paths.installDir}/server.js"` are rejected, so bind the complete file path instead. Binding names match `[A-Za-z][A-Za-z0-9_-]*`, and values must be literal absolute paths for the Node platform without nested path references or NUL characters. Neither shell commands nor environment variables are evaluated.
+
+Generated native files receive the resolved absolute paths. Shared descriptions, role prompts and Markdown supplements should remain portable. Prompt bodies are not templates. Credential environment references such as `env_vars` remain native settings.
+
+A missing binding for an enabled profile exits `2` in `doctor`, `check`, sync and adoption, including previews, and changes no files or ownership. The error identifies the role, native field and missing name. A disabled harness does not require its native profiles' bindings. A Pi-only configuration therefore does not need the current Codex path bindings. The resolver does not check whether a configured file exists or whether its runtime can start.
+
+Moving an installation requires changing its local binding, then previewing and applying agent sync. The resulting native content participates in the existing ownership hashes, conflicts, backups and rollback. Every Codex home in one agent configuration receives the same resolved profile. Instruction configuration does not accept or load these agent bindings.
 
 ### Multiple Codex homes
 
@@ -301,7 +336,7 @@ For example, create `agents/example-reviewer/role.md` with the role's responsibi
     "mcp_servers": {
       "docs": {
         "command": "node",
-        "args": ["/absolute/path/to/docs-server.js"],
+        "args": ["${paths.exampleDocsScript}"],
         "env_vars": ["DOCS_TOKEN"],
         "enabled_tools": ["search"]
       }
@@ -310,7 +345,7 @@ For example, create `agents/example-reviewer/role.md` with the role's responsibi
 }
 ```
 
-Tool groups and MCP selectors in this example must already exist in the relevant harness. The synchronizer does not install or resolve them. Use native environment references for credentials rather than committing secret values.
+Add `exampleDocsScript` with the absolute script path to your local configuration's `paths` map before enabling this Codex profile. Tool groups and MCP selectors in this example must already exist in the relevant harness. The synchronizer does not install or resolve those tools. Use native environment references for credentials rather than committing secret values.
 
 Descriptions inherit `agent.json.description`. Add `pi.description` or `codex.description` only when responsibilities or selection criteria materially differ. Formatting and native tool procedures do not justify a separate description.
 
@@ -432,7 +467,7 @@ Use the same arguments with `--apply` instead of `--dry-run` after review. Legac
 
 Import partitions ownership using agent directory metadata. It preserves destinations, target IDs, paths, hashes, disabled workflows, named homes and applicable retirement settings. Runtime target files and instruction markers remain untouched. The original inputs stay in place and receive private recovery copies when changes are applied. Divergent destination configuration or state blocks the entire import. An identical repeated import makes no changes. The shared transaction rolls back incomplete imports.
 
-Apply imports before using regular configure flags to change settings. When legacy agent synchronization was disabled, enable it explicitly afterward:
+Apply imports before using regular configure flags to change settings, then add the local path bindings before syncing the current Codex catalog. When legacy agent synchronization was disabled, enable it explicitly afterward:
 
 ```bash
 node dist/agent-sync.mjs configure --enable
@@ -459,6 +494,6 @@ bun run verify:dist
 
 Native TOML tests need Python 3.11+ for an independent `tomllib` parser. Pi parser integration uses an installed `pi-subagents` package at the default user location or the package root supplied by `PI_SUBAGENTS_DIR`, and skips when that parser is absent. These are validation requirements, not dependencies of the distributed CLIs. Static checks do not establish live agent behavior or MCP startup/authentication.
 
-Keep shared rules centralized: the two thin entrypoints in [src/instruction-sync.ts](src/instruction-sync.ts) and [src/agent-sync.ts](src/agent-sync.ts) bind a fixed domain and call [src/commands.ts](src/commands.ts). Configuration/state validation, migration, planning and file transactions each have one owning module. Native agent validation/rendering stays in [src/agents.ts](src/agents.ts), and instruction rendering in [src/renderers.ts](src/renderers.ts). Both standalone bundles embed the same shared source implementation for independent Node execution. Rebuild generated artifacts rather than editing them directly.
+Keep shared rules centralized: the two thin entrypoints in [src/instruction-sync.ts](src/instruction-sync.ts) and [src/agent-sync.ts](src/agent-sync.ts) bind a fixed domain and call [src/commands.ts](src/commands.ts). Configuration/state validation, migration, planning and file transactions each have one owning module. Native agent validation, path resolution and rendering stay in [src/agents.ts](src/agents.ts), and instruction rendering in [src/renderers.ts](src/renderers.ts). Both standalone bundles embed the same shared source implementation for independent Node execution. Rebuild generated artifacts rather than editing them directly.
 
-Architecture rationale is recorded in [ADR-001: synchronization safety](../../docs/decisions/001-cross-harness-instruction-synchronization.md), [ADR-002: instruction layers](../../docs/decisions/002-explicit-harness-instruction-layers.md), [ADR-003: native agents](../../docs/decisions/003-native-agent-synchronization.md) and [ADR-004: separate commands and shared mechanisms](../../docs/decisions/004-separate-synchronization-commands.md).
+Architecture rationale is recorded in [ADR-001: synchronization safety](../../docs/decisions/001-cross-harness-instruction-synchronization.md), [ADR-002: instruction layers](../../docs/decisions/002-explicit-harness-instruction-layers.md), [ADR-003: native agents](../../docs/decisions/003-native-agent-synchronization.md), [ADR-004: separate commands and shared mechanisms](../../docs/decisions/004-separate-synchronization-commands.md) and [ADR-005: local agent path bindings](../../docs/decisions/005-local-agent-path-bindings.md).

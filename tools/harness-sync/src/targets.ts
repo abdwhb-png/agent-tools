@@ -93,11 +93,11 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
   if (config.resources?.agents === true) {
     for (const agent of sources.agents || []) {
       if (config.harnesses.pi.enabled && agent.pi) {
-        const desired = renderPiAgent(agent);
+        const desired = renderPiAgent(agent, config.paths);
         targets.push({ id: `pi-agent-${agent.id}`, kind: "file", path: path.join(config.harnesses.pi.agentDir!, "agents", `${agent.pi.name}.md`), desired, owned: desired, agentDirectory: path.join(config.harnesses.pi.agentDir!, "agents") });
       }
       if (config.harnesses.codex.enabled && agent.codex) {
-        const desired = renderCodexAgent(agent);
+        const desired = renderCodexAgent(agent, config.paths);
         for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
           targets.push({ id: `${id}-agent-${agent.id}`, kind: "file", path: path.join(home, "agents", `${agent.id}.toml`), desired, owned: desired, agentDirectory: path.join(home, "agents") });
         }
