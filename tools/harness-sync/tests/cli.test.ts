@@ -1,4 +1,5 @@
 import { afterEach, expect, spyOn, test } from "bun:test";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -91,7 +92,7 @@ async function fixture() {
   };
 }
 
-test("CLI tags Pi modules with one introduction across its prompt files and isolates append content", async () => {
+test("CLI preserves the native Pi prompt and appends its operating layer once", async () => {
   const f = await fixture();
   await fs.mkdir(path.join(f.instructions, "pi", "system"));
   await fs.mkdir(path.join(f.instructions, "pi", "agents"));
@@ -99,18 +100,17 @@ test("CLI tags Pi modules with one introduction across its prompt files and isol
   await fs.writeFile(path.join(f.instructions, "pi", "agents", "workflow.md"), "Pi workflow\n");
 
   expect(f.run("sync").code).toBe(0);
-  const system = await fs.readFile(path.join(f.output, "pi", "SYSTEM.md"), "utf8");
+  expect(await fs.exists(path.join(f.output, "pi", "SYSTEM.md"))).toBe(false);
   const agents = await fs.readFile(path.join(f.output, "pi", "AGENTS.md"), "utf8");
   const append = await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8");
-  expect(system).toBe(
-    "Invariant\n\nFollow the instructions in the tagged modules below.\n\n<pi_system_tools>\n\nPi tools\n\n</pi_system_tools>\n",
+  expect(append).toBe(
+    "Invariant\n\nFollow the instructions in the tagged modules below.\n\n<pi_system_tools>\n\nPi tools\n\n</pi_system_tools>\n\nPi only\n",
   );
   expect(agents).toBe(
     "Preference\n\nTechnology\n\n<pi_agents_workflow>\n\nPi workflow\n\n</pi_agents_workflow>\n",
   );
-  expect(append).toBe("Pi only\n");
   expect(
-    `${system}${agents}${append}`.match(/Follow the instructions in the tagged modules below\./g),
+    `${agents}${append}`.match(/Follow the instructions in the tagged modules below\./g),
   ).toHaveLength(1);
   expect(await fs.readFile(path.join(f.output, "codex", "AGENTS.md"), "utf8")).toBe(
     "Preference\n\nTechnology\n",
@@ -127,6 +127,41 @@ test("instruction CLI dry-run previews writes without creating targets, state or
   expect(await fs.exists(path.join(f.root, "backups"))).toBe(false);
   expect(await fs.exists(path.join(f.output, "pi"))).toBe(false);
   expect(await fs.readdir(path.join(f.output, "codex"))).toEqual([]);
+});
+
+test("instruction CLI migrates legacy Pi ownership without changing other harnesses", async () => {
+  const f = await fixture();
+  expect(f.run("sync").code).toBe(0);
+  const system = path.join(f.output, "pi", "SYSTEM.md");
+  const append = path.join(f.output, "pi", "APPEND_SYSTEM.md");
+  const state = JSON.parse(await fs.readFile(f.statePath, "utf8"));
+  state.targets["pi-system"] = {
+    path: system,
+    ownedHash: crypto.createHash("sha256").update("Old operating rule\n").digest("hex"),
+  };
+  state.targets["pi-append-system"].ownedHash = crypto.createHash("sha256").update("Pi only\n").digest("hex");
+  await fs.writeFile(system, "Old operating rule\n");
+  await fs.writeFile(append, "Pi only\n");
+  await fs.writeFile(f.statePath, JSON.stringify(state));
+  const otherPaths = [f.codexConfig, path.join(f.output, "codex", "AGENTS.md"), path.join(f.output, "vscode.instructions.md")];
+  const before = await Promise.all(otherPaths.map((file) => fs.readFile(file, "utf8")));
+  const preview = f.run("sync", "--dry-run");
+  expect(preview.code).toBe(0);
+  expect(preview.stdout).toContain("remove     pi-system");
+  expect(preview.stdout).toContain("update     pi-append-system");
+  expect(await fs.readFile(system, "utf8")).toBe("Old operating rule\n");
+  expect(await fs.readFile(append, "utf8")).toBe("Pi only\n");
+  expect(JSON.parse(await fs.readFile(f.statePath, "utf8"))).toEqual(state);
+  expect(await fs.exists(path.join(f.root, "backups"))).toBe(false);
+  expect(f.run("sync").code).toBe(0);
+  expect(await fs.exists(system)).toBe(false);
+  expect(await fs.readFile(append, "utf8")).toBe("Invariant\n\nPi only\n");
+  expect(await Promise.all(otherPaths.map((file) => fs.readFile(file, "utf8")))).toEqual(before);
+  const migrated = JSON.parse(await fs.readFile(f.statePath, "utf8"));
+  expect(migrated.targets["pi-system"]).toBeUndefined();
+  for (const id of ["codex-config", "codex-agents", "vscode-0"]) expect(migrated.targets[id]).toEqual(state.targets[id]);
+  expect(f.run("sync").stdout).toContain("No target files changed.");
+  expect(f.run("check").code).toBe(0);
 });
 
 test("agent CLI resolves local path bindings in both native formats and preserves them when configuring", async () => {
@@ -685,7 +720,7 @@ test.each([
   expect(result.stderr).toContain("system/ or agents/");
   expect(await fs.readFile(f.codexConfig, "utf8")).toBe(priorConfig);
   expect(await fs.readFile(f.statePath, "utf8")).toBe(priorState);
-  expect(await fs.readFile(path.join(f.output, "pi", "SYSTEM.md"), "utf8")).toBe("Invariant\n");
+  expect(await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8")).toBe("Invariant\n\nPi only\n");
 });
 
 test("CLI sync discovers ordered Codex instructions without changing other harnesses", async () => {
@@ -702,7 +737,6 @@ test("CLI sync discovers ordered Codex instructions without changing other harne
   expect(first).not.toContain("\r");
   expect(first).not.toContain("\uFEFF");
   const otherPaths = [
-    path.join(f.output, "pi", "SYSTEM.md"),
     path.join(f.output, "pi", "AGENTS.md"),
     path.join(f.output, "pi", "APPEND_SYSTEM.md"),
     path.join(f.output, "codex", "AGENTS.md"),
@@ -710,9 +744,8 @@ test("CLI sync discovers ordered Codex instructions without changing other harne
   ];
   const before = await Promise.all(otherPaths.map((file) => fs.readFile(file, "utf8")));
   expect(before).toEqual([
-    "Invariant\n",
     "Preference\n\nTechnology\n",
-    "Pi only\n",
+    "Invariant\n\nPi only\n",
     "Preference\n\nTechnology\n",
     '---\napplyTo: "**"\n---\n\n<!-- agent-policy: invariants -->\nInvariant\n\n<!-- agent-policy: preferences -->\nPreference\n\nTechnology\n',
   ]);
@@ -845,15 +878,13 @@ test("CLI orders Pi and VS Code modules within each layer and supports removing 
   }
 
   expect(f.run("sync").code).toBe(0);
-  expect(await fs.readFile(path.join(f.output, "pi", "SYSTEM.md"), "utf8")).toBe(
-    "Invariant\n\nFollow the instructions in the tagged modules below.\n\n<pi_system_10_first>\n\npi system first\n\n</pi_system_10_first>\n\n<pi_system_20_second>\n\npi system second\n\n</pi_system_20_second>\n",
+  expect(await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8")).toBe(
+    "Invariant\n\nFollow the instructions in the tagged modules below.\n\n<pi_system_10_first>\n\npi system first\n\n</pi_system_10_first>\n\n<pi_system_20_second>\n\npi system second\n\n</pi_system_20_second>\n\nPi only\n",
   );
   expect(await fs.readFile(path.join(f.output, "pi", "AGENTS.md"), "utf8")).toBe(
     "Preference\n\nTechnology\n\n<pi_agents_10_first>\n\npi agents first\n\n</pi_agents_10_first>\n\n<pi_agents_20_second>\n\npi agents second\n\n</pi_agents_20_second>\n",
   );
-  expect(await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8")).toBe(
-    "Pi only\n",
-  );
+  expect(await fs.exists(path.join(f.output, "pi", "SYSTEM.md"))).toBe(false);
   expect(await fs.readFile(path.join(f.output, "vscode.instructions.md"), "utf8")).toBe(
     '---\napplyTo: "**"\n---\n\n<!-- agent-policy: invariants -->\nInvariant\n\nFollow the instructions in the tagged modules below.\n\n<vscode_system_10_first>\n\nvscode system first\n\n</vscode_system_10_first>\n\n<vscode_system_20_second>\n\nvscode system second\n\n</vscode_system_20_second>\n\n<!-- agent-policy: preferences -->\nPreference\n\nTechnology\n\n<vscode_agents_10_first>\n\nvscode agents first\n\n</vscode_agents_10_first>\n\n<vscode_agents_20_second>\n\nvscode agents second\n\n</vscode_agents_20_second>\n',
   );
@@ -864,8 +895,8 @@ test("CLI orders Pi and VS Code modules within each layer and supports removing 
   await fs.rm(path.join(f.instructions, "pi"), { recursive: true });
   await fs.rm(path.join(f.instructions, "vscode"), { recursive: true });
   expect(f.run("sync").code).toBe(0);
-  expect(await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8")).toBe("");
-  expect(await fs.readFile(path.join(f.output, "pi", "SYSTEM.md"), "utf8")).toBe("Invariant\n");
+  expect(await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8")).toBe("Invariant\n");
+  expect(await fs.exists(path.join(f.output, "pi", "SYSTEM.md"))).toBe(false);
   expect(await fs.readFile(path.join(f.output, "pi", "AGENTS.md"), "utf8")).toBe(
     "Preference\n\nTechnology\n",
   );
@@ -906,9 +937,55 @@ test("CLI Codex conflict blocks all writes without implicit adoption", async () 
   expect(sync.code).toBe(2);
   expect(sync.stderr).toContain("sync preflight failed: codex-config");
   expect(await fs.readFile(f.codexConfig, "utf8")).toBe(manual);
-  expect(await fs.readFile(path.join(f.output, "pi", "SYSTEM.md"), "utf8")).toBe("Invariant\n");
+  expect(await fs.readFile(path.join(f.output, "pi", "APPEND_SYSTEM.md"), "utf8")).toBe("Invariant\n\nPi only\n");
   expect(await fs.readFile(f.statePath, "utf8")).toBe(priorState);
   expect(await fs.exists(path.join(f.root, "backups"))).toBe(false);
+});
+
+test("targeted adoption ignores an unrelated conflict and preserves its file and ownership", async () => {
+  const f = await fixture();
+  expect(f.run("sync").code).toBe(0);
+  const manualCodex = (await fs.readFile(f.codexConfig, "utf8")).replace(
+    "Wait for an answer.",
+    "Independent Codex instruction.",
+  );
+  await fs.writeFile(f.codexConfig, manualCodex);
+  const append = path.join(f.output, "pi", "APPEND_SYSTEM.md");
+  await fs.writeFile(append, "Independent Pi instruction.\n");
+  await fs.writeFile(path.join(f.instructions, "pi", "APPEND_SYSTEM.md"), "Updated Pi only\n");
+  const beforeState = await fs.readFile(f.statePath, "utf8");
+  const state = JSON.parse(beforeState);
+  const agents = path.join(f.output, "pi", "AGENTS.md");
+  const beforeAgents = await fs.readFile(agents, "utf8");
+
+  const preview = f.run("adopt", "--target", "pi-append-system", "--dry-run");
+  expect(preview.code).toBe(0);
+  expect(preview.stdout).toContain("update     pi-append-system");
+  expect(preview.stdout).toContain("skip       codex-config");
+  expect(await fs.readFile(append, "utf8")).toBe("Independent Pi instruction.\n");
+  expect(await fs.readFile(f.statePath, "utf8")).toBe(beforeState);
+  expect(await fs.exists(path.join(f.root, "backups"))).toBe(false);
+
+  const applied = f.run("adopt", "--target", "pi-append-system", "--apply");
+  expect(applied.code).toBe(0);
+  expect(applied.stdout).toContain("Changed 1 target.");
+  expect(applied.stdout).toContain("changed    pi-append-system");
+  expect(applied.stdout).not.toContain("codex-config");
+  expect(await fs.readFile(append, "utf8")).toBe("Invariant\n\nUpdated Pi only\n");
+  expect(await fs.readFile(f.codexConfig, "utf8")).toBe(manualCodex);
+  expect(await fs.readFile(agents, "utf8")).toBe(beforeAgents);
+  const afterState = JSON.parse(await fs.readFile(f.statePath, "utf8"));
+  for (const [id, record] of Object.entries(state.targets)) {
+    if (id !== "pi-append-system") expect(afterState.targets[id]).toEqual(record);
+  }
+  const backupDirectories = await fs.readdir(path.join(f.root, "backups"));
+  expect(backupDirectories).toHaveLength(1);
+  const backups = path.join(f.root, "backups", backupDirectories[0]);
+  expect((await fs.readdir(backups)).sort()).toEqual(["ownership-state.bak", "pi-append-system.bak"]);
+  expect(await fs.readFile(path.join(backups, "pi-append-system.bak"), "utf8")).toBe("Independent Pi instruction.\n");
+  expect(f.run("check").stdout).toContain("conflict   codex-config");
+  expect(f.run("sync", "--dry-run")).toMatchObject({ code: 2, stderr: expect.stringContaining("sync preflight failed: codex-config") });
+  expect(f.run("sync")).toMatchObject({ code: 2, stderr: expect.stringContaining("sync preflight failed: codex-config") });
 });
 
 test("configure accepts a named additional Codex home", async () => {
@@ -1015,13 +1092,13 @@ test("adopt all reports changed, unchanged, and missing targets once", async () 
   const piHome = path.join(f.output, "pi");
   await fs.mkdir(piHome, { recursive: true });
   await fs.writeFile(path.join(piHome, "AGENTS.md"), "old preference\n");
-  await fs.writeFile(path.join(piHome, "APPEND_SYSTEM.md"), "Pi only\n");
+  await fs.writeFile(path.join(piHome, "APPEND_SYSTEM.md"), "Invariant\n\nPi only\n");
   const result = f.run("adopt", "--all", "--apply");
   expect(result.code).toBe(0);
   expect(result.stdout).toContain("Changed 1 target.");
   expect(result.stdout).toContain("changed    pi-agents");
   expect(result.stdout).toContain("current    pi-append-system");
-  expect(result.stdout).toContain("missing    pi-system");
+  expect(result.stdout).toContain("current    pi-system");
   expect(result.stdout.match(/pi-agents/g)).toHaveLength(1);
   expect(await fs.exists(path.join(piHome, "SYSTEM.md"))).toBe(false);
 });

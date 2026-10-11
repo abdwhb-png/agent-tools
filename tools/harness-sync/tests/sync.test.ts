@@ -39,8 +39,8 @@ test("sync creates missing targets, records state, and becomes idempotent", asyn
   const config = piOnly(path.join(root, "pi", "agent"));
   const statePath = path.join(root, "state", "state.json");
   await synchronize(config, emptyState(), statePath, source);
-  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "SYSTEM.md"), "utf8")).toBe(
-    "invariants\n",
+  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "APPEND_SYSTEM.md"), "utf8")).toBe(
+    "invariants\n\nappend\n",
   );
   const state = await loadState(statePath);
   expect(
@@ -65,7 +65,7 @@ test("dry-run plans missing targets without any mutating filesystem calls", asyn
   expect(await fs.readdir(root)).toEqual([]);
   expect(result.changed).toEqual([]);
   expect(result.actions.map((item) => [item.id, item.action])).toEqual([
-    ["pi-system", "create"],
+    ["pi-system", "unchanged"],
     ["pi-agents", "create"],
     ["pi-append-system", "create"],
   ]);
@@ -76,35 +76,35 @@ test("dry-run records matching unmanaged targets, previews adoption and blocks i
   const config = piOnly(path.join(root, "pi"));
   const statePath = path.join(root, "state.json");
   await fs.mkdir(config.harnesses.pi.agentDir!, { recursive: true });
-  const system = path.join(config.harnesses.pi.agentDir!, "SYSTEM.md");
-  await fs.writeFile(system, "invariants\n");
+  const append = path.join(config.harnesses.pi.agentDir!, "APPEND_SYSTEM.md");
+  await fs.writeFile(append, "invariants\n\nappend\n");
   const preview = await synchronize(config, emptyState(), statePath, source, { dryRun: true });
-  expect(preview.actions[0].action).toBe("record");
+  expect(preview.actions[2].action).toBe("record");
   expect(await fs.exists(statePath)).toBe(false);
   await synchronize(config, emptyState(), statePath, source);
   const previous = await fs.readFile(statePath, "utf8");
-  await fs.writeFile(system, "manual edit\n");
+  await fs.writeFile(append, "manual edit\n");
   const blocked = await synchronize(config, await loadState(statePath), statePath, source, {
     dryRun: true,
   });
-  expect(blocked.issues).toEqual(["sync preflight failed: pi-system"]);
-  expect(blocked.actions[0].action).toBe("blocked");
+  expect(blocked.issues).toEqual(["sync preflight failed: pi-append-system"]);
+  expect(blocked.actions[2].action).toBe("blocked");
   const adopted = await synchronize(config, await loadState(statePath), statePath, source, {
     dryRun: true,
     adopt: true,
-    adoptTargets: new Set(["pi-system"]),
+    adoptTargets: new Set(["pi-append-system"]),
   });
   expect(adopted.issues).toEqual([]);
-  expect(adopted.actions[0].action).toBe("update");
-  expect(await fs.readFile(system, "utf8")).toBe("manual edit\n");
+  expect(adopted.actions[2].action).toBe("update");
+  expect(await fs.readFile(append, "utf8")).toBe("manual edit\n");
   expect(await fs.readFile(statePath, "utf8")).toBe(previous);
   expect(await fs.exists(path.join(root, "backups"))).toBe(false);
   const applied = await synchronize(config, await loadState(statePath), statePath, source, {
     adopt: true,
-    adoptTargets: new Set(["pi-system"]),
+    adoptTargets: new Set(["pi-append-system"]),
   });
   expect(applied.actions).toEqual(adopted.actions);
-  expect(applied.changed).toEqual(["pi-system"]);
+  expect(applied.changed).toEqual(["pi-append-system"]);
 });
 
 test("a preflight conflict prevents stale sibling targets from being overwritten", async () => {
@@ -117,8 +117,8 @@ test("a preflight conflict prevents stale sibling targets from being overwritten
   await expect(
     synchronize(config, await loadState(statePath), statePath, changedSource),
   ).rejects.toThrow("sync preflight failed");
-  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "SYSTEM.md"), "utf8")).toBe(
-    "invariants\n",
+  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "APPEND_SYSTEM.md"), "utf8")).toBe(
+    "invariants\n\nappend\n",
   );
 });
 
@@ -139,8 +139,8 @@ test("outdated supplied ownership state cannot overwrite independent state chang
   await expect(
     synchronize(config, previous, statePath, { ...source, invariants: "updated\n" }),
   ).rejects.toThrow("ownership state changed");
-  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "SYSTEM.md"), "utf8")).toBe(
-    "invariants\n",
+  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "APPEND_SYSTEM.md"), "utf8")).toBe(
+    "invariants\n\nappend\n",
   );
   expect(await fs.readFile(statePath, "utf8")).toBe(independent);
   expect(await fs.exists(path.join(root, "backups"))).toBe(false);
@@ -178,8 +178,8 @@ test("a write failure rolls back targets already replaced and retains backups", 
       failingIo,
     ),
   ).rejects.toThrow("changed targets were rolled back");
-  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "SYSTEM.md"), "utf8")).toBe(
-    "invariants\n",
+  expect(await fs.readFile(path.join(config.harnesses.pi.agentDir!, "APPEND_SYSTEM.md"), "utf8")).toBe(
+    "invariants\n\nappend\n",
   );
   expect((await fs.readdir(path.join(root, "state", "backups"))).length).toBe(1);
 });

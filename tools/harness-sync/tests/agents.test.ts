@@ -76,6 +76,38 @@ async function fixture() {
   return { root, directory, definition, config };
 }
 
+test("targeted agent adoption restores selected profiles and preserves conflicting unselected profiles and retirements", async () => {
+  const f = await fixture();
+  const statePath = path.join(f.root, "state.json");
+  const sources = await loadCanonicalSources(f.root);
+  await synchronize(f.config, emptyState(), statePath, sources);
+  const pi = path.join(f.root, "pi", "agents", "pi-reviewer.md");
+  const codex = path.join(f.root, "codex", "agents", "reviewer.toml");
+  const windows = path.join(f.root, "windows", "agents", "reviewer.toml");
+  const retired = path.join(f.root, "codex", "agents", "old.toml");
+  const beforePi = await fs.readFile(pi, "utf8");
+  const beforeWindows = await fs.readFile(windows, "utf8");
+  const beforeState = await fs.readFile(statePath, "utf8");
+  await fs.writeFile(pi, "Independent Pi profile\n");
+  await fs.writeFile(codex, "Independent Codex profile\n");
+  await fs.writeFile(windows, "Independent Windows profile\n");
+  await fs.writeFile(retired, "Independent retired profile\n");
+  f.config.harnesses.codex.retiredAgents = ["old.toml"];
+  const result = await synchronize(f.config, await loadState(statePath), statePath, sources, {
+    adopt: true,
+    adoptTargets: new Set(["pi-agent-reviewer", "codex-windows-agent-reviewer"]),
+  });
+  expect(result.changed).toEqual(["pi-agent-reviewer", "codex-windows-agent-reviewer"]);
+  expect(await fs.readFile(pi, "utf8")).toBe(beforePi);
+  expect(await fs.readFile(windows, "utf8")).toBe(beforeWindows);
+  expect(await fs.readFile(codex, "utf8")).toBe("Independent Codex profile\n");
+  expect(await fs.readFile(retired, "utf8")).toBe("Independent retired profile\n");
+  expect(await fs.readFile(statePath, "utf8")).toBe(beforeState);
+  expect(result.actions.filter(({ action }) => action === "skip").map(({ id }) => id)).toEqual([
+    "codex-agent-reviewer", "codex-agent-retired-old",
+  ]);
+});
+
 test.each([
   "prefix ${paths.serverScript}",
   "${paths.serverScript}/entry.js",

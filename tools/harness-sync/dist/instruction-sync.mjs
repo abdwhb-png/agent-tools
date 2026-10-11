@@ -984,8 +984,8 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
     }
     if (config.harnesses.pi.enabled) {
       const agentDir = config.harnesses.pi.agentDir;
-      const piInstructions = composeInstructions([sources.piAppendSystem]);
-      targets.push({ id: "pi-system", kind: "file", path: path6.join(agentDir, "SYSTEM.md"), desired: layers.pi.system, owned: layers.pi.system }, { id: "pi-agents", kind: "file", path: path6.join(agentDir, "AGENTS.md"), desired: layers.pi.agents, owned: layers.pi.agents }, { id: "pi-append-system", kind: "file", path: path6.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions });
+      const piInstructions = composeInstructions([layers.pi.system, sources.piAppendSystem]);
+      targets.push({ id: "pi-system", kind: "file", path: path6.join(agentDir, "SYSTEM.md"), desired: "", owned: "", operation: "delete" }, { id: "pi-agents", kind: "file", path: path6.join(agentDir, "AGENTS.md"), desired: layers.pi.agents, owned: layers.pi.agents }, { id: "pi-append-system", kind: "file", path: path6.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions });
     }
     if (config.harnesses.codex.enabled) {
       for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
@@ -1091,12 +1091,13 @@ async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnma
     const owned = ownedContent(target, existing);
     const prior = state.targets[target.id];
     if (target.operation === "delete") {
-      const status = existing === undefined ? prior ? "obsolete" : "current" : prior?.path === target.path && prior.agentDirectory === target.agentDirectory && owned !== undefined && hash(owned) === prior.ownedHash ? "obsolete" : "conflict";
+      const sameOwner = prior?.path === target.path && prior.agentDirectory === target.agentDirectory;
+      const status = prior && !sameOwner ? "conflict" : existing === undefined ? prior ? "obsolete" : "current" : sameOwner && owned !== undefined && hash(owned) === prior.ownedHash ? "obsolete" : "conflict";
       assessments.push({
         target,
         existing,
         status,
-        detail: status === "current" ? "retired agent is absent" : status === "obsolete" ? "managed agent is scheduled for removal" : "obsolete agent is unmanaged or changed independently; preserve it or adopt explicitly"
+        detail: status === "current" ? `retired ${target.agentDirectory ? "agent" : "instruction"} is absent` : status === "obsolete" ? `managed ${target.agentDirectory ? "agent" : "instruction"} is scheduled for removal` : "retired target is unmanaged, changed independently or owned at another path; preserve it or adopt explicitly"
       });
       continue;
     }
@@ -1155,6 +1156,8 @@ async function synchronize(config, state, statePath, sources, options = {}, io =
   const assessments = await assessTargets(config, state, sources, io, options.adopt === true);
   const selected = options.adoptAll ? new Set(assessments.map((item) => item.target.id)) : options.adoptTargets;
   const blocked = assessments.filter((item) => {
+    if (options.adopt && !selected?.has(item.target.id))
+      return false;
     if (options.adopt && selected?.has(item.target.id) && item.status !== "missing")
       return false;
     return item.status === "conflict";

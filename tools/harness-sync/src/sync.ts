@@ -96,27 +96,29 @@ export async function assessTargets(
     const owned = ownedContent(target, existing);
     const prior = state.targets[target.id];
     if (target.operation === "delete") {
+      const sameOwner =
+        prior?.path === target.path &&
+        prior.agentDirectory === target.agentDirectory;
       const status =
-        existing === undefined
-          ? prior
-            ? "obsolete"
-            : "current"
-          : prior?.path === target.path &&
-              prior.agentDirectory === target.agentDirectory &&
-              owned !== undefined &&
-              hash(owned) === prior.ownedHash
-            ? "obsolete"
-            : "conflict";
+        prior && !sameOwner
+          ? "conflict"
+          : existing === undefined
+            ? prior
+              ? "obsolete"
+              : "current"
+            : sameOwner && owned !== undefined && hash(owned) === prior.ownedHash
+              ? "obsolete"
+              : "conflict";
       assessments.push({
         target,
         existing,
         status,
         detail:
           status === "current"
-            ? "retired agent is absent"
+            ? `retired ${target.agentDirectory ? "agent" : "instruction"} is absent`
             : status === "obsolete"
-              ? "managed agent is scheduled for removal"
-              : "obsolete agent is unmanaged or changed independently; preserve it or adopt explicitly",
+              ? `managed ${target.agentDirectory ? "agent" : "instruction"} is scheduled for removal`
+              : "retired target is unmanaged, changed independently or owned at another path; preserve it or adopt explicitly",
       });
       continue;
     }
@@ -212,6 +214,7 @@ export async function synchronize(
     ? new Set(assessments.map((item) => item.target.id))
     : options.adoptTargets;
   const blocked = assessments.filter((item) => {
+    if (options.adopt && !selected?.has(item.target.id)) return false;
     if (options.adopt && selected?.has(item.target.id) && item.status !== "missing") return false;
     return item.status === "conflict";
   });

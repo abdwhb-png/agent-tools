@@ -57,9 +57,9 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
     }
     if (config.harnesses.pi.enabled) {
       const agentDir = config.harnesses.pi.agentDir!;
-      const piInstructions = composeInstructions([sources.piAppendSystem]);
+      const piInstructions = composeInstructions([layers.pi.system, sources.piAppendSystem]);
       targets.push(
-        { id: "pi-system", kind: "file", path: path.join(agentDir, "SYSTEM.md"), desired: layers.pi.system, owned: layers.pi.system },
+        { id: "pi-system", kind: "file", path: path.join(agentDir, "SYSTEM.md"), desired: "", owned: "", operation: "delete" },
         { id: "pi-agents", kind: "file", path: path.join(agentDir, "AGENTS.md"), desired: layers.pi.agents, owned: layers.pi.agents },
         { id: "pi-append-system", kind: "file", path: path.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions },
       );

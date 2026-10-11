@@ -72,7 +72,7 @@ node dist/agent-sync.mjs <configure|doctor|check|sync|adopt> [options]
 | `configure` | Preview or change this workflow's settings. Also provides legacy import. | Only with `--apply`. |
 | `doctor` | Report configuration/state paths, target IDs and current status. | Never. |
 | `check` | Report target status and signal drift through the exit code. | Never. |
-| `sync` | Create missing targets, update unchanged managed targets, record matching files and remove eligible obsolete agents. | Applies by default. `--dry-run` previews. |
+| `sync` | Create missing targets, update unchanged managed targets, record matching files and remove eligible retired targets. | Applies by default. `--dry-run` previews. |
 | `adopt` | Explicitly replace selected targets with canonical output and take ownership. Unowned missing targets are skipped. Retired agents are recorded for later deletion. | Requires `--dry-run` or `--apply`. |
 
 ### Shared options
@@ -87,7 +87,7 @@ node dist/agent-sync.mjs <configure|doctor|check|sync|adopt> [options]
 
 `--apply` and `--dry-run` cannot be combined. A dry-run creates no target files, configuration files, state, temporary files, directories or backups. Preview and execution use the same synchronization operation plan and conflict rules. Execution also checks that file contents have not changed since preflight. A preview does not guarantee future filesystem access or runtime behavior.
 
-Synchronization and adoption previews report operations such as `create`, `update`, `remove`, `record` and `forget`, plus unchanged/skipped/blocked targets, totals and whether ownership would change. `record` updates ownership without changing target content. `forget` removes obsolete ownership for an already absent agent. A blocked plan applies nothing.
+Synchronization and adoption previews report operations such as `create`, `update`, `remove`, `record` and `forget`, plus unchanged/skipped/blocked targets, totals and whether ownership would change. `record` updates ownership without changing target content. `forget` removes obsolete ownership for an already absent retired target. A blocked plan applies nothing.
 
 ### Configure options
 
@@ -129,7 +129,7 @@ node dist/agent-sync.mjs adopt --target codex-agent-quick-reviewer --dry-run
 node dist/agent-sync.mjs adopt --target codex-agent-quick-reviewer --apply
 ```
 
-`--target ID` is repeatable. `--all` selects targets in that command's domain and cannot be combined with `--target`. Prefer named targets when reviewing a specific conflict. Adoption skips unowned missing targets, which a later sync can create. Explicit adoption can recreate a previously managed file that now reports a conflict. Unselected conflicts in the same domain still block adoption, so review and select every conflict you intend to resolve. Instructions and agents remain independent.
+`--target ID` is repeatable. `--all` selects targets in that command's domain and cannot be combined with `--target`. Prefer named targets when reviewing a specific conflict. Adoption skips unowned missing targets, which a later sync can create. Explicit adoption can recreate a previously managed file that now reports a conflict. Targeted adoption ignores ownership conflicts on unselected targets and preserves their files and ownership records. Those conflicts remain visible in `doctor` and `check` and still block a later global `sync`. `adopt --all` explicitly selects every enabled target for adoption. Configuration and canonical source validation still cover enabled resources before any writes, and unknown target IDs remain errors. Instructions and agents remain independent.
 
 ### Exit codes
 
@@ -260,12 +260,12 @@ The operating layer combines `invariant.md` with that harness's system modules. 
 
 | Harness | Operating layer | Personal guidance | Append source |
 | --- | --- | --- | --- |
-| Pi | `<agentDir>/SYSTEM.md` | `<agentDir>/AGENTS.md` | `<agentDir>/APPEND_SYSTEM.md` |
+| Pi | First in `<agentDir>/APPEND_SYSTEM.md` | `<agentDir>/AGENTS.md` | After the operating layer in the same append file. |
 | Codex | Managed `developer_instructions` block in `<home>/config.toml` | `<home>/AGENTS.md` | Excluded. |
 | VS Code | Combined output at each configured target, with invariants and preferences sections and `applyTo: "**"` | Included in the same file. | Excluded. |
 | Zed | Combined operating layer then personal guidance in `<home>/AGENTS.md` | Included in the same file. | Excluded. |
 
-Pi's custom `SYSTEM.md` replaces its built-in prompt preamble. Source separation does not grant system or developer priority to VS Code or Zed files. Instructions express intended behavior, which should be checked separately in a fresh harness session.
+Pi retains its native system prompt. The synchronizer never creates `SYSTEM.md` and retires its former managed output through the protected transition below. Source separation does not grant system or developer priority to VS Code or Zed files. Instructions express intended behavior, which should be checked separately in a fresh harness session.
 
 ### Module tags and validation
 
@@ -281,9 +281,9 @@ Module content goes here.
 
 Nonempty modules that produce the same tag are rejected. Module content must not contain opening or closing tags in the reserved `<harness>_<system|agents>_<module>` namespace. Keep canonical sources as plain Markdown without generated wrappers. Shared files and the Pi append source have no generated tags.
 
-The introduction `Follow the instructions in the tagged modules below.` appears once when a harness has nonempty modules. Pi places it in `SYSTEM.md` and Codex in `developer_instructions`, covering their separate personal guidance files. VS Code and Zed include it in their combined output.
+The introduction `Follow the instructions in the tagged modules below.` appears once when a harness has nonempty modules. Pi places it in `APPEND_SYSTEM.md` and Codex in `developer_instructions`, covering their separate personal guidance files. VS Code and Zed include it in their combined output.
 
-Markdown directly under `instructions/<harness>/` is rejected except the exact `pi/APPEND_SYSTEM.md` source. Move old modules into `system/` or `agents/` and rename `pi/append-system.md` to `pi/APPEND_SYSTEM.md`. A missing append source produces an empty managed append file. A `"""` delimiter in Codex's operating layer blocks rendering, while Codex personal guidance remains plain Markdown without this restriction.
+Markdown directly under `instructions/<harness>/` is rejected except the exact `pi/APPEND_SYSTEM.md` source. Move old modules into `system/` or `agents/` and rename `pi/append-system.md` to `pi/APPEND_SYSTEM.md`. A missing dedicated append source leaves the operating layer in the managed Pi append file. A `"""` delimiter in Codex's operating layer blocks rendering, while Codex personal guidance remains plain Markdown without this restriction.
 
 ### Codex managed region
 
@@ -298,6 +298,16 @@ Generated operating instructions.
 ```
 
 Other settings are preserved. An existing unmanaged `developer_instructions` assignment requires explicit adoption. The supported adoption form is a multiline TOML basic string with its opening and closing delimiters on separate lines. Unsupported assignments or malformed managed markers fail validation. The global `AGENTS.md` and other standalone instruction outputs are owned as whole files.
+
+### Transition existing Pi instructions
+
+`pi-system` is now a retirement target for `<agentDir>/SYSTEM.md`, not a generated prompt. With Pi enabled, sync removes it only when the recorded path and ownership hash match. Removal receives a recovery backup and shares the transaction with the append update and state. If the owned file is already absent, sync forgets its record and never recreates it. An absent unowned file stays absent. A modified or unmanaged file blocks all instruction writes, as does ownership at a different path. Disabling Pi leaves its files and records untouched.
+
+Review the existing files and run `instruction-sync sync --dry-run` before applying. For a Pi-only transition, use a separate instruction configuration with Pi enabled and Codex, VS Code and Zed disabled. Preserve the instruction ownership state, including the old `pi-system` record. Use a copy of that state for isolated previews, and the original state for an authorized application. Never use agent-sync or an empty state to bypass an instruction conflict.
+
+If the old system content contains independent changes, retain them in the appropriate canonical sources before any deletion. After reviewing the exact file to retire, `instruction-sync adopt --target pi-system --dry-run` previews ownership adoption. The same command with `--apply` records its current hash without deleting or replacing it. A subsequent reviewed sync backs up and removes it. An independently modified `pi-append-system` still requires its ordinary source review and explicit adoption. Apply with the same scoped configuration and original instruction state only after reviewing a fresh dry-run.
+
+Target and ownership-state backups must be recovered together. Restoring `SYSTEM.md` makes Pi use a replacement prompt again. After transition, repeated sync is idempotent. Repository-local `SYSTEM.md`, explicit CLI prompt overrides and extension mutations are outside this global-output transition, so qualification in a real provider session remains a separate check. See [ADR-006](../../docs/decisions/006-additive-pi-instructions.md).
 
 ## Agent sources and outputs
 
@@ -428,9 +438,9 @@ Adoption records the current retired file's hash without deleting it. Sync check
 | `untracked` | Existing output matches canonical content but has no ownership record. | Sync records ownership without replacing the file. |
 | `stale` | Canonical sources changed while managed target content stayed unchanged. | Sync updates it with a backup. |
 | `conflict` | Existing output diverges, a managed file/region disappeared, or ownership points elsewhere. | Review and explicitly adopt or restore the expected content. |
-| `obsolete` | A removed/retired agent has eligible ownership, including an already absent file with a remaining record. | Sync removes the file if present and forgets its ownership. |
+| `obsolete` | A removed/retired target has eligible ownership, including an already absent file with a remaining record. | Sync removes the file if present and forgets its ownership. |
 
-`doctor` and `check` print these statuses with IDs and paths. A conflict blocks all writes in that command's transaction, including unrelated targets within the same domain. Source validation also runs before synchronization. A missing previously managed file is a conflict, not permission to recreate it automatically.
+`doctor` and `check` print these statuses with IDs and paths. During `sync`, a conflict blocks all writes in that command's transaction, including unrelated targets within the same domain. Targeted `adopt` changes only its selected targets and leaves unselected ownership conflicts unresolved. Source validation still runs before either operation. A missing previously managed file is a conflict, not permission to recreate it automatically.
 
 ### Safe writes and removals
 
@@ -438,7 +448,7 @@ One shared transaction handles configuration, import, target changes, deletions 
 
 Applied operations report changed targets first and summarize backup directories. A successful repeated sync makes no changes. If only ownership changes, the command may report no target file changes even though state was updated.
 
-Agent source removal schedules deletion only inside enabled, currently configured output directories. The record must point to the same directory/path and its ownership hash must match current normalized content. Independent edits block deletion and sibling writes. Unmanaged files outside explicit adoption/retirement targets remain untouched. Moving or disabling a harness preserves its old files and records. Instruction targets do not have automatic obsolete-file deletion.
+Agent source removal schedules deletion only inside enabled, currently configured output directories. The record must point to the same directory/path and its ownership hash must match current normalized content. Independent edits block deletion and sibling writes. Unmanaged files outside explicit adoption/retirement targets remain untouched. Moving or disabling a harness preserves its old files and records. Instruction targets do not have general obsolete-file deletion. The explicit `pi-system` retirement below is the only instruction removal target.
 
 To keep an agent local while removing it from canonical management, back up its native file and the agent state, then explicitly release its ownership record as part of that migration before removing its source/profile. There is no release command. Removing the canonical source alone schedules deletion on the next sync.
 
@@ -500,4 +510,4 @@ Agent tests use temporary catalogs and assert that rendering preserves their con
 
 Keep shared rules centralized: the two thin entrypoints in [src/instruction-sync.ts](src/instruction-sync.ts) and [src/agent-sync.ts](src/agent-sync.ts) bind a fixed domain and call [src/commands.ts](src/commands.ts). Configuration/state validation, migration, planning and file transactions each have one owning module. Native agent validation, path resolution and rendering stay in [src/agents.ts](src/agents.ts), and instruction rendering in [src/renderers.ts](src/renderers.ts). Both standalone bundles embed the same shared source implementation for independent Node execution. Rebuild generated artifacts rather than editing them directly.
 
-Architecture rationale is recorded in [ADR-001: synchronization safety](../../docs/decisions/001-cross-harness-instruction-synchronization.md), [ADR-002: instruction layers](../../docs/decisions/002-explicit-harness-instruction-layers.md), [ADR-003: native agents](../../docs/decisions/003-native-agent-synchronization.md), [ADR-004: separate commands and shared mechanisms](../../docs/decisions/004-separate-synchronization-commands.md) and [ADR-005: local agent path bindings](../../docs/decisions/005-local-agent-path-bindings.md).
+Architecture rationale is recorded in [ADR-001: synchronization safety](../../docs/decisions/001-cross-harness-instruction-synchronization.md), [ADR-002: instruction layers](../../docs/decisions/002-explicit-harness-instruction-layers.md), [ADR-003: native agents](../../docs/decisions/003-native-agent-synchronization.md), [ADR-004: separate commands and shared mechanisms](../../docs/decisions/004-separate-synchronization-commands.md) [ADR-005: local agent path bindings](../../docs/decisions/005-local-agent-path-bindings.md) and [ADR-006: additive Pi instructions](../../docs/decisions/006-additive-pi-instructions.md).

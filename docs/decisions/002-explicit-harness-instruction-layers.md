@@ -4,7 +4,7 @@ Tool naming and specialist-agent synchronization are updated by [ADR-003](003-na
 
 ## Status
 
-Accepted. Supersedes the harness source discovery and composition rules in ADR-001. Its target configuration, state identity, conflict protection, backups, and manual synchronization remain applicable.
+Accepted. The Pi replacement-prompt destination and append isolation below are superseded by [ADR-006](006-additive-pi-instructions.md). Supersedes the harness source discovery and composition rules in ADR-001. Its target configuration, state identity, conflict protection, backups, and manual synchronization remain applicable.
 
 ## Date
 
