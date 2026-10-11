@@ -10,6 +10,7 @@ Reusable instructions, specialist agents, skills and supporting tools for AI cod
 | [`agents/`](agents/) | Shared specialist roles, explicit Pi and Codex settings, and optional native procedures. |
 | [`skills/`](skills/) | Reusable workflows with a `SKILL.md` entrypoint and their supporting files. |
 | [`tools/harness-sync/`](tools/harness-sync/README.md) | Independent `instruction-sync` and `agent-sync` commands with previews, ownership tracking and recovery backups. |
+| [`tools/codex-desktop-proxy/`](tools/codex-desktop-proxy/README.md) | Windows/WSL Desktop proxy preserving configured developer instructions and project paths, with installation and rollback. |
 | [`docs/decisions/`](docs/decisions/) | Architecture decisions and their rationale. |
 
 ## Getting started

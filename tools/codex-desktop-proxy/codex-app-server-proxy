@@ -1,0 +1,587 @@
+#!/usr/bin/env python3
+"""Preserve WSL project paths and configured developer instructions in Desktop."""
+
+# codex-fixes-project-path-proxy-v1
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import signal
+import subprocess
+import sys
+import threading
+import time
+import uuid
+from typing import Any, Iterable
+
+
+VERSION = "1.1.1"
+MARKER = "codex-fixes-project-path-proxy-v1"
+PROJECT_METHODS = frozenset(
+    {"project/create", "project/import", "project/update"}
+)
+THREAD_METHODS = frozenset({"thread/start", "thread/resume", "thread/fork"})
+BLOCK_END = "\n<!-- /codex-fixes:developer-instructions -->"
+BLOCK_START = re.compile(
+    r"(?:\n\n)?<!-- codex-fixes:developer-instructions "
+    r"sha256=([a-f0-9]{64}) chars=([0-9]+) -->\n"
+)
+
+
+class InstructionResolutionError(Exception):
+    """A thread must not start with an unverified instruction replacement."""
+
+
+def merge_instructions(desktop: str, configured: str) -> str:
+    # Length and hash distinguish our persisted block from surrounding host text.
+    fragments = []
+    cursor = 0
+    while match := BLOCK_START.search(desktop, cursor):
+        end = match.end() + int(match[2])
+        content = desktop[match.end():end]
+        if (
+            not desktop.startswith(BLOCK_END, end)
+            or hashlib.sha256(content.encode("utf-8")).hexdigest() != match[1]
+        ):
+            raise InstructionResolutionError("managed instruction block is invalid")
+        fragments.append(desktop[cursor:match.start()])
+        cursor = end + len(BLOCK_END)
+    fragments.append(desktop[cursor:])
+    host = "".join(fragments)
+    if not configured or configured in host:
+        return host
+    digest = hashlib.sha256(configured.encode("utf-8")).hexdigest()
+    separator = "\n\n" if host else ""
+    return (
+        f"{host}{separator}<!-- codex-fixes:developer-instructions "
+        f"sha256={digest} chars={len(configured)} -->\n{configured}{BLOCK_END}"
+    )
+
+
+def translate_path(value: str, distro: str | None) -> str:
+    """Return the WSL path equivalent of a Windows drive or WSL UNC path."""
+    if not value or "\0" in value:
+        return value
+
+    path = value
+    folded = path.casefold()
+    if folded.startswith("\\\\?\\unc\\"):
+        path = "\\\\" + path[8:]
+    elif path.startswith("\\\\?\\"):
+        path = path[4:]
+
+    normalized = path.replace("\\", "/")
+    unc = re.match(
+        r"^//(?:wsl\$|wsl\.localhost)/([^/]+)(/.*)?$",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if unc:
+        requested_distro = unc.group(1)
+        if distro and requested_distro.casefold() != distro.casefold():
+            return value
+        return re.sub(r"/{2,}", "/", unc.group(2) or "/")
+
+    drive = re.match(r"^([A-Za-z]):/(.*)$", normalized)
+    if drive:
+        drive_letter = drive.group(1).lower()
+        tail = drive.group(2)
+        return f"/mnt/{drive_letter}/{tail}".rstrip("/")
+
+    return value
+
+
+def rewrite_message(message: Any, distro: str | None) -> tuple[Any, int]:
+    """Rewrite only root paths in the three affected project requests."""
+    if not isinstance(message, dict) or message.get("method") not in PROJECT_METHODS:
+        return message, 0
+
+    params = message.get("params")
+    if not isinstance(params, dict) or not isinstance(params.get("roots"), list):
+        return message, 0
+
+    rewritten_roots: list[Any] = []
+    changes = 0
+    for root in params["roots"]:
+        if not isinstance(root, dict) or not isinstance(root.get("path"), str):
+            rewritten_roots.append(root)
+            continue
+        translated = translate_path(root["path"], distro)
+        if translated == root["path"]:
+            rewritten_roots.append(root)
+            continue
+        rewritten_roots.append({**root, "path": translated})
+        changes += 1
+
+    if not changes:
+        return message, 0
+    return {
+        **message,
+        "params": {**params, "roots": rewritten_roots},
+    }, changes
+
+
+def rewrite_wire_line(line: bytes, distro: str | None) -> tuple[bytes, int]:
+    """Preserve unrelated JSONL bytes exactly; re-encode only changed requests."""
+    if b"project/" not in line:
+        return line, 0
+
+    ending = b"\r\n" if line.endswith(b"\r\n") else b"\n" if line.endswith(b"\n") else b""
+    payload = line[: -len(ending)] if ending else line
+    try:
+        message = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return line, 0
+
+    rewritten, changes = rewrite_message(message, distro)
+    if not changes:
+        return line, 0
+    encoded = json.dumps(
+        rewritten,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return encoded + (ending or b"\n"), changes
+
+
+def _state_dir() -> Path:
+    base = os.environ.get("XDG_STATE_HOME")
+    if base:
+        return Path(base).expanduser() / "codex-fixes"
+    return Path.home() / ".local/state/codex-fixes"
+
+
+def _log(message: str) -> None:
+    try:
+        directory = _state_dir()
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with (directory / "proxy.log").open("a", encoding="utf-8") as stream:
+            stream.write(message.rstrip() + "\n")
+    except OSError:
+        pass
+
+
+def _looks_like_proxy(path: Path) -> bool:
+    try:
+        with path.open("rb") as stream:
+            return MARKER.encode("ascii") in stream.read(4096)
+    except OSError:
+        return False
+
+
+def _same_file(left: Path, right: Path) -> bool:
+    try:
+        return left.samefile(right)
+    except OSError:
+        return left.resolve(strict=False) == right.resolve(strict=False)
+
+
+def _codex_home_path() -> Path | None:
+    raw = os.environ.get("CODEX_HOME")
+    if not raw:
+        return None
+    translated = translate_path(raw, os.environ.get("WSL_DISTRO_NAME"))
+    return Path(translated).expanduser()
+
+
+def _cached_codex_candidates(root: Path) -> list[Path]:
+    candidates: list[tuple[int, Path]] = []
+    try:
+        for candidate in (root / "bin/wsl").glob("*/codex"):
+            try:
+                candidates.append((candidate.stat().st_mtime_ns, candidate))
+            except OSError:
+                continue
+    except OSError:
+        return []
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return [candidate for _, candidate in candidates]
+
+
+def _candidate_paths() -> Iterable[Path]:
+    explicit = os.environ.get("CODEX_FIXES_REAL_CODEX")
+    if explicit:
+        yield Path(explicit).expanduser()
+
+    codex_home = _codex_home_path()
+    if codex_home is not None:
+        yield from _cached_codex_candidates(codex_home)
+
+    for raw_directory in os.environ.get("PATH", "").split(os.pathsep):
+        if raw_directory:
+            yield Path(raw_directory).expanduser() / "codex"
+
+    yield Path("/usr/local/bin/codex")
+    yield Path("/usr/bin/codex")
+
+
+def find_real_codex(self_path: Path | None = None) -> Path:
+    own_path = (self_path or Path(__file__)).resolve(strict=False)
+    seen: set[str] = set()
+    for candidate in _candidate_paths():
+        resolved = candidate.resolve(strict=False)
+        key = os.fspath(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        if not candidate.is_file() or not os.access(candidate, os.X_OK):
+            continue
+        if _same_file(candidate, own_path) or _looks_like_proxy(candidate):
+            continue
+        return candidate
+    raise RuntimeError(
+        "the bundled WSL Codex executable was not found under CODEX_HOME or PATH"
+    )
+
+
+def _child_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    # The real CLI should see the same environment it normally receives, not
+    # the Desktop-only selector that points back at this proxy.
+    environment.pop("CODEX_CLI_PATH", None)
+    environment["CODEX_FIXES_PROXY_ACTIVE"] = "1"
+    return environment
+
+
+def _copy_stream(source: Any, destination: Any) -> None:
+    try:
+        while True:
+            block = source.read(65536)
+            if not block:
+                break
+            destination.write(block)
+            destination.flush()
+    except (BrokenPipeError, OSError):
+        pass
+
+
+class InstructionBridge:
+    """Resolve host overrides without blocking client replies or leaking internal RPCs."""
+
+    def __init__(self, client_input: Any, client_output: Any, backend_input: Any,
+                 backend_output: Any, distro: str | None):
+        self.client_input = client_input
+        self.client_output = client_output
+        self.backend_input = backend_input
+        self.backend_output = backend_output
+        self.distro = distro
+        self.translated = 0
+        self.prefix = f"codex-fixes:{uuid.uuid4()}:"
+        self.sequence = 0
+        self.pending: dict[str, tuple[dict, bytes, float, str]] = {}
+        self.active = 0
+        self.input_ended = False
+        self.stopped = threading.Event()
+        self.state_lock = threading.Lock()
+        self.backend_lock = threading.Lock()
+        self.client_lock = threading.Lock()
+
+    def _send_backend(self, line: bytes) -> None:
+        with self.backend_lock:
+            try:
+                self.backend_input.write(line)
+                self.backend_input.flush()
+            except (OSError, ValueError) as error:
+                raise InstructionResolutionError("backend transport is unavailable") from error
+
+    def _send_client(self, line: bytes) -> None:
+        with self.client_lock:
+            try:
+                self.client_output.write(line)
+                self.client_output.flush()
+            except (OSError, ValueError):
+                self.stopped.set()
+
+    @staticmethod
+    def _encode(message: dict) -> bytes:
+        return json.dumps(message, ensure_ascii=False, separators=(",", ":")).encode() + b"\n"
+
+    def _finish(self) -> None:
+        with self.state_lock:
+            self.active -= 1
+        self._close_input_if_finished()
+
+    def _fail(self, context: tuple, reason: str) -> None:
+        message = context[0]
+        self._send_client(self._encode({
+            "id": message["id"],
+            "error": {"code": -32603, "message": f"Codex Fixes: {reason}; thread request was not forwarded"},
+        }))
+        _log(f"instruction resolution failed: method={message['method']}; stage={context[3] or 'starting'}; "
+             f"elapsed_ms={int((time.monotonic() - context[2]) * 1000)}; reason={reason}")
+        self._finish()
+
+    def _close_input_if_finished(self) -> None:
+        with self.state_lock:
+            finished = self.input_ended and self.active == 0
+        if finished:
+            with self.backend_lock:
+                self.backend_input.close()
+
+    def _query(self, context: tuple, method: str, params: dict, stage: str) -> None:
+        if self.stopped.is_set():
+            raise InstructionResolutionError("backend closed before instruction resolution")
+        with self.state_lock:
+            self.sequence += 1
+            request_id = f"{self.prefix}{self.sequence}"
+            self.pending[request_id] = (*context[:3], stage)
+        try:
+            self._send_backend(self._encode({"id": request_id, "method": method, "params": params}))
+            _log(f"instruction query sent: method={context[0]['method']}; stage={stage}; "
+                 f"rpc_id={request_id}; elapsed_ms={int((time.monotonic() - context[2]) * 1000)}")
+        except InstructionResolutionError:
+            with self.state_lock:
+                owned = self.pending.pop(request_id, None)
+            if owned is None:
+                return  # EOF already reported this request and released it.
+            raise
+
+    def _begin(self, message: dict, wire: bytes) -> None:
+        context = (message, wire, time.monotonic(), "")
+        with self.state_lock:
+            self.active += 1
+        try:
+            params = message["params"]
+            cwd = params.get("cwd")
+            if cwd is not None and not isinstance(cwd, str):
+                raise InstructionResolutionError("cwd must be a string")
+            if cwd is not None or message["method"] == "thread/start":
+                query = {"includeLayers": False}
+                if cwd is not None:
+                    query["cwd"] = cwd
+                self._query(context, "config/read", query, "config")
+            else:
+                if params.get("path") is not None or params.get("history") is not None:
+                    raise InstructionResolutionError("path/history resume requires an explicit cwd")
+                thread_id = params.get("threadId")
+                if not isinstance(thread_id, str) or not thread_id:
+                    raise InstructionResolutionError("source threadId is required to resolve cwd")
+                self._query(context, "thread/read", {"threadId": thread_id, "includeTurns": False}, "cwd")
+        except InstructionResolutionError as error:
+            self._fail(context, str(error))
+
+    def read_client(self) -> None:
+        try:
+            for line in self.client_input:
+                try:
+                    message = json.loads(line)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    message = None
+                if (
+                    isinstance(message, dict) and "id" in message
+                    and message.get("method") in THREAD_METHODS
+                    and isinstance(message.get("params"), dict)
+                    and isinstance(message["params"].get("developerInstructions"), str)
+                ):
+                    self._begin(message, line)
+                else:
+                    rewritten, changes = rewrite_wire_line(line, self.distro)
+                    self.translated += changes
+                    if changes:
+                        _log(f"translated {changes} project root path(s)")
+                    self._send_backend(rewritten)
+        except (OSError, InstructionResolutionError):
+            self.stopped.set()
+        finally:
+            with self.state_lock:
+                self.input_ended = True
+            self._close_input_if_finished()
+
+    def _accept_response(self, response: dict) -> None:
+        with self.state_lock:
+            context = self.pending.pop(response["id"], None)
+        if context is None:
+            return
+        try:
+            _log(f"instruction query received: method={context[0]['method']}; stage={context[3]}; "
+                 f"rpc_id={response['id']}; elapsed_ms={int((time.monotonic() - context[2]) * 1000)}")
+            if "error" in response:
+                raise InstructionResolutionError("backend rejected instruction resolution")
+            result = response.get("result")
+            if not isinstance(result, dict):
+                raise InstructionResolutionError("backend returned an invalid resolution result")
+            if context[3] == "cwd":
+                thread = result.get("thread")
+                cwd = thread.get("cwd") if isinstance(thread, dict) else None
+                if not isinstance(cwd, str) or not cwd:
+                    raise InstructionResolutionError("backend did not return the source cwd")
+                self._query(context, "config/read", {"cwd": cwd, "includeLayers": False}, "config")
+                return
+            config = result.get("config")
+            if not isinstance(config, dict):
+                raise InstructionResolutionError("backend did not return a configuration")
+            configured = config.get("developer_instructions")
+            message, original = context[:2]
+            params = message["params"]
+            overrides = params.get("config")
+            if isinstance(overrides, dict) and "developer_instructions" in overrides:
+                configured = overrides["developer_instructions"]
+                if not isinstance(configured, str):
+                    raise InstructionResolutionError("developer_instructions override must be a string")
+            if configured is None:
+                configured = ""
+            if not isinstance(configured, str):
+                raise InstructionResolutionError("configured developer_instructions must be a string")
+            merged = merge_instructions(params["developerInstructions"], configured)
+            if merged == params["developerInstructions"]:
+                rewritten = original
+            else:
+                rewritten = self._encode({**message, "params": {**params, "developerInstructions": merged}})
+            self._send_backend(rewritten)
+            digest = hashlib.sha256(configured.encode()).hexdigest()
+            _log(f"instructions resolved: method={message['method']}; chars={len(configured)}; sha256={digest}")
+            self._finish()
+        except (InstructionResolutionError, ValueError) as error:
+            reason = str(error) if isinstance(error, InstructionResolutionError) else "invalid instruction block metadata"
+            self._fail(context, reason)
+
+    def read_backend(self) -> None:
+        try:
+            for line in self.backend_output:
+                response = None
+                if self.prefix.encode() in line:
+                    try:
+                        response = json.loads(line)
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        pass
+                if (
+                    isinstance(response, dict) and "method" not in response
+                    and isinstance(response.get("id"), str)
+                    and response["id"].startswith(self.prefix)
+                ):
+                    self._accept_response(response)
+                else:
+                    self._send_client(line)
+        finally:
+            self.stopped.set()
+            with self.state_lock:
+                remaining = list(self.pending.values())
+                self.pending.clear()
+            for context in remaining:
+                self._fail(context, "backend closed before instruction resolution")
+
+
+def run_proxy(real_codex: Path, arguments: list[str], distro: str | None) -> int:
+    process = subprocess.Popen(
+        [os.fspath(real_codex), *arguments],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=_child_environment(),
+        bufsize=0,
+    )
+    assert process.stdin is not None
+    assert process.stdout is not None
+    assert process.stderr is not None
+
+    bridge = InstructionBridge(sys.stdin.buffer, sys.stdout.buffer,
+                               process.stdin, process.stdout, distro)
+    request_thread = threading.Thread(
+        target=bridge.read_client,
+        daemon=True,
+    )
+    response_thread = threading.Thread(
+        target=bridge.read_backend,
+        daemon=True,
+    )
+    error_thread = threading.Thread(
+        target=_copy_stream,
+        args=(process.stderr, sys.stderr.buffer),
+        daemon=True,
+    )
+    request_thread.start()
+    response_thread.start()
+    error_thread.start()
+
+    previous_handlers: dict[int, Any] = {}
+
+    def forward_signal(number: int, _frame: Any) -> None:
+        try:
+            process.send_signal(number)
+        except OSError:
+            pass
+
+    for number in (signal.SIGINT, signal.SIGTERM):
+        previous_handlers[number] = signal.signal(number, forward_signal)
+
+    result = 1
+    try:
+        result = process.wait()
+    finally:
+        bridge.stopped.set()
+        try:
+            process.stdin.close()
+        except OSError:
+            pass
+        response_thread.join(timeout=2)
+        error_thread.join(timeout=2)
+        for number, handler in previous_handlers.items():
+            signal.signal(number, handler)
+        if bridge.translated:
+            _log(
+                f"session complete: translated {bridge.translated} project "
+                f"root path(s); child exit={result}"
+            )
+    return result
+
+
+def _doctor(real_codex: Path) -> int:
+    try:
+        result = subprocess.run(
+            [os.fspath(real_codex), "--version"],
+            capture_output=True,
+            check=False,
+            env=_child_environment(),
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(f"Codex Fixes proxy check failed: {error}", file=sys.stderr)
+        return 1
+    version = (result.stdout or result.stderr).strip()
+    if result.returncode != 0 or not version:
+        print("Codex Fixes proxy found the CLI, but it did not run successfully", file=sys.stderr)
+        return 1
+    print(f"proxy {VERSION}: ready")
+    print(f"real CLI: {version}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments == ["--codex-fixes-version"]:
+        print(VERSION)
+        return 0
+
+    try:
+        real_codex = find_real_codex(Path(__file__))
+    except RuntimeError as error:
+        print(f"Codex Fixes proxy: {error}", file=sys.stderr)
+        return 127
+
+    if arguments == ["--codex-fixes-doctor"]:
+        return _doctor(real_codex)
+
+    if "app-server" not in arguments:
+        os.execve(
+            os.fspath(real_codex),
+            [os.fspath(real_codex), *arguments],
+            _child_environment(),
+        )
+        return 127
+
+    if os.environ.get("CODEX_FIXES_PROXY_ACTIVE") == "1":
+        print("Codex Fixes proxy refused a recursive app-server launch", file=sys.stderr)
+        return 126
+
+    distro = os.environ.get("WSL_DISTRO_NAME")
+    _log(f"session start: distro={distro or 'unknown'}; proxy={VERSION}")
+    return run_proxy(real_codex, arguments, distro)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
