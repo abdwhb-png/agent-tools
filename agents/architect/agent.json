@@ -2,6 +2,7 @@
   "description": "Strategic Architecture & Debugging Advisor (THOROUGH, READ-ONLY)",
   "pi": {
     "name": "architect",
+    "model": "openai-codex/gpt-6.1-sol",
     "thinking": "xhigh",
     "tools": "@review-max",
     "skills": "improve-codebase-architecture, systems-thinking",
@@ -10,7 +11,7 @@
   },
   "codex": {
     "name": "architect",
-    "model": "gpt-6-sol",
+    "model": "gpt-6.1-sol",
     "model_reasoning_effort": "max",
     "sandbox_mode": "read-only"
   }

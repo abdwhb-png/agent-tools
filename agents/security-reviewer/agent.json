@@ -3,13 +3,13 @@
   "pi": {
     "name": "security-reviewer",
     "model": "openai-codex/gpt-6.1-sol",
-    "thinking": "high",
+    "thinking": "max",
     "tools": "@review-max"
   },
   "codex": {
     "name": "security-reviewer",
-    "model": "gpt-6-sol",
-    "model_reasoning_effort": "xhigh",
+    "model": "gpt-6.1-sol",
+    "model_reasoning_effort": "max",
     "sandbox_mode": "read-only"
   }
 }

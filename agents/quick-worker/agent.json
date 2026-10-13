@@ -2,6 +2,7 @@
   "description": "Strict bounded implementation worker for small, explicit, reversible tasks with an exact file allowlist and focused verification.",
   "pi": {
     "name": "quick-worker",
+    "model": "cpa/ocg/go-deepseek-v4.1-flash",
     "tools": "@inspect, @lens-inspect, @lens-write, @implement",
     "thinking": "medium",
     "systemPromptMode": "replace",

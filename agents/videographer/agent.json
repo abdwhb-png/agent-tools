@@ -2,7 +2,7 @@
   "description": "Analyze YouTube videos, local video files, and screen recordings. Combines Gemini visual analysis with structured metadata and description-link deep-dives. Use for video research, tutorial analysis, conference talk breakdown, and screen recording review.",
   "pi": {
     "name": "videographer",
-    "model": "cpa/ocz/mimo-v2.5-free",
+    "model": "cpa/ocg/go-mimo-v2.6-flash",
     "tools": "@web, mcp:youtube-transcript",
     "skills": "youtube-analysis",
     "systemPromptMode": "replace",
@@ -17,7 +17,7 @@
   },
   "codex": {
     "name": "videographer",
-    "model": "gpt-5.6-terra",
+    "model": "gpt-6-luna",
     "model_reasoning_effort": "high",
     "sandbox_mode": "read-only",
     "mcp_servers": {
@@ -32,13 +32,9 @@
       },
       "youtube-mcp-server": {
         "command": "node",
-        "args": [
-          "${paths.youtubeServerScript}"
-        ],
+        "args": ["${paths.youtubeServerScript}"],
         "default_tools_approval_mode": "approve",
-        "env_vars": [
-          "YOUTUBE_API_KEY"
-        ]
+        "env_vars": ["YOUTUBE_API_KEY"]
       }
     }
   }

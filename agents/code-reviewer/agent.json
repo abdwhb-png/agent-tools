@@ -2,12 +2,14 @@
   "description": "Expert code review specialist with severity-rated feedback - (READ ONLY)",
   "pi": {
     "name": "code-reviewer",
+    "model": "openai-codex/gpt-6.1-sol",
+    "thinking": "xhigh",
     "tools": "@review-max, @subagents",
     "allowedAgents": "qa-tester"
   },
   "codex": {
     "name": "code-reviewer",
-    "model": "gpt-6-sol",
+    "model": "gpt-6.1-sol",
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "read-only"
   }

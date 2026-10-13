@@ -2,13 +2,14 @@
   "description": "Formatting, naming conventions, idioms, lint/style conventions (READ-ONLY)",
   "pi": {
     "name": "style-reviewer",
+    "model": "cpa/ocg/go-mimo-v2.6-flash",
     "tools": "@review",
     "defaultContext": "fresh"
   },
   "codex": {
     "name": "style-reviewer",
     "model": "gpt-6-luna",
-    "model_reasoning_effort": "xhigh",
+    "model_reasoning_effort": "high",
     "sandbox_mode": "read-only"
   }
 }

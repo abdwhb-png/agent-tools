@@ -19,6 +19,7 @@
   },
   "pi": {
     "name": "librarian",
+    "model": "cpa/gemini-3.8-flash",
     "tools": "@inspect, safe_bash, @docs, @web, contact_supervisor",
     "skills": "factual-research",
     "thinking": "high",
