@@ -39,6 +39,45 @@
         "Transmits exact contract/packet revisions, scope and required proof rather than entire conversation, and refuses closure based only on implementer claims."
       ],
       "files": []
+    },
+    {
+      "id": 4,
+      "name": "in_packet_diagnosis",
+      "prompt": "Describe the next actions for a fictional authorized implementation packet that adds CSV export. Its scope includes exporter code, tests and local runtime preparation using existing dependencies. The worker discovers a local configuration error, diagnoses it with two read-only commands, corrects it within the authorized scope, then encounters an ordinary failing test before the candidate is ready. No independent review has occurred and the contract requires review of the finished packet, with no preparation gate. The coordinator proposes accepting the diagnosis through a separate packet and reviewer before allowing implementation to continue. Should that happen, and what evidence and review are needed? Do not execute commands or change files.",
+      "expected_output": "Continue the same packet through implementation and focused tests, keep compact diagnostic evidence and reserve independent review for its deliverable.",
+      "expectations": [
+        "Rejects the proposed separate diagnostic packet, review and accepted checkpoint.",
+        "Keeps the ordinary failing-test correction in the current assignment rather than treating it as a rejected candidate.",
+        "Retains useful commands, outcomes and any unresolved limits without requiring duplicated raw reports.",
+        "Preserves independent acceptance of the completed packet and does not infer permission for new dependencies or infrastructure changes."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "blocked_packet_resumption",
+      "prompt": "A fictional packet implements private file downloads. A focused prerequisite check demonstrates that the existing storage account lacks required access, and the worker has no authority to change provider permissions. The approved contract has no separate investigation deliverable or intermediate review gate. Explain how to report and record this situation. Later, the user fixes the account and authorizes resumption. The mission revision, assignment, worktree and scope are unchanged, and an authorized preservation commit has been added. Explain the next action and whether a new packet, investigator acceptance or checkpoint is needed. Do not perform any action.",
+      "expected_output": "Report the blocker directly, preserve the active packet with an interruption and no invented independent verdict, then verify the fix and resume that assignment.",
+      "expectations": [
+        "Reports the missing provider permission without changing it or requiring independent approval of the diagnostic report first.",
+        "Keeps the phase and current packet with a blocked interruption and permits its result to remain null.",
+        "Checks resolving evidence, current Git state and existing actors before resuming the same assignment, without a new packet solely for pause, session or preservation commit.",
+        "Does not treat the preservation commit as an accepted checkpoint or the user's prerequisite repair as mission acceptance."
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "required_acceptance_boundaries",
+      "prompt": "Decide the review and packet boundaries for four fictional cases. A: the user separately commissions a compatibility investigation whose approved deliverable is a recommendation with evidence and independent review, even if the answer is negative. B: a migration contract explicitly requires independent design acceptance before implementation. C: an independent reviewer rejects a completed implementation candidate for a domain-rule defect, and correction is authorized. D: a packet is independently accepted at commit a; an authorized later commit b only records that exact verdict and changes no deliverable, criteria or supporting evidence. Would the answers change if b also changed application behavior? Explain the next actions without performing them.",
+      "expected_output": "Keep intentional investigation and design acceptance, use a new corrective packet after rejection, and distinguish a pure verdict receipt from a change invalidating review.",
+      "expectations": [
+        "Case A retains the separately requested investigation and its explicit independent review, including a supported negative outcome.",
+        "Case B preserves the required intermediate design gate rather than postponing every review until mission completion.",
+        "Case C retains the rejected candidate and findings and prepares a bounded corrective packet with a new identity.",
+        "Case D adds no automatic packet or review for the pure receipt, identifies a as the reviewed revision, and requires affected revalidation if b changes application behavior."
+      ],
+      "files": []
     }
   ]
 }

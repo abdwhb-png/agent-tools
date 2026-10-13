@@ -1,7 +1,8 @@
 ---
 name: mission-driven-dev
 description: Guide development from evidence-led conception to bounded missions, just-in-time task packets, independent validation and resumable execution records. Use when adopting or continuing a mission-based development process, preparing a progressive implementation roadmap, aligning existing project documents, executing an approved mission, or resuming one from its evidence. Keep preparation and execution authority separate.
-version: v0.1-experimental
+metadata:
+  version: v0.2-experimental
 ---
 
 # Mission-Driven Development
@@ -26,11 +27,13 @@ Inspect the user's request, relevant project instructions and existing artifacts
 | --------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Resolve an uncertain design | [Conception](references/conception.md)                                                    | Evidence, accepted decisions, rejected alternatives and remaining uncertainty.        |
 | Prepare or align work       | [Preparation](references/preparation.md) and [artifact contract](references/artifacts.md) | Existing owners updated where authorized, optional roadmap and next Mission Contract. |
-| Execute an approved mission | [Execution](references/execution.md) and [artifact contract](references/artifacts.md)     | One next packet, bounded changes, evidence and accepted checkpoints.                  |
+| Execute an approved mission | [Execution](references/execution.md) and [artifact contract](references/artifacts.md)     | A coherent packet outcome or explicit blocker, evidence and authorized acceptance.    |
 | Validate a mission          | [Validation](references/validation.md) and [artifact contract](references/artifacts.md)   | An independent result against the complete mission contract and evidence.             |
 | Inspect or resume           | [Resumption](references/resumption.md) and [artifact contract](references/artifacts.md)   | Verified current state, gaps and next authorized action.                              |
 
 Use [handoff templates](assets/handoffs.md) when transferring implementation or validation to a fresh context. Use [the example artifact set](assets/README.md) as editable output templates, not as evidence of actual work.
+
+Size packets around coherent deliverables using the [execution boundary rules](references/execution.md#choose-the-packet-boundary). Routine preparation, diagnosis and iteration stay inside the current assignment; reporting a blocker does not require accepting the investigation first.
 
 ## Keep Authority Explicit
 

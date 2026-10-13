@@ -16,7 +16,7 @@ Summarize the destination, approved wave, active mission/revision, accepted work
 
 ## Continue Only Within Authority
 
-If inspection alone was requested, stop after reporting. If resumption is authorized and the next step is fully bounded, load the relevant phase and generate only the next packet or handoff. Recheck delegation authority and fresh-context capabilities in the current harness.
+If inspection alone was requested, stop after reporting. If resumption is authorized and the next step is fully bounded, load the relevant phase. Reuse the current packet when its assignment remains valid; prepare a new packet only at an [execution boundary](execution.md#choose-the-packet-boundary), not merely because work was paused or a session changed. Recheck actual actors before any relaunch, delegation authority and fresh-context capabilities in the current harness.
 
 For `needs_decision`, ask the precise unresolved question with meaningful options. For `blocked`, identify the external condition and any independent work still authorized. For correction, preserve the rejected attempt. Do not clear an interruption merely because a new session has started.
 

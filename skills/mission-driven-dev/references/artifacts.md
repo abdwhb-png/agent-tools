@@ -23,7 +23,7 @@ Require `schemaVersion: 1`, `kind`, a nonempty `id` and positive integer `revisi
 
 Represent a workflow reference as `{ "kind": "mission", "id": "example", "revision": 1, "path": "relative/file.md" }`, using the referenced artifact's kind. For ordinary documents or evidence use `{ "kind": "document" | "evidence", "path": "relative/file" }`; their existence is checked, not their content or truth. References are local files, not URLs or commands. Preserve external-source URLs inside prose or a local evidence record, not as machine references.
 
-Preserve approved contract revisions and launched packets. Create a new revision/file for changed intent and a new packet identity for a corrective attempt. An old reference remains valid if its exact historical target exists. Do not rewrite old files to make an active reference look current. The read-only validator cannot prove that an earlier version of a file was not overwritten; verify Git history and retained evidence separately.
+Preserve approved contract revisions and launched packets. Create a new revision/file for changed intent and a new packet identity for a corrective assignment after rejection or a changed assignment, following the [execution boundary rules](execution.md#choose-the-packet-boundary). An old reference remains valid if its exact historical target exists. Do not rewrite old files to make an active reference look current. The read-only validator cannot prove that an earlier version of a file was not overwritten; verify Git history and retained evidence separately.
 
 ## Document Kinds
 
@@ -57,6 +57,8 @@ Use these outcomes for attempts and validation, not as mission phases:
 For accepted results, record at least one proof reference and an actor different from every implementer. For mission acceptance, record `freshContext: true` only after establishing actual independence. Structural checks on these claims do not authenticate actors or contexts. Preserve every result rather than replacing a failed report with a successful one.
 
 Record a checkpoint only after independent packet acceptance and commit authorization. Its fields are `packet`, `result`, `commit` and `actor`. Reference a registered attempt and accepted packet result; the accepting actor cannot be an implementer. Record evidence for the actual commit; do not stage unrelated work.
+
+An interruption can retain `currentPacket` and its attempt's `result: null`; a blocker report does not require an independent result or checkpoint. Authorized commits preserving or transporting work do not establish accepted checkpoints. Keep their purpose and the actual reviewed revision explicit in the evidence.
 
 ## State and History
 

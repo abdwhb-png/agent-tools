@@ -8,7 +8,15 @@ Read the contract, state, applicable project instructions and evidence. Validate
 
 Do not copy uncommitted source changes into a worktree implicitly. If they are prerequisites, ask how to preserve and include them. Keep contract files and `.missions/` records available at their referenced paths in the chosen worktree. Do not commit, stash, reset or clean the original checkout to make isolation convenient.
 
-Generate only the next packet, with the exact mission revision, base commit, objective, prerequisites, file scope, exclusions, tests and expected evidence. Inspect actual accepted state before selecting that packet. Preserve launched packets; give a correction or revised assignment a new identity.
+Generate only the next packet, with the exact mission revision, base commit, objective, prerequisites, file scope, exclusions, tests and expected evidence. Inspect actual accepted state before selecting that packet. Preserve launched packets; a rejected candidate's corrective assignment or a changed assignment needs a new identity.
+
+## Choose the Packet Boundary
+
+A packet should deliver one coherent outcome that can be independently judged. Splitting routine steps into separately accepted packets adds handoffs without improving the outcome. Keep necessary environment preparation, focused research, diagnosis, implementation and test-driven iteration in the same packet when they serve its objective and stay within its scope and authority. A failed test during implementation is not a rejected packet. Continue the current assignment through its required checks rather than returning each intermediate step for acceptance.
+
+Split when the next assignment has a distinct deliverable or when a changed boundary requires a new approved assignment. Preserve explicit contract review points. A separately requested investigation can be a deliverable, including a useful negative result; an incidental diagnostic does not become one merely because it produced a report or commit. These boundaries do not authorize an installation, infrastructure repair, provider change or other external action that needs separate permission.
+
+When a prerequisite or missing decision blocks execution, preserve the current packet, changes and compact evidence. Record the interruption in the existing state/history and report the failed observation, its consequence and the exact fact, condition or authority needed to continue. Do not create an investigation-acceptance packet, independent review or checkpoint merely to report the blocker. Resume the same assignment when the blocker clears and its contract, scope and authority still apply. A new session or transport commit alone does not change that assignment.
 
 ## Select a Fresh Context
 
@@ -32,10 +40,14 @@ For behavior-preserving refactoring, first establish characterization coverage s
 
 Keep feedback focused. After behavior stabilizes, format task files and run relevant diagnostics once. Use project-wide checks only when a repository/CI contract, explicit request or genuinely transversal risk requires them; state why. Report commands, results, revisions, limits and checks not run.
 
+Keep one canonical record of each useful observation. Preserve enough evidence to reproduce or assess the outcome and resume work; reference existing records instead of duplicating raw exports, rendered reports or unchanged evidence in each attempt.
+
 ## Accept Before Checkpointing
 
-Return the complete report and evidence to the coordinator. Do not mark your own assignment accepted. Compare the real diff, scope and required checks with the packet; record an independently authored packet result. Perform an authorized checkpoint only after acceptance, linking its exact commit to the packet and result. Do not stage unrelated work.
+When the packet's deliverable is ready for acceptance, return the complete report and evidence to the coordinator. Do not mark your own assignment accepted. Compare the real diff, scope and required checks with the packet; record an independently authored packet result. Perform an authorized checkpoint only after acceptance, linking its exact commit to the packet and result. Do not stage unrelated work. Reporting an incomplete or blocked assignment follows the interruption path above and does not depend on an acceptance review.
 
-Use the result outcomes and record formats in [the artifact contract](artifacts.md). For correction, retain the failed attempt and prepare a bounded new packet. For a blocked condition or missing decision, retain changes and state precisely what must change. Bring repeated unsuccessful correction to the user; do not invent retry budgets.
+Use the result outcomes and record formats in [the artifact contract](artifacts.md). After independent validation requires correction, retain the rejected candidate and findings and prepare a bounded corrective packet. Normal implementation fixes stay within the active packet. Bring repeated unsuccessful corrective attempts to the user; do not invent retry budgets.
 
-Do not reset, clean, discard or quarantine work automatically. Require explicit disposition before destructive recovery. Keep implementation, validation, checkpoint, integration and deployment claims separate. Finish by requesting independent mission validation, not by declaring the mission completed yourself.
+An authorized commit or push can preserve unfinished work or transport a candidate without claiming acceptance. An administrative commit recording an actual verdict does not by itself require another packet or review. Keep the reviewed commit distinct from the receipt commit; if a later edit changes the deliverable, scope, criteria or evidence supporting acceptance, revalidate the affected claims before accepting it. Never present unreviewed changes as covered by the earlier verdict.
+
+Do not reset, clean, discard or quarantine work automatically. Require explicit disposition before destructive recovery. Keep implementation, validation, checkpoint, integration and deployment claims separate. Request independent mission validation for mission acceptance; never declare the mission completed yourself or delay a blocker report waiting for that validation.

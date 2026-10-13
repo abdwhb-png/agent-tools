@@ -4,6 +4,8 @@ Judge the complete mission against its approved contract rather than the impleme
 
 ## Establish Independence and Scope
 
+Start validation at an acceptance point required by the approved contract or for an explicitly requested review. Internal diagnostics and prerequisite checks follow the [execution boundary rules](execution.md#choose-the-packet-boundary); their completion or blockage alone does not add an independent review. This does not waive packet acceptance, final mission validation or an explicit intermediate gate.
+
 Read the validation handoff, exact contract revision, applicable ADRs, complete relevant diff, state and cited evidence. Validate record structure, then inspect the underlying evidence. Record the actual validator identity and context provenance; different role labels alone do not prove independence.
 
 Use an explicitly authorized, no-history reviewer with read-only project authority. If that capability is unavailable, provide the handoff for the user to launch. Report an incomplete validation if the reviewer fails or only returns partial output. Never replace missing independent validation with self-review.
