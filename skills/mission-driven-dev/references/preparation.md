@@ -29,6 +29,8 @@ For a one-mission change, prepare the contract directly. A small fix may still n
 
 Use the Mission Contract sections in [the artifact contract](artifacts.md). Record the outcome, starting evidence, applicable decisions, scope, validation, execution boundaries and completion conditions. Make behavior, counterexamples, failure states and real-use checks concrete before implementation.
 
+Expose intermediate observable outcomes and their dependencies where they help execution, within the existing contract rather than a separate packet plan. Apply [execution mode selection](execution.md#choose-the-execution-mode) before implementation, preserving any choice and authority already given during preparation. Do not materialize future packets to choose the mode.
+
 Mark a validation layer not applicable only with a reason. For documentation-only work, use proportionate consistency checks instead of inventing a RED test. For production behavior, require executable RED evidence through the owning public boundary.
 
 Create the draft execution state and its initial history event together. Keep unapproved and blocked matters explicit. Move to ready only when dependencies, authority and decisive unknowns are resolved; structural validity alone is insufficient. Do not prepare all future packets or start agents while merely aligning documentation.

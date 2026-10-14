@@ -19,7 +19,7 @@ The tests exercise temporary fixture directories, exported production code, ship
 
 ## Behavioral Evaluations
 
-Use `evals/evals.json` for preparation, resumption and context-selection simulations, and the separate general-brainstorming compatibility cases for its narrow patch. Obtain explicit delegation authorization before creating no-history evaluators; otherwise give the user standalone session prompts. Keep identical executor settings for paired runs. Exclude expected answers/assertions and other runs from evaluator input.
+Use `evals/evals.json` for preparation, packet granularity, execution-mode selection, progression and context-selection simulations, and the separate general-brainstorming compatibility cases for its narrow patch. When a case has `followup_prompt`, deliver it after the initial terminal response to both variants and retain both responses. Obtain explicit delegation authorization before creating no-history evaluators; otherwise give the user standalone session prompts. Keep identical executor settings for paired runs. Exclude expected answers/assertions and other runs from evaluator input.
 
 Record actual responses, graded observable assertions, evidence, executor configuration and limitations outside the skill in ignored `*-workspace/` folders. Preserve a durable summary in [VALIDATION.md](VALIDATION.md). Do not equate baseline ties with demonstrated improvement or simulated instructions with live mission execution. Do not fabricate unavailable timing/token metrics.
 

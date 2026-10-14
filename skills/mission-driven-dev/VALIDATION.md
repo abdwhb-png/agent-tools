@@ -1,4 +1,35 @@
-# Qualification — 2026-09-23
+# Qualification
+
+## 2026-10-14 — Active-Actor Resumption Follow-up
+
+The user authorized a narrow clarification and fictional test of a previous worker still active after the principal's session was lost. The existing resumption rule now names live actor identity, status, assignment and worktree; it forbids overlapping writes when the worker is active or its status unknown, and reconciles retained work when inactivity is established. No phase, schema or project artifact was added.
+
+Case 10 in [evals.json](evals/evals.json) used two fresh `worker` contexts with identical `gpt-6-luna`/maximum-reasoning configuration. Each received the initial scenario, then the same fictional lookup branches: active worker, unavailable status and completed inactive worker. All four terminal reports were received. Both versions passed 6/6 assertions: check the actor first, await the active worker, withhold replacement on unknown status, review the completed result independently, retain the packet and respect authority. This explicit scenario demonstrates no comparative gain and is not a live concurrency test or reliability estimate. The principal graded the responses non-blindly; timing/token metrics were unavailable.
+
+Focused structural checks before/after passed: `bun test ./tests/bundle.test.ts` (2 tests, 72 assertions), evaluation JSON/unique IDs and scoped whitespace checks. Validator code, schema and distribution were untouched, so the broader validator suite and typecheck were not rerun for this clarification. Previous failures remain historical evidence; the original grouped case 5 was not rerun. Full paired responses, snapshots, grading and static viewer are in the ignored `mission-driven-dev-workspace/actor-resumption-20261014.w9od5l/`; the [durable report](evals/qualification-2026-10-14.json) includes this follow-up separately. No installation, commit, real project modification or live mission-worker execution was performed.
+
+## 2026-10-14 — Packet Outcomes and Execution Modes
+
+Scope: canonical guidance, handoffs, example contract, decisions and evaluations for G1, the direct/coordinated choice, V1 independent packet acceptance and authorized progression. Validator source, generated distribution and artifact schema are unchanged. No global installation, project modification, commit or live mission qualification is included.
+
+Executable checks: the existing 26-test bundle suite passed before the instruction changes (255 assertions) and afterward (263 assertions, including the additional local links). Typecheck, generated-distribution parity, standard skill frontmatter validation and scoped whitespace checks also passed. These checks cover structure, bundled examples and links, not whether an agent follows the instructions.
+
+The user explicitly authorized isolated fictional before/after evaluations. Twelve fresh worker contexts used the same executor configuration (`worker`, `gpt-6-luna`, maximum reasoning, no inherited history). Four paired follow-up turns completed the mode-recording and progression scenarios. All 16 terminal reports were received. Evaluators read only their assigned instructions and fictional inputs, not live projects, expected answers or other outputs. Grading was performed by the implementing principal, not blindly or as independent implementation review.
+
+| Comparison | Previous skill | Updated candidate | Interpretation |
+| --- | --- | --- | --- |
+| Earlier packet outcome, case 7 | 6/6 | 6/6 | Both split coherent outcomes and retain indivisible work. No comparative gain demonstrated. |
+| Mode choice and recorded authority, case 8 with paired follow-up | 4/7 | 7/7 | Previous version offers worker arrangements but not principal-agent implementation. Updated version offers both modes with the expected contextual recommendation. |
+| Direct resumption and progression, case 9 with paired follow-up | 7/7 | 7/7 | Both respect explicit direct-mode authority and independent acceptance in this scenario. |
+| Existing boundaries, cases 1–6 grouped | 23/24 | 22/24 | Both omit an existing-actor check on blocked resumption. The initial candidate additionally omits the manual fallback when delegation authority is absent. |
+| Standalone confirmation of that fallback, case 3 | 4/4 | 3/4 | Confirms the candidate omission outside the grouped scenario. |
+| Fresh paired retest after fallback clarification, case 3 | 4/4 | 4/4 | The revised instruction supplies the manual handoff when either capability or authority is missing. |
+
+The failed initial runs remain preserved. Only case 3 was behaviorally rerun after the fallback clarification, not the complete suite. The shared blocked-resumption omission remains an observed limitation despite the explicit actor check in `references/resumption.md`. These simulations do not prove live compliance, actual latency reduction or reliable boundary discovery: scenarios supply many relevant facts, each case/configuration has one initial run, and the principal graded its own change. Timing/token metrics are unavailable and omitted.
+
+See [durable graded findings](evals/qualification-2026-10-14.json) and [reusable scenarios](evals/evals.json). Complete responses, instruction snapshots, assertion grading and a static review viewer are retained in the adjacent ignored `mission-driven-dev-workspace/execution-modes-20261014.ZhgmTb/`. User qualitative review and live Codex CLI/Pi qualification of this revision remain pending. The user's previously reported mission runs are motivation for this change, not qualification evidence for it.
+
+## 2026-09-23 — Initial Bundle Qualification (Historical)
 
 Scope: the local skill source, read-only validator, fictional examples and minimal general-brainstorming source patch. No global installation, commit, project pilot, integration or deployment is included.
 

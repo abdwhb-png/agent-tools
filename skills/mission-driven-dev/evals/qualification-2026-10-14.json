@@ -1,0 +1,380 @@
+{
+  "skill_name": "mission-driven-dev",
+  "date": "2026-10-14",
+  "scope": "G1 packet outcomes, direct/coordinated choice, V1 independent acceptance and authorized progression. Guidance, examples and evaluations only; no validator/schema/runtime behavior change.",
+  "configuration": {
+    "role": "worker",
+    "model": "gpt-6-luna",
+    "reasoning": "max",
+    "fork_turns": "none",
+    "authorization": "User explicitly authorized fictional isolated before/after evaluations only.",
+    "baseline": "old-skill: v0.2-experimental before edits",
+    "candidate": "new-skill: initial v0.3-experimental; revised-skill: explicit missing-authority manual fallback",
+    "fresh_contexts": 12,
+    "paired_followup_turns": 4,
+    "terminal_reports_received": 16,
+    "grading": "Implementing principal, non-blind",
+    "metrics": "Timing, token and tool-call metrics unavailable; omitted."
+  },
+  "evidence_location": "../../mission-driven-dev-workspace/execution-modes-20261014.ZhgmTb/",
+  "comparisons": [
+    {
+      "iteration": 1,
+      "eval_id": 7,
+      "case_ids": [
+        7
+      ],
+      "variant": "old_skill",
+      "passed": 6,
+      "total": 6,
+      "raw_response": "iteration-1/eval-7-earlier-packet-outcomes/old_skill/outputs/response.md",
+      "grading": "iteration-1/eval-7-earlier-packet-outcomes/old_skill/grading.json",
+      "failures": []
+    },
+    {
+      "iteration": 1,
+      "eval_id": 7,
+      "case_ids": [
+        7
+      ],
+      "variant": "with_skill",
+      "passed": 6,
+      "total": 6,
+      "raw_response": "iteration-1/eval-7-earlier-packet-outcomes/with_skill/outputs/response.md",
+      "grading": "iteration-1/eval-7-earlier-packet-outcomes/with_skill/grading.json",
+      "failures": []
+    },
+    {
+      "iteration": 1,
+      "eval_id": 8,
+      "case_ids": [
+        8
+      ],
+      "variant": "old_skill",
+      "passed": 4,
+      "total": 7,
+      "raw_response": "iteration-1/eval-8-execution-mode-choice/old_skill/outputs/response.md",
+      "grading": "iteration-1/eval-8-execution-mode-choice/old_skill/grading.json",
+      "followup": "iteration-1/eval-8-execution-mode-choice/old_skill/outputs/followup.md",
+      "failures": [
+        {
+          "text": "A explicitly presents both direct principal-agent implementation and coordinated worker implementation and recommends direct based on coupling/context rather than risk alone.",
+          "passed": false,
+          "evidence": "Recommends a fresh worker, with multiple workers as alternative; never offers direct principal implementation."
+        },
+        {
+          "text": "B recommends coordinated implementation based on separated responsibilities/expertise and names direct as a viable alternative.",
+          "passed": false,
+          "evidence": "Recommends sequential specialists, but its alternative is one fresh worker rather than direct implementation."
+        },
+        {
+          "text": "Explains that direct implementation still needs a different accepting actor, and coordinated acceptance cannot be performed by an actor who implemented the packet.",
+          "passed": false,
+          "evidence": "Uses separate reviewers but never explains direct-mode acceptance because direct mode is absent."
+        }
+      ]
+    },
+    {
+      "iteration": 1,
+      "eval_id": 8,
+      "case_ids": [
+        8
+      ],
+      "variant": "with_skill",
+      "passed": 7,
+      "total": 7,
+      "raw_response": "iteration-1/eval-8-execution-mode-choice/with_skill/outputs/response.md",
+      "grading": "iteration-1/eval-8-execution-mode-choice/with_skill/grading.json",
+      "followup": "iteration-1/eval-8-execution-mode-choice/with_skill/outputs/followup.md",
+      "failures": []
+    },
+    {
+      "iteration": 1,
+      "eval_id": 9,
+      "case_ids": [
+        9
+      ],
+      "variant": "old_skill",
+      "passed": 7,
+      "total": 7,
+      "raw_response": "iteration-1/eval-9-direct-mode-progression/old_skill/outputs/response.md",
+      "grading": "iteration-1/eval-9-direct-mode-progression/old_skill/grading.json",
+      "followup": "iteration-1/eval-9-direct-mode-progression/old_skill/outputs/followup.md",
+      "failures": []
+    },
+    {
+      "iteration": 1,
+      "eval_id": 9,
+      "case_ids": [
+        9
+      ],
+      "variant": "with_skill",
+      "passed": 7,
+      "total": 7,
+      "raw_response": "iteration-1/eval-9-direct-mode-progression/with_skill/outputs/response.md",
+      "grading": "iteration-1/eval-9-direct-mode-progression/with_skill/grading.json",
+      "followup": "iteration-1/eval-9-direct-mode-progression/with_skill/outputs/followup.md",
+      "failures": []
+    },
+    {
+      "iteration": 1,
+      "eval_id": 10,
+      "case_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "variant": "old_skill",
+      "passed": 23,
+      "total": 24,
+      "raw_response": "iteration-1/eval-10-existing-boundaries/old_skill/outputs/response.md",
+      "grading": "iteration-1/eval-10-existing-boundaries/old_skill/grading.json",
+      "failures": [
+        {
+          "text": "Checks resolving evidence, current Git state and existing actors before resuming the same assignment, without a new packet solely for pause, session or preservation commit.",
+          "passed": false,
+          "evidence": "Checks repaired condition/current state, but omits rechecking existing actors before resumption."
+        }
+      ]
+    },
+    {
+      "iteration": 1,
+      "eval_id": 10,
+      "case_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "variant": "with_skill",
+      "passed": 22,
+      "total": 24,
+      "raw_response": "iteration-1/eval-10-existing-boundaries/with_skill/outputs/response.md",
+      "grading": "iteration-1/eval-10-existing-boundaries/with_skill/grading.json",
+      "failures": [
+        {
+          "text": "Supplies a manual handoff for B/C, does not infer delegation authority from tool availability and does not silently switch to direct implementation.",
+          "passed": false,
+          "evidence": "B offers manual handoff; C only asks for authority and omits the required manual fallback. It does not dispatch or silently switch modes."
+        },
+        {
+          "text": "Checks resolving evidence, current Git state and existing actors before resuming the same assignment, without a new packet solely for pause, session or preservation commit.",
+          "passed": false,
+          "evidence": "Verifies repaired condition and worktree, but omits rechecking existing actors."
+        }
+      ]
+    },
+    {
+      "iteration": 1,
+      "eval_id": 3,
+      "case_ids": [
+        3
+      ],
+      "variant": "old_skill",
+      "passed": 4,
+      "total": 4,
+      "raw_response": "iteration-1/eval-3-fresh-contexts/old_skill/outputs/response.md",
+      "grading": "iteration-1/eval-3-fresh-contexts/old_skill/grading.json",
+      "failures": []
+    },
+    {
+      "iteration": 1,
+      "eval_id": 3,
+      "case_ids": [
+        3
+      ],
+      "variant": "with_skill",
+      "passed": 3,
+      "total": 4,
+      "raw_response": "iteration-1/eval-3-fresh-contexts/with_skill/outputs/response.md",
+      "grading": "iteration-1/eval-3-fresh-contexts/with_skill/grading.json",
+      "failures": [
+        {
+          "text": "Supplies a manual handoff for B/C, does not infer delegation authority from tool availability and does not silently switch to direct implementation.",
+          "passed": false,
+          "evidence": "C asks for delegation authority but omits the ready-to-run manual fallback."
+        }
+      ]
+    },
+    {
+      "iteration": 2,
+      "eval_id": 3,
+      "case_ids": [
+        3
+      ],
+      "variant": "old_skill",
+      "passed": 4,
+      "total": 4,
+      "raw_response": "iteration-2/eval-3-fresh-contexts/old_skill/outputs/response.md",
+      "grading": "iteration-2/eval-3-fresh-contexts/old_skill/grading.json",
+      "failures": []
+    },
+    {
+      "iteration": 2,
+      "eval_id": 3,
+      "case_ids": [
+        3
+      ],
+      "variant": "with_skill",
+      "passed": 4,
+      "total": 4,
+      "raw_response": "iteration-2/eval-3-fresh-contexts/with_skill/outputs/response.md",
+      "grading": "iteration-2/eval-3-fresh-contexts/with_skill/grading.json",
+      "failures": []
+    }
+  ],
+  "observations": [
+    {
+      "finding": "Mode-choice gap addressed in this paired simulation.",
+      "before": "A recommends one fresh worker vs multiple workers; B recommends specialists vs one worker. Neither offers principal-agent implementation.",
+      "after": "A recommends Direct based on coupled rules and existing context; B recommends Coordinated based on separated ownership and format expertise. Both offer the alternative and wait for a choice."
+    },
+    {
+      "finding": "No demonstrated comparative packet-granularity or direct-resumption gain.",
+      "evidence": "Both versions pass cases 7 and 9. Packet scenario explicitly supplies separability facts; it does not test discovering them in a live repository."
+    },
+    {
+      "finding": "Manual-fallback regression detected, preserved and narrowly corrected.",
+      "evidence": "Initial candidate in grouped and standalone case 3 only asks for permission in C. Revised dispatch instruction requires manual handoff when either capability or authority is missing. Fresh paired retest passes 4/4 for both."
+    },
+    {
+      "finding": "Existing blocked-resumption omission remains visible.",
+      "evidence": "Both grouped responses check the fixed prerequisite and worktree/current state but omit the existing-actor check required by case 5 assertion 3. Source resumption.md already requires rechecking actual actors; no unrelated rule expansion was made."
+    }
+  ],
+  "limitations": [
+    "Same worker role, gpt-6-luna, max reasoning, no inherited conversation, paired prompts and follow-ups. Fictional read-only instruction simulations only.",
+    "without_skill is the viewer's required baseline label: it means the previous v0.2 skill, NOT absence of a skill.",
+    "Primary comparisons are cases 7, 8, 9 and grouped cases 1–6 (eval 10). Cases 8/9 include identical paired follow-ups.",
+    "Iteration-1 eval 3 separately confirms the manual-fallback omission. Iteration-2 eval 3 alone was rerun after the instruction fix. Earlier failures are retained.",
+    "Each case/configuration has one initial run. The targeted confirmations are not independent broad-suite repetitions. No reliability or elapsed-time claim.",
+    "Both versions omit checking existing actors in the blocked-resumption scenario, although resumption.md already requires it. This remains an observed behavioral limitation.",
+    "Non-blind grading by the implementing principal. No live Codex CLI/Pi mission qualification or independent implementation review. Timing/token/tool-call metrics unavailable and omitted.",
+    "Only case 3 was behaviorally rerun after the fallback sentence changed. Remaining cases were evaluated on the first candidate; maintenance and qualification documentation were completed afterward.",
+    "User qualitative review of outputs remains pending. No global installation, project pilot, commit, integration or deployment."
+  ],
+  "actor_resumption_followup": {
+    "date": "2026-10-14",
+    "eval_id": 10,
+    "name": "active_actor_resumption",
+    "authority": "User explicitly requested the targeted fictional test and rule clarification.",
+    "configuration": {
+      "role": "worker",
+      "model": "gpt-6-luna",
+      "reasoning": "max",
+      "fork_turns": "none",
+      "fresh_contexts": 2,
+      "terminal_reports": 4,
+      "grading": "Implementing principal, non-blind",
+      "selection_reason": "General mission execution decisions; identical executor and input in both variants."
+    },
+    "change": "Only resumption.md clarifies live actor identity/status/assignment/worktree, non-overlap for active/unknown status, and reconciliation after confirmed inactivity. No new phase, schema or project artifact.",
+    "evidence_location": "../../mission-driven-dev-workspace/actor-resumption-20261014.w9od5l/",
+    "results": {
+      "with_skill": {
+        "expectations": [
+          {
+            "text": "Requests current W-old status/assignment before dispatching a replacement or resuming overlapping writes.",
+            "passed": true,
+            "evidence": "Initial lookup_actor_status requests live identity, status, packet and worktree."
+          },
+          {
+            "text": "Branch A retains the active worker, recovers/awaits its report and does not dispatch a duplicate, implement concurrently or terminate it.",
+            "passed": true,
+            "evidence": "A awaits W-old, explicitly excludes dispatching/implementing alongside it and preserves current attempt."
+          },
+          {
+            "text": "Branch B treats missing live status as unresolved, pauses overlapping writes and seeks confirmation instead of treating silence as termination.",
+            "passed": true,
+            "evidence": "B pauses and requests confirmation; preserves P01 with blocked interruption and no new packet/attempt."
+          },
+          {
+            "text": "Branch C examines the completed result and evidence for independent packet acceptance, without reimplementing or marking completion from the worker's claim alone.",
+            "passed": true,
+            "evidence": "C reviews actual diff, scope and tests, recording a verdict only if evidence supports it; report alone is not acceptance."
+          },
+          {
+            "text": "Preserves packet identity, changes and evidence and uses existing records only, with no new phase, investigation acceptance or routine user reapproval.",
+            "passed": true,
+            "evidence": "Uses existing state/history/attempt and scoped interruption only; C can clear current P01 after acceptance, with no extra phase or routine reapproval."
+          },
+          {
+            "text": "Preserves scope and distinct stop/reassignment, review, commit and deployment authority.",
+            "passed": true,
+            "evidence": "No termination or replacement is proposed; the non-implementing coordinator reviews within authority. C explicitly refuses unauthorized commit checkpoint, no deployment is proposed."
+          }
+        ],
+        "summary": {
+          "passed": 6,
+          "failed": 0,
+          "total": 6,
+          "pass_rate": 1
+        },
+        "eval_feedback": {
+          "overall": "Both variants pass an explicit, two-turn fictional scenario. The prompt draws attention to the previous actor and exposes inspection capability, so this does not establish spontaneous compliance in a live mission or a comparative improvement."
+        }
+      },
+      "old_skill": {
+        "expectations": [
+          {
+            "text": "Requests current W-old status/assignment before dispatching a replacement or resuming overlapping writes.",
+            "passed": true,
+            "evidence": "Initial action is check_actor_status for W-old before deciding to await or dispatch."
+          },
+          {
+            "text": "Branch A retains the active worker, recovers/awaits its report and does not dispatch a duplicate, implement concurrently or terminate it.",
+            "passed": true,
+            "evidence": "A chooses await_existing_worker because W-old is actively editing P01; no overlapping write or termination."
+          },
+          {
+            "text": "Branch B treats missing live status as unresolved, pauses overlapping writes and seeks confirmation instead of treating silence as termination.",
+            "passed": true,
+            "evidence": "B requests current status and explicitly forbids replacement while retaining packet/changes and blocked interruption."
+          },
+          {
+            "text": "Branch C examines the completed result and evidence for independent packet acceptance, without reimplementing or marking completion from the worker's claim alone.",
+            "passed": true,
+            "evidence": "C independently reviews the final report/diff/scope/evidence, with coordinator as reviewer and W-old as implementer, before recording result."
+          },
+          {
+            "text": "Preserves packet identity, changes and evidence and uses existing records only, with no new phase, investigation acceptance or routine user reapproval.",
+            "passed": true,
+            "evidence": "Same P01 preserved; A result remains unset and B interruption uses existing state/history. No added phase or routine reapproval."
+          },
+          {
+            "text": "Preserves scope and distinct stop/reassignment, review, commit and deployment authority.",
+            "passed": true,
+            "evidence": "No stop/reassignment is performed or granted; reviewer remains non-implementer. C explicitly refuses commit checkpoint, no deployment is proposed."
+          }
+        ],
+        "summary": {
+          "passed": 6,
+          "failed": 0,
+          "total": 6,
+          "pass_rate": 1
+        },
+        "eval_feedback": {
+          "overall": "Both variants pass an explicit, two-turn fictional scenario. The prompt draws attention to the previous actor and exposes inspection capability, so this does not establish spontaneous compliance in a live mission or a comparative improvement."
+        }
+      }
+    },
+    "checks": [
+      "bun test ./tests/bundle.test.ts: 2 passed, 72 assertions, before and after.",
+      "evals/evals.json parses with 10 unique case IDs.",
+      "Scoped git diff --check passed."
+    ],
+    "limits": [
+      "without_skill means the pre-clarification v0.3 bundle, not no skill.",
+      "Two fresh worker contexts, each with the same two-turn fictional decision scenario; all four terminal reports received.",
+      "Both variants pass 6/6. No demonstrated comparative gain or reliability estimate.",
+      "The old active worker and lookup responses are fictional. No real concurrent writer, termination, project modification or live harness qualification.",
+      "Timing and token metrics unavailable and omitted."
+    ],
+    "previous_findings": "Original grouped-case omission and raw results are retained. Case 5 was not rerun; this new targeted case tests explicit live-status branches. No broad-suite behavioral rerun, validator code change, installation or real project launch."
+  }
+}

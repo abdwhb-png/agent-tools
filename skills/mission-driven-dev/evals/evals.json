@@ -30,12 +30,12 @@
     {
       "id": 3,
       "name": "fresh_contexts",
-      "prompt": "For three fictional harness situations, decide the next permitted action for a prepared mission packet and its later mission validation. A: delegation is explicitly authorized and the native worker tool offers no inherited conversation. B: delegation is authorized but the only tool forks the entire conversation. C: a fresh-context tool exists but delegation has not been authorized. The implementer says all tests passed; no independent mission validation has happened. Give dispatch/handoff choices, the minimum context to transmit, and whether the mission can close. Do not actually launch anything.",
+      "prompt": "For three fictional harness situations, decide the next permitted action for a prepared mission packet and its later mission validation. The user explicitly chose coordinated implementation, not implementation by the principal agent. A: implementation and review delegation are explicitly authorized and the native worker tool offers no inherited conversation. B: delegation is authorized but the only tool forks the entire conversation. C: a fresh-context tool exists but delegation has not been authorized. The implementer says all tests passed; no independent mission validation has happened. Give dispatch/handoff choices, the minimum context to transmit, and whether the mission can close. Do not actually launch anything.",
       "expected_output": "Use authorized fresh native delegation only in A, handoff in B/C, preserve essential approved context, do not close without independent validation.",
       "expectations": [
         "Chooses native no-history delegation for A only, without forcing a harness/provider change.",
         "Does not describe a full-history fork as fresh in B.",
-        "Supplies a manual handoff for B/C and does not infer delegation authority from tool availability.",
+        "Supplies a manual handoff for B/C, does not infer delegation authority from tool availability and does not silently switch to direct implementation.",
         "Transmits exact contract/packet revisions, scope and required proof rather than entire conversation, and refuses closure based only on implementer claims."
       ],
       "files": []
@@ -76,6 +76,71 @@
         "Case B preserves the required intermediate design gate rather than postponing every review until mission completion.",
         "Case C retains the rejected candidate and findings and prepares a bounded corrective packet with a new identity.",
         "Case D adds no automatic packet or review for the pure receipt, identifies a as the reviewed revision, and requires affected revalidation if b changes application behavior."
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "earlier_packet_outcomes",
+      "prompt": "Advise on the next implementation assignment for three fictional approved missions. Do not change files or launch agents. Direct implementation and independent packet review are already authorized. A: A stock application mission includes stable store identities, explicit source/destination routing, balance observations and activity reporting. Inspection has established that identities and movement routing must change together to preserve a shared invariant. After those two changes, balance observations and activity reporting are independently testable and neither depends on the other. All four outcomes have public-boundary checks. The user wants an earlier verifiable result. An existing draft P01 says 'implement the whole mission'. Describe what you would put in the next packet, its decisive proof, remaining work and artifacts. B: A CSV export fix changes one quoting behavior in an existing owner with a regression case. C: An indivisible protocol migration takes substantial work, but every smaller proposed cut leaves an incompatible public interface and has no separately valid outcome. Explain the packet boundaries for B/C too. Do not invent time estimates or repository facts.",
+      "expected_output": "Bound A's first packet to the necessary identity/routing outcome with proof, leave later outcomes at high level, and retain one packet for B and genuinely indivisible C.",
+      "expectations": [
+        "A does not retain the whole-mission P01: its first packet excludes the independently examinable observations and reporting outcomes.",
+        "A keeps identities and routing together to preserve the established invariant and identifies public-boundary proof of that outcome.",
+        "A states remaining outcomes without generating all future packets, a parallel packet plan or new project artifact types.",
+        "B remains one packet including the regression test and implementation rather than separate technical-layer or TDD-stage packets.",
+        "C allows one genuinely indivisible packet with the stated reason instead of inventing time, count or file-size limits.",
+        "Keeps the existing execution mode and independent acceptance rather than asking the user to sequence each technical step."
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "execution_mode_choice",
+      "followup_prompt": "Same fictional evaluation and read-only restrictions. Follow-up: in each situation, the user explicitly selects your recommended mode and grants its required scoped implementation/review permissions, but no commit or deployment permission. Explain exactly where that choice and its authority would be preserved and what a resumed session should recover. Do not perform actions. Return a complete answer of at most 250 words.",
+      "prompt": "Respond to 'Implement the approved mission' in two fictional situations. Show what you would tell the user before starting and who would implement and accept the work. Do not actually launch or change anything. In both situations no execution mode has been selected and no delegation has been authorized; fresh native worker/reviewer tools are available. A: A high-risk financial change is concentrated in one shared transaction owner. Its rules are tightly coupled, the principal agent already has the verified context, and inspection found no separately owned implementation work. B: A mission integrates two already specified import formats through a stable existing public interface. Their adapters and tests have distinct owners and paths, require different format expertise, and can be handed off without transferring the entire discovery conversation. The mission worktree is sequential. Give a reasoned recommendation for each, describe the available alternative, and explain what decisions or permissions remain. Do not infer elapsed time or model performance.",
+      "expected_output": "Offer direct/coordinated choices once with direct recommended for A and coordinated recommended for B, preserve user selection and separate implementation/review authority, without implicit parallelism or schema additions.",
+      "expectations": [
+        "A explicitly presents both direct principal-agent implementation and coordinated worker implementation and recommends direct based on coupling/context rather than risk alone.",
+        "B recommends coordinated implementation based on separated responsibilities/expertise and names direct as a viable alternative.",
+        "Requests an explicit mode choice before starting and does not treat its recommendation as consent.",
+        "Distinguishes mode preference from scoped implementation and review delegation authority despite available tools.",
+        "Explains that direct implementation still needs a different accepting actor, and coordinated acceptance cannot be performed by an actor who implemented the packet.",
+        "Does not infer parallel worktree writes, a new harness, provider/model changes or blanket delegation from coordinated mode.",
+        "Records the choice and authority in existing contract/evidence/state/history without adding a mandatory schema field or separate mode document."
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "direct_mode_progression",
+      "followup_prompt": "Same fictional evaluation and read-only restrictions. For situation A only, describe what you would report to the user at a packet transition and how you would decide the checks for packet review versus final mission validation. No actions. Return a complete answer of at most 250 words.",
+      "prompt": "Describe the next actions in four fictional situations without performing them. A: The user says 'Resume the mission'. Existing evidence explicitly selects direct implementation by the principal agent, authorizes this mission's remaining packets and fresh independent reviewer delegation for packet and mission acceptance, and prohibits commits/deployment. The exact contract, Git state and P01 acceptance by reviewer R have been verified. P02 is the next bounded outcome with no new decision. B: Same frame, but P01 has only the principal implementer's passing test report. The principal proposes recording itself as 'coordinator' to accept P01 and continue. The only available reviewer tool now inherits the whole implementation conversation. C: Same verified accepted state as A, but the user asks only to inspect status. D: During A's resumed work, a newly discovered requirement would add external production writes beyond the contract. Explain mode selection, actor roles, packet progression, records and intervention boundaries for each.",
+      "expected_output": "Resume direct P02 without repeated mode or routine permission questions, keep independent packet/final validation, stop at missing fresh review, respect inspection-only and escalate substantive authority changes.",
+      "expectations": [
+        "A reuses direct mode and existing authority, prepares only P02 and has the principal agent implement it without asking for the mode or routine packet approval again.",
+        "A obtains a real independent packet verdict before further progression and uses focused checks rather than imposing every mission check on each packet.",
+        "A reports the bounded result, proof and next outcome while keeping the reviewer as accepting actor even if the principal records state or closure.",
+        "B refuses implementer self-acceptance under a new role label and does not call an inherited reviewer context fresh.",
+        "B preserves the candidate, provides a manual independent review handoff and does not advance past missing acceptance or silently change implementation mode.",
+        "C remains read-only despite standing mission authority, and D escalates the new external action rather than extending scope automatically.",
+        "Preserves final fresh mission validation, commit/deployment prohibitions and the boundary against launching another mission."
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "active_actor_resumption",
+      "prompt": "Fictional mission RS-M01, packet P01, is being resumed after the principal agent lost its session. Coordinated implementation, this packet's worker delegation and independent review are authorized; commits, deployment and agent termination are not. The contract, packet scope and worktree are unchanged. The storage-access prerequisite has been repaired and verified. State/history identify W-old as P01's assigned implementer and contain its earlier blocker report, but no terminal report. Git changes have been inspected and retained. The user says: 'Access is fixed, resume the mission.' You have a fictional read-only actor-status lookup, can await an existing worker, or can dispatch a fresh worker for the authorized assignment. Give only the next action and why, using {\"action\":\"...\",\"target\":\"...\",\"reason\":\"...\"}. Request any missing live fact instead of inventing a lookup result. Do not perform real actions.",
+      "followup_prompt": "This is the fictional read-only lookup result, not a real agent/tool. For each independent branch below, return the next action and rationale plus the minimal existing record update. A: W-old is running P01 in the same mission worktree, has recent write activity and has not returned a terminal report. B: W-old's current status cannot be retrieved; only the earlier blocker report is available. C: W-old is confirmed completed and inactive; its complete final report, retained changes and focused test evidence for P01 are available, but no independent acceptance has occurred. Keep the original authority unchanged. Use JSON with keys A, B and C. Do not perform real actions.",
+      "expected_output": "Check the previous actor first; keep an active writer, pause conflicting writes if status is unknown, and reconcile an inactive worker's completed result through independent acceptance without adding workflow machinery.",
+      "expectations": [
+        "Requests current W-old status/assignment before dispatching a replacement or resuming overlapping writes.",
+        "Branch A retains the active worker, recovers/awaits its report and does not dispatch a duplicate, implement concurrently or terminate it.",
+        "Branch B treats missing live status as unresolved, pauses overlapping writes and seeks confirmation instead of treating silence as termination.",
+        "Branch C examines the completed result and evidence for independent packet acceptance, without reimplementing or marking completion from the worker's claim alone.",
+        "Preserves packet identity, changes and evidence and uses existing records only, with no new phase, investigation acceptance or routine user reapproval.",
+        "Preserves scope and distinct stop/reassignment, review, commit and deployment authority."
       ],
       "files": []
     }

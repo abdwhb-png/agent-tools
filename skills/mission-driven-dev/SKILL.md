@@ -2,7 +2,7 @@
 name: mission-driven-dev
 description: Guide development from evidence-led conception to bounded missions, just-in-time task packets, independent validation and resumable execution records. Use when adopting or continuing a mission-based development process, preparing a progressive implementation roadmap, aligning existing project documents, executing an approved mission, or resuming one from its evidence. Keep preparation and execution authority separate.
 metadata:
-  version: v0.2-experimental
+  version: v0.3-experimental
 ---
 
 # Mission-Driven Development
@@ -33,7 +33,7 @@ Inspect the user's request, relevant project instructions and existing artifacts
 
 Use [handoff templates](assets/handoffs.md) when transferring implementation or validation to a fresh context. Use [the example artifact set](assets/README.md) as editable output templates, not as evidence of actual work.
 
-Size packets around coherent deliverables using the [execution boundary rules](references/execution.md#choose-the-packet-boundary). Routine preparation, diagnosis and iteration stay inside the current assignment; reporting a blocker does not require accepting the investigation first.
+Before execution, follow the [mode selection](references/execution.md#choose-the-execution-mode) and [packet boundary rules](references/execution.md#choose-the-packet-boundary). They govern the user's direct/coordinated choice, earlier verifiable outcomes and progression within the authorized mission. Routine preparation, diagnosis and iteration stay inside the current assignment; reporting a blocker does not require accepting the investigation first.
 
 ## Keep Authority Explicit
 
