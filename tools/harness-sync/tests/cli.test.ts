@@ -92,6 +92,94 @@ async function fixture() {
   };
 }
 
+test("agent configure manages named VS Code directories without enabling them or changing instructions", async () => {
+  const f = await fixture();
+  const instructions = await fs.readFile(f.configPath, "utf8");
+  const initial = await fs.readFile(f.agentsConfigPath, "utf8");
+  const destination = path.join(f.output, "Code - Insiders", "prompts");
+  const args = ["--vscode-agent-dir", `insiders=${destination}`];
+  const preview = f.runAgent("configure", ...args);
+  expect(preview.code).toBe(0);
+  expect(preview.stdout).toContain(destination);
+  expect(await fs.readFile(f.agentsConfigPath, "utf8")).toBe(initial);
+  const applied = f.runAgent("configure", ...args, "--apply");
+  expect(applied.code).toBe(0);
+  const profile = JSON.parse(await fs.readFile(f.agentsConfigPath, "utf8"));
+  expect(profile.harnesses.vscode).toEqual({ enabled: false, directories: [{ id: "insiders", path: destination }] });
+  const other = path.join(f.output, "copilot", "agents");
+  expect(f.runAgent("configure", "--vscode-agent-dir", `copilot=${other}`, "--enable-vscode", "--apply").code).toBe(0);
+  const moved = path.join(f.output, "moved");
+  expect(f.runAgent("configure", "--vscode-agent-dir", `insiders=${moved}`, "--apply").code).toBe(0);
+  expect(JSON.parse(await fs.readFile(f.agentsConfigPath, "utf8")).harnesses.vscode).toEqual({
+    enabled: true, directories: [{ id: "insiders", path: moved }, { id: "copilot", path: other }],
+  });
+  expect(await fs.readFile(f.configPath, "utf8")).toBe(instructions);
+  expect(await fs.exists(destination)).toBe(false);
+  expect(await fs.exists(f.agentsStatePath)).toBe(false);
+  expect(f.run("configure", ...args).code).toBe(2);
+  expect(f.runAgent("configure", "--vscode-target", other).code).toBe(2);
+  expect(f.runAgent("help").stdout).toContain("--vscode-agent-dir ID=PATH");
+});
+
+test("VS Code agent CLI sync creates native files without loading or changing instruction sources", async () => {
+  const f = await fixture();
+  const directory = path.join(f.root, "agents", "reviewer");
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, "role.md"), "Review the requested change.\n");
+  await fs.writeFile(path.join(directory, "agent.json"), JSON.stringify({ description: "Review", vscode: {
+    name: "Native Reviewer", tools: ["read", "search"], model: ["Second model", "First model"], agents: [],
+  } }));
+  const instructions = await fs.readFile(f.configPath, "utf8");
+  const destination = path.join(f.output, "vscode-prompts");
+  expect(f.runAgent("configure", "--vscode-agent-dir", `insiders=${destination}`, "--enable-vscode", "--disable-pi", "--disable-codex", "--apply").code).toBe(0);
+  await fs.rm(f.instructions, { recursive: true });
+  expect(f.runAgent("doctor").code).toBe(1);
+  expect(f.runAgent("sync", "--dry-run").stdout).toContain("create");
+  expect(await fs.exists(destination)).toBe(false);
+  const synced = f.runAgent("sync");
+  expect(synced.code).toBe(0);
+  expect(synced.stdout).toContain("vscode-insiders-agent-reviewer");
+  const file = path.join(destination, "reviewer.agent.md");
+  const native = Bun.YAML.parse((await fs.readFile(file, "utf8")).split("---\n")[1]);
+  expect(native).toEqual({ name: "Native Reviewer", description: "Review", tools: ["read", "search"], model: ["Second model", "First model"], agents: [] });
+  expect(f.runAgent("check").code).toBe(0);
+  await fs.writeFile(file, "Local changes\n");
+  expect(f.runAgent("check").code).toBe(1);
+  expect(f.runAgent("sync", "--dry-run").code).toBe(2);
+  expect(f.runAgent("adopt", "--target", "vscode-insiders-agent-reviewer", "--dry-run").code).toBe(0);
+  expect(await fs.readFile(file, "utf8")).toBe("Local changes\n");
+  expect(f.runAgent("adopt", "--target", "vscode-insiders-agent-reviewer", "--apply").code).toBe(0);
+  expect(f.runAgent("check").code).toBe(0);
+  expect(await fs.readFile(f.configPath, "utf8")).toBe(instructions);
+  expect(await fs.exists(f.statePath)).toBe(false);
+});
+
+test("invalid VS Code configuration and native fields fail without writing targets or ownership", async () => {
+  const f = await fixture();
+  expect(f.runAgent("configure", "--enable-vscode").code).toBe(2);
+  expect(f.runAgent("configure", "--vscode-agent-dir", "no-equals").stderr).toContain("ID=PATH");
+  expect(f.runAgent("configure", "--vscode-agent-dir", "insiders=relative").stderr).toContain("absolute path");
+  expect(f.runAgent("configure", "--enable-vscode", "--disable-vscode").code).toBe(2);
+  const directory = path.join(f.root, "agents", "reviewer");
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, "role.md"), "Review\n");
+  await fs.writeFile(path.join(directory, "agent.json"), JSON.stringify({ description: "Review", vscode: { tools: "read" } }));
+  const destination = path.join(f.output, "prompts");
+  expect(f.runAgent("configure", "--vscode-agent-dir", `insiders=${destination}`, "--enable-vscode", "--disable-pi", "--disable-codex", "--apply").code).toBe(0);
+  const config = await fs.readFile(f.agentsConfigPath, "utf8");
+  for (const [command, args] of [
+    ["doctor", []], ["check", []], ["sync", ["--dry-run"]], ["sync", []],
+    ["adopt", ["--target", "vscode-insiders-agent-reviewer", "--dry-run"]],
+  ] as const) {
+    const result = f.runAgent(command, ...args);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("vscode.tools");
+  }
+  expect(await fs.exists(destination)).toBe(false);
+  expect(await fs.exists(f.agentsStatePath)).toBe(false);
+  expect(await fs.readFile(f.agentsConfigPath, "utf8")).toBe(config);
+});
+
 test("CLI preserves the native Pi prompt and appends its operating layer once", async () => {
   const f = await fixture();
   await fs.mkdir(path.join(f.instructions, "pi", "system"));

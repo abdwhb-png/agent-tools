@@ -6,7 +6,7 @@ Date: 2026-10-03
 
 ## Decision
 
-Keep the `harness-sync` package with two commands: `instruction-sync` for Pi, Codex, VS Code and Zed instructions, and `agent-sync` for Pi and Codex agents. Their adjacent JSON configurations and ownership state files are independent. Each entrypoint binds its domain, so users cannot accidentally select both workflows or configure one through the other. This supersedes ADR-003's combined CLI, resource selectors and shared configuration/state placement. Native agent sources and rendering remain as defined in ADR-003.
+Keep the `harness-sync` package with two commands: `instruction-sync` for Pi, Codex, VS Code and Zed instructions, and `agent-sync` for Pi, Codex and VS Code agents. Their adjacent JSON configurations and ownership state files are independent. Each entrypoint binds its domain, so users cannot accidentally select both workflows or configure one through the other. This supersedes ADR-003's combined CLI, resource selectors and shared configuration/state placement. Native agent sources and rendering remain as defined in ADR-003, including its VS Code extension dated 2026-10-13.
 
 Centralize shared mechanisms in one CLI implementation and one file transaction. Configuration validation owns the supported harness list and reusable native destination validation. Migration owns partitioning of legacy settings and ownership. Synchronization computes one plan for preview and execution. Configuration changes, imports, runtime replacements, deletions and state writes reuse the same backups, concurrent-change checks, atomic replacement and rollback implementation. Domain-specific rendering remains in its existing modules. Separate workflows do not justify duplicated parsers, planners or transaction implementations.
 

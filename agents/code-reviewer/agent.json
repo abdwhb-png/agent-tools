@@ -12,5 +12,27 @@
     "model": "gpt-6.1-sol",
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "read-only"
+  },
+  "vscode": {
+    "name": "Code Reviewer",
+    "model": [
+      "GPT 5.6 Sol (Openai-codex) (customendpoint)",
+      "Z.ai: GLM 5.2 (openrouter)",
+      "DeepSeek V4 Pro (Go) (customendpoint)"
+    ],
+    "tools": [
+      "read",
+      "search",
+      "agent",
+      "web/githubRepo",
+      "web/githubTextSearch",
+      "context7/*",
+      "deepwiki/*"
+    ],
+    "agents": [
+      "Scout",
+      "Architect",
+      "qa-tester"
+    ]
   }
 }

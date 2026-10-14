@@ -30,5 +30,23 @@
         "default_tools_approval_mode": "approve"
       }
     }
+  },
+  "vscode": {
+    "name": "pi-expert",
+    "model": [
+      "Gemini 3.7 Flash (Antigravity) (customendpoint)",
+      "Claude Sonnet 4.6 Thinking (Antigravity) (customendpoint)",
+      "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
+    ],
+    "tools": [
+      "read",
+      "search",
+      "web",
+      "context7/*",
+      "deepwiki/*",
+      "exa/*",
+      "pi-lens/*",
+      "pi-session-recall/*"
+    ]
   }
 }

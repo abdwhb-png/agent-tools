@@ -36,9 +36,31 @@
       },
       "firecrawl-mcp": {
         "command": "npx",
-        "args": ["-y", "firecrawl-mcp"],
-        "env_vars": ["FIRECRAWL_API_KEY"]
+        "args": [
+          "-y",
+          "firecrawl-mcp"
+        ],
+        "env_vars": [
+          "FIRECRAWL_API_KEY"
+        ]
       }
     }
+  },
+  "vscode": {
+    "model": [
+      "Gemini 3.7 Flash (Antigravity) (customendpoint)",
+      "Mimo-2.5 (OCG) (customendpoint)",
+      "Mimo 2.5 Free (Zen) (customendpoint)",
+      "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
+    ],
+    "tools": [
+      "context7/*",
+      "exa/*",
+      "firecrawl/*",
+      "web",
+      "search",
+      "read",
+      "todo"
+    ]
   }
 }

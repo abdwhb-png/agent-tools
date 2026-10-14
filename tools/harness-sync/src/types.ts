@@ -18,7 +18,7 @@ export interface PolicyConfig {
   harnesses: {
     pi: HarnessConfig & { agentDir?: string };
     codex: HomeHarnessConfig;
-    vscode: HarnessConfig & { targets?: string[] };
+    vscode: HarnessConfig & { targets?: string[]; directories?: { id: string; path: string }[] };
     zed?: HomeHarnessConfig;
   };
 }

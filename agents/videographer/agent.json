@@ -32,10 +32,31 @@
       },
       "youtube-mcp-server": {
         "command": "node",
-        "args": ["${paths.youtubeServerScript}"],
+        "args": [
+          "${paths.youtubeServerScript}"
+        ],
         "default_tools_approval_mode": "approve",
-        "env_vars": ["YOUTUBE_API_KEY"]
+        "env_vars": [
+          "YOUTUBE_API_KEY"
+        ]
       }
     }
+  },
+  "vscode": {
+    "name": "videographer",
+    "model": [
+      "Gemini 3.7 Flash (Antigravity) (customendpoint)",
+      "Claude Sonnet 4.6 Thinking (Antigravity) (customendpoint)",
+      "DeepSeek V4 Flash (Go) (customendpoint)",
+      "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
+    ],
+    "tools": [
+      "read",
+      "search",
+      "web",
+      "exa/*",
+      "youtube-mcp-server/*",
+      "youtube-transcript/*"
+    ]
   }
 }

@@ -66,7 +66,7 @@ export async function assessTargets(
     if (!scope) continue; // Disabling or moving a harness never retires its old files.
     if (
       path.dirname(prior.path) !== scope.directory ||
-      path.extname(prior.path) !== scope.extension
+      !path.basename(prior.path).endsWith(scope.extension)
     )
       throw new Error(`invalid managed agent path for ${id}`);
     targets.push({

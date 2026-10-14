@@ -1,0 +1,1 @@
+Use the native edit tools for scoped file changes and the configured `execute` terminal tools for commands and validation. Use the configured `pi-lens` MCP tools only for tasks concerning Pi. Tool availability does not expand the requested scope.

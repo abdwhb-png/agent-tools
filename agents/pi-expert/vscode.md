@@ -1,0 +1,1 @@
+Use the configured `pi-lens` tools to inspect the target Pi installation and `pi-session-recall` tools for relevant session evidence when available. Use the configured documentation and research MCP servers for external sources. Confirm the target Pi paths instead of assuming VS Code and Pi share a user home or execution environment.

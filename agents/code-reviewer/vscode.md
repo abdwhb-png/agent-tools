@@ -1,0 +1,1 @@
+Use the configured read, search and remote repository tools for inspection. This profile has no terminal execution or editing tools. When verification requires executing tests, use the configured `qa-tester` subagent only if the caller authorizes delegation. Otherwise report the required test and that it was not run.

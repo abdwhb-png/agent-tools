@@ -63,7 +63,7 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
     "--codex-additional-home",
     ...(domain === "instructions"
       ? ["--zed-home", "--zed-additional-home", "--vscode-target"]
-      : []),
+      : ["--vscode-agent-dir"]),
   ];
   const allowedValues = [
     "--config",
@@ -90,6 +90,7 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
     "--codex-additional-home",
     "--zed-additional-home",
     "--vscode-target",
+    "--vscode-agent-dir",
   ];
   for (const [option, entries] of args.values) {
     if (!allowedValues.includes(option)) throw new Error(`unknown or invalid option: ${option}`);
@@ -125,10 +126,10 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
 
 function usage(domain: SyncDomain): string {
   const name = commandNames[domain];
-  const instructionOptions =
+  const nativeOptions =
     domain === "instructions"
-      ? "\n  --zed-home PATH --zed-additional-home ID=PATH (repeatable)\n  --vscode-target PATH (repeatable)\n  --enable-vscode --disable-vscode --enable-zed --disable-zed"
-      : "";
+      ? "\n  --zed-home PATH --zed-additional-home ID=PATH (repeatable)\n  --vscode-target PATH (repeatable)\n  --enable-zed --disable-zed"
+      : "\n  --vscode-agent-dir ID=PATH (repeatable; exact agent directory)";
   return `Usage: ${name} <configure|doctor|check|sync|adopt> [options]
 
 Manages ${domain} only.
@@ -149,7 +150,8 @@ configure options:
   --enable --disable  Enable or disable this workflow only
   --pi-agent-dir PATH --codex-home PATH
   --codex-additional-home ID=PATH (repeatable)
-  --enable-pi --disable-pi --enable-codex --disable-codex${instructionOptions}
+  --enable-pi --disable-pi --enable-codex --disable-codex
+  --enable-vscode --disable-vscode${nativeOptions}
 
 adopt options:
   --dry-run           Preview adoption without writing anything
@@ -198,6 +200,17 @@ function configuredPolicy(base: PolicyConfig, domain: SyncDomain, args: Argument
       setAdditionalHomes(result.harnesses.zed!, additional, "--zed-additional-home");
     const vscode = values(args, "--vscode-target");
     if (vscode.length) result.harnesses.vscode.targets = vscode;
+  } else {
+    for (const entry of values(args, "--vscode-agent-dir")) {
+      const separator = entry.indexOf("=");
+      if (separator < 1) throw new Error("--vscode-agent-dir requires ID=PATH");
+      const id = entry.slice(0, separator);
+      const directory = entry.slice(separator + 1);
+      result.harnesses.vscode.directories ||= [];
+      const existing = result.harnesses.vscode.directories.find((item) => item.id === id);
+      if (existing) existing.path = directory;
+      else result.harnesses.vscode.directories.push({ id, path: directory });
+    }
   }
   for (const name of domainHarnesses[domain]) {
     if (args.flags.has(`--enable-${name}`)) result.harnesses[name]!.enabled = true;

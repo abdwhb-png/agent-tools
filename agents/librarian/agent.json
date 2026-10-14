@@ -28,5 +28,22 @@
     "inheritProjectContext": "false",
     "inheritSkills": "false",
     "acceptanceRole": "read-only"
+  },
+  "vscode": {
+    "name": "Librarian",
+    "tools": [
+      "read",
+      "web",
+      "search",
+      "exa/*",
+      "context7/*",
+      "deepwiki/*"
+    ],
+    "model": [
+      "Gemini 3.7 Flash (Antigravity) (customendpoint)",
+      "Mimo-2.5 (OCG) (customendpoint)",
+      "Mimo 2.5 Free (Zen) (customendpoint)",
+      "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
+    ]
   }
 }

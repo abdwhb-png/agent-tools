@@ -12,7 +12,7 @@ export interface RuntimeEnvironment {
 const WINDOWS = "win32";
 export const domainHarnesses = {
   instructions: ["pi", "codex", "vscode", "zed"],
-  agents: ["pi", "codex"],
+  agents: ["pi", "codex", "vscode"],
 } as const;
 
 function platformPath(platform: string): any {
@@ -94,7 +94,7 @@ export function defaultPolicyConfig(
     harnesses: {
       pi: { enabled: true, agentDir: homePath(environment, ".pi", "agent") },
       codex: { enabled: true, home: codexHome },
-      vscode: { enabled: domain !== "agents", targets: [vscodeTarget] },
+      vscode: domain === "agents" ? { enabled: false } : { enabled: true, targets: [vscodeTarget] },
       zed: { enabled: false },
     },
   };
@@ -186,6 +186,32 @@ function validateRetirements(value: unknown): void {
   if (new Set(value).size !== value.length) throw new Error("duplicate retired agent basename");
 }
 
+function validateVsCodeDirectories(config: Record<string, unknown>, platform: string): void {
+  assertKeys(config, ["enabled", "directories"], "harnesses.vscode");
+  if (config.enabled && (!Array.isArray(config.directories) || config.directories.length === 0))
+    throw new Error("enabled VS Code agents require a non-empty directories array");
+  if (config.directories === undefined) return;
+  if (!Array.isArray(config.directories)) throw new Error("harnesses.vscode.directories must be an array");
+  const ids = new Set<string>();
+  const directories = new Set<string>();
+  for (const entry of config.directories) {
+    if (!isObject(entry)) throw new Error("each VS Code directory must be an object");
+    assertKeys(entry, ["id", "path"], "harnesses.vscode.directories entry");
+    if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.path !== "string")
+      throw new Error("each VS Code directory requires a lowercase id and absolute path");
+    if (!entry.path.isWellFormed() || entry.path.includes("\0"))
+      throw new Error(`VS Code directory ${entry.id} contains invalid path characters`);
+    assertAbsolute(entry.path, `harnesses.vscode.directories.${entry.id}.path`, platform);
+    const normalized = platformPath(platform).resolve(entry.path);
+    const identity = platform === WINDOWS ? normalized.toLowerCase() : normalized;
+    if (ids.has(entry.id)) throw new Error(`duplicate VS Code directory id: ${entry.id}`);
+    if (directories.has(identity)) throw new Error(`duplicate VS Code directory path: ${entry.path}`);
+    ids.add(entry.id);
+    directories.add(identity);
+    entry.path = normalized;
+  }
+}
+
 export function parsePolicyConfig(
   raw: string,
   platform = process.platform,
@@ -243,7 +269,7 @@ export function parsePolicyConfig(
   const pi = assertHarness(parsed.harnesses.pi, "pi");
   const codex = assertHarness(parsed.harnesses.codex, "codex");
   const vscode = assertHarness(
-    profile && parsed.kind === "agents" ? { enabled: false } : parsed.harnesses.vscode,
+    profile && parsed.kind === "agents" && parsed.harnesses.vscode === undefined ? { enabled: false } : parsed.harnesses.vscode,
     "vscode",
   );
   const zed =
@@ -251,11 +277,13 @@ export function parsePolicyConfig(
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
   validateHomeHarness(codex, "Codex", platform, !profile || parsed.kind === "agents");
   if (zed) validateHomeHarness(zed, "Zed", platform);
-  assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
+  const vscodeAgents = profile && parsed.kind === "agents";
+  if (vscodeAgents) validateVsCodeDirectories(vscode, platform);
+  else assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
   if (pi.enabled && typeof pi.agentDir !== "string")
     throw new Error("enabled Pi harness requires agentDir");
   if (
-    vscode.enabled &&
+    !vscodeAgents && vscode.enabled &&
     (!Array.isArray(vscode.targets) ||
       vscode.targets.length === 0 ||
       vscode.targets.some((target) => typeof target !== "string"))
@@ -286,6 +314,10 @@ export function profileConfig(config: PolicyConfig, domain: SyncDomain): SyncPro
     delete codex.retiredAgents;
     for (const home of codex.additionalHomes || []) delete home.retiredAgents;
   }
+  const vscodeProfile = domain === "instructions"
+    ? { enabled: vscode.enabled && vscode.directories === undefined, ...(vscode.targets !== undefined ? { targets: vscode.targets } : {}) }
+    : { enabled: vscode.enabled && vscode.targets === undefined, ...(vscode.directories !== undefined ? { directories: vscode.directories } : {}) };
+  const includeVsCode = domain === "instructions" || vscode.directories !== undefined || vscodeProfile.enabled;
   return {
     schemaVersion: 2,
     kind: domain,
@@ -299,7 +331,8 @@ export function profileConfig(config: PolicyConfig, domain: SyncDomain): SyncPro
     harnesses: {
       pi,
       codex,
-      ...(domain === "instructions" ? { vscode, ...(zed ? { zed } : {}) } : {}),
+      ...(includeVsCode ? { vscode: vscodeProfile } : {}),
+      ...(domain === "instructions" && zed ? { zed } : {}),
     },
   };
 }

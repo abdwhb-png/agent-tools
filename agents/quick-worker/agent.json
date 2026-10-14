@@ -17,5 +17,26 @@
     "model": "gpt-6-luna",
     "model_reasoning_effort": "high",
     "sandbox_mode": "workspace-write"
+  },
+  "vscode": {
+    "name": "quick-worker",
+    "tools": [
+      "read",
+      "edit",
+      "search",
+      "todo",
+      "execute/getTerminalOutput",
+      "execute/killTerminal",
+      "execute/runInTerminal",
+      "execute/sendToTerminal",
+      "pi-lens/*"
+    ],
+    "model": [
+      "Mimo-2.5 (OCG) (customendpoint)",
+      "Gemini 3.7 Flash (Antigravity) (customendpoint)",
+      "GPT 5.6 Luna (Openai-codex) (customendpoint)",
+      "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
+    ],
+    "agents": []
   }
 }

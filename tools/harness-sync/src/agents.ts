@@ -11,8 +11,10 @@ export interface AgentSource {
   role: string;
   pi?: NativeConfig;
   codex?: NativeConfig;
+  vscode?: NativeConfig;
   piInstructions: string;
   codexInstructions: string;
+  vscodeInstructions?: string;
 }
 
 function assertObject(value: unknown, label: string): Record<string, unknown> {
@@ -31,7 +33,7 @@ function assertString(value: unknown, label: string): void {
   if (!value.isWellFormed()) throw new Error(`${label} contains invalid Unicode`);
 }
 
-function assertStrings(value: unknown, label: string): void {
+function assertStrings(value: unknown, label: string): asserts value is string[] {
   if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) throw new Error(`${label} must be an array of strings`);
 }
 
@@ -68,6 +70,33 @@ function validatePi(config: Record<string, unknown>, label: string): void {
     if (typeof value === "string" && /\r|\n---/.test(value)) throw new Error(`${label}.${key} contains an unrepresentable frontmatter delimiter`);
     if (typeof value === "string" && value.includes("\n") && /^\s/.test(value)) throw new Error(`${label}.${key} contains unrepresentable leading indentation`);
   }
+}
+
+function validateVsCode(config: Record<string, unknown>, label: string): void {
+  const strings = ["name", "description", "argument-hint", "fileName"];
+  const booleans = ["user-invocable", "disable-model-invocation"];
+  assertKeys(config, [...strings, ...booleans, "tools", "agents", "model"], label);
+  for (const key of strings) if (config[key] !== undefined) assertString(config[key], `${label}.${key}`);
+  if (config.name !== undefined && (!(config.name as string).trim() || /[\x00-\x1f\x7f]/.test(config.name as string)))
+    throw new Error(`${label}.name must be a non-empty display name without control characters`);
+  if (config.fileName !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*\.agent\.md$/.test(config.fileName as string))
+    throw new Error(`${label}.fileName must be a safe basename ending in .agent.md`);
+  for (const key of booleans) if (config[key] !== undefined && typeof config[key] !== "boolean")
+    throw new Error(`${label}.${key} must be boolean`);
+  for (const key of ["tools", "agents", "model"]) {
+    const value = config[key];
+    if (value === undefined || (key === "agents" && value === "*")) continue;
+    if (key === "model" && typeof value === "string") {
+      if (!value.trim()) throw new Error(`${label}.model must not be empty`);
+      continue;
+    }
+    assertStrings(value, `${label}.${key}`);
+    if ((key === "model" && value.length === 0) || value.some((item) => !item.trim()))
+      throw new Error(`${label}.${key} contains an empty selection`);
+  }
+  if ((config.agents === "*" || (Array.isArray(config.agents) && config.agents.length > 0)) &&
+      Array.isArray(config.tools) && !config.tools.includes("agent"))
+    throw new Error(`${label}.agents requires the agent tool in tools`);
 }
 
 const codexStrings = ["name", "description", "model", "model_provider", "model_reasoning_effort", "model_reasoning_summary", "model_verbosity", "sandbox_mode", "service_tier", "web_search"];
@@ -187,6 +216,7 @@ export async function loadAgentSources(root: string): Promise<AgentSource[]> {
   const sharedInstructions = {
     pi: await optionalMarkdown(path.join(directory, "pi.md")),
     codex: await optionalMarkdown(path.join(directory, "codex.md")),
+    vscode: await optionalMarkdown(path.join(directory, "vscode.md")),
   };
   const agents: AgentSource[] = [];
   for (const entry of entries.filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
@@ -198,32 +228,33 @@ export async function loadAgentSources(root: string): Promise<AgentSource[]> {
     try { parsed = JSON.parse(definitionText); }
     catch { throw new Error(`${definitionPath} is not valid JSON`); }
     const raw = assertObject(parsed, source);
-    assertKeys(raw, ["description", "pi", "codex"], source);
+    assertKeys(raw, ["description", "pi", "codex", "vscode"], source);
     assertString(raw.description, `${source}.description`);
     if (!(raw.description as string).trim()) throw new Error(`${source}.description must not be empty`);
     const role = normalizeInstruction(await fs.readFile(path.join(source, "role.md"), "utf8"));
     if (!role.trim()) throw new Error(`${source}/role.md must not be empty`);
-    if (raw.pi === undefined && raw.codex === undefined) throw new Error(`${source} requires a native pi or codex profile`);
-    const instructions = { pi: "", codex: "" };
-    for (const harness of ["pi", "codex"] as const) {
+    if (raw.pi === undefined && raw.codex === undefined && raw.vscode === undefined) throw new Error(`${source} requires a native pi, codex or vscode profile`);
+    const instructions = { pi: "", codex: "", vscode: "" };
+    for (const harness of ["pi", "codex", "vscode"] as const) {
       if (raw[harness] === undefined) continue;
       const native = assertObject(raw[harness], `${source}.${harness}`);
       validateNativeValue(native, `${source}.${harness}`);
-      if (typeof native.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(native.name)) throw new Error(`${source}.${harness}.name must be a safe native agent name`);
+      if (harness !== "vscode" && (typeof native.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(native.name))) throw new Error(`${source}.${harness}.name must be a safe native agent name`);
       if (native.description !== undefined) assertString(native.description, `${source}.${harness}.description`);
       if (harness === "pi") validatePi({ description: raw.description, ...native }, `${source}.pi`);
-      else validateCodex(native, `${source}.codex`);
+      else if (harness === "codex") validateCodex(native, `${source}.codex`);
+      else validateVsCode(native, `${source}.vscode`);
       instructions[harness] = composeInstructions([
         sharedInstructions[harness], role, await optionalMarkdown(path.join(source, `${harness}.md`)),
       ]);
     }
-    agents.push({ id: entry.name, description: raw.description as string, role, pi: raw.pi as NativeConfig | undefined, codex: raw.codex as NativeConfig | undefined,
-      piInstructions: instructions.pi, codexInstructions: instructions.codex });
+    agents.push({ id: entry.name, description: raw.description as string, role, pi: raw.pi as NativeConfig | undefined, codex: raw.codex as NativeConfig | undefined, vscode: raw.vscode as NativeConfig | undefined,
+      piInstructions: instructions.pi, codexInstructions: instructions.codex, vscodeInstructions: instructions.vscode });
   }
-  for (const harness of ["pi", "codex"] as const) {
+  for (const harness of ["pi", "codex", "vscode"] as const) {
     const names = new Set<string>();
     for (const agent of agents) {
-      const name = agent[harness]?.name as string | undefined;
+      const name = (agent[harness]?.name ?? (harness === "vscode" && agent.vscode ? agent.id : undefined)) as string | undefined;
       if (name !== undefined && names.has(name)) throw new Error(`duplicate ${harness} agent name: ${name}`);
       if (name !== undefined) names.add(name);
     }
@@ -307,4 +338,14 @@ export function renderCodexAgent(agent: AgentSource, paths: Record<string, strin
   const lines = Object.keys(config).sort().map((key) => `${tomlKey(key)} = ${tomlValue(config[key])}`);
   const escaped = [...agent.codexInstructions].map((char) => char === "\n" ? "\n" : tomlString(char).slice(1, -1)).join("");
   return `${lines.join("\n")}\ndeveloper_instructions = """\n${escaped}"""\n`;
+}
+
+export function renderVsCodeAgent(agent: AgentSource): string {
+  assertString(agent.vscodeInstructions, `agents/${agent.id}.vscodeInstructions`);
+  const native: NativeConfig = { name: agent.id, description: agent.description, ...agent.vscode };
+  validateNativeValue(native, `agents/${agent.id}.vscode`);
+  validateVsCode(native, `agents/${agent.id}.vscode`);
+  const { fileName, ...config } = native;
+  const lines = Object.keys(config).sort().map((key) => `${key}: ${JSON.stringify(config[key])}`);
+  return `---\n${lines.join("\n")}\n---\n\n${agent.vscodeInstructions}`;
 }

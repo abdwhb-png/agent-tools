@@ -2,7 +2,9 @@
 
 Date: 2026-09-23
 
-Status: **D1–D22 and the subsequent implementation plan accepted; U2 implemented locally as `mission-driven-dev`, with O-B1 workflow-owned design guidance. Not globally installed or piloted.** This document retains the rationale and decision history. The [skill bundle](../../skills/mission-driven-dev/SKILL.md) owns operational guidance; its [artifact contract](../../skills/mission-driven-dev/references/artifacts.md) owns V1 serialization. Consult the [qualification report](../../skills/mission-driven-dev/VALIDATION.md) for checks actually performed. Implementation is not authorization to start a project mission, install the skill, change a harness, or build a factory.
+Updated: 2026-10-14 — G1 packet granularity, explicit execution-mode choice and V1 packet acceptance approved.
+
+Status: **D1–D33 accepted; U2 implemented locally as `mission-driven-dev`, with O-B1 workflow-owned design guidance.** The initial September delivery included no installation or pilot. The October source revision follows user-run mission feedback and does not install the revision or change those projects. This document retains the rationale and decision history. The [skill bundle](../../skills/mission-driven-dev/SKILL.md) owns operational guidance; its [artifact contract](../../skills/mission-driven-dev/references/artifacts.md) owns V1 serialization. Consult the [qualification report](../../skills/mission-driven-dev/VALIDATION.md) for checks actually performed. Implementation is not authorization to start a project mission, install the skill, change a harness, or build a factory.
 
 ## Destination and present scope
 
@@ -63,9 +65,19 @@ These identifiers preserve the conversation's decision history. The explanatory 
 | D24 | Own all phase instructions inside the bundle | Existing brainstorming, TDD and review skills remain optional technical aids, not workflow dependencies. |
 | D25 | Approve a wave's outcomes, limits and exit criteria | Elaborate later contracts inside that frame; return new substantive choices to the user. |
 | D26 | Execute one repository per V1 mission | Preserve multi-repository roadmaps; escalate indivisible cross-repository work rather than implying atomicity. |
-| D27 | Require authorized no-history delegation, otherwise hand off manually | An inherited fork is not fresh; missing independent validation stays missing. |
+| D27 | Require authorized no-history delegation, otherwise hand off manually | Preserved for delegated implementation and review. D31 later adds explicitly chosen direct implementation, without claiming a fresh context. An inherited fork is not fresh; missing independent validation stays missing. |
 | D28 | Separate documentary contracts from execution records | Preserve existing document conventions, default roadmaps/missions to `docs/`, and store execution in `.missions/`; hidden does not mean ignored. |
 | D29 | Narrow the general brainstorming patch to its boundaries | Preserve its exploration/dialogue method, respect selected processes and document owners, and remove automatic commit. |
+| D30 | G1: retain missions and deliver earlier verifiable packet outcomes | Do not put separately examinable outcomes into one whole-mission packet. Keep necessary dependencies together and allow one packet for a small or indivisible mission. No time/count quota or extra planning artifact. |
+| D31 | Offer direct or coordinated implementation with a mission-specific recommendation | The user selects the mode once. The principal agent sequences in either mode, implements in direct mode and delegates in coordinated mode. Mode choice, capability and scoped delegation authority remain distinct. |
+| D32 | V1: preserve independent acceptance of each packet | In direct mode a different authorized reviewer accepts the principal agent's work. In coordinated mode a non-implementing coordinator may accept after examining evidence. Focused packet checks and final fresh mission validation remain distinct. |
+| D33 | Continue authorized packets without user micro-management | Reuse recorded mode and authority, materialize only the next packet and proceed after acceptance. Preserve explicit stops and escalate substantive decisions, mode changes, authority gaps and blockers. This does not activate destination-level autonomy under D6. |
+
+### October feedback and accepted adjustment
+
+The user prioritized an earlier verifiable result over reducing total mission duration. Inspection of the Falla Cash M1/M2 packets found that each first packet bundled almost the entire mission, with smaller packets appearing mainly as corrections. Anti-Slop AS-M001 instead used separate documentation packets, and its recorded duration also included independent validation and a handoff correction. These observations do not establish model/runtime latency or prove that more packets always improve delivery.
+
+G1 was explicitly accepted without assuming a separate coordinator. The user then requested a direct/coordinated choice with a recommendation based on mission characteristics, selected V1 independent packet acceptance, and authorized the source change. D30–D33 record that evolution. The operating policy lives in the [execution reference](../../skills/mission-driven-dev/references/execution.md), not in duplicated project instructions. Smaller missions and intermediate demonstrations without changing packet boundaries were considered but not selected for this adjustment. A schema field or new orchestration layer is not needed for the approved change.
 
 ## Artifact ownership
 
@@ -138,7 +150,7 @@ A document/configuration mission uses proportionate consistency or before/after 
 
 Generate only the next Task Packet from the mission and current accepted state. It identifies the mission and attempt, relevant revisions, one objective, prerequisites, expected file scope, exclusions, validation and required handoff evidence. It includes TDD expectations where applicable. New evidence may change the next packet without rewriting launched attempts.
 
-A fresh implementation context receives the packet, the relevant contract/ADR references and current repository evidence. Fresh context means discarding stale conversational assumptions, not omitting essential sources. Selecting the right task or interpreting a finding remains reasoning work.
+Under D31, direct implementation uses the principal agent's context while coordinated implementation sends the packet, relevant contract/ADR references and current repository evidence to a fresh worker. Fresh context means discarding stale conversational assumptions, not omitting essential sources. Selecting the right task or interpreting a finding remains reasoning work.
 
 Use one mission worktree, initially based on an explicitly recorded revision. Accepted packets accumulate there. After packet checks and acceptance, record a checkpoint and its evidence. The actor responsible for acceptance controls the checkpoint; an implementer's completion claim alone is insufficient. Preserve the repository's eventual squash/merge convention.
 
@@ -158,7 +170,7 @@ The Mission Contract defines required proof before implementation:
 | Real-use verification | Browser interaction, actual CLI invocation or live runtime check where the contract requires it. |
 | Provenance | Exact commands/results, revision, environment limits, relevant artifacts and checks not run. |
 
-The implementer performs focused checks for each packet. A fresh independent validator evaluates the mission outcome using its contract, complete relevant diff and evidence rather than the implementation conversation. Findings must identify concrete code or a violated requirement. Specialized review is added for demonstrated risk such as security, performance, public API or migration changes.
+The implementer performs focused checks for each packet, and D32 retains acceptance by a non-implementing actor before progression. A fresh independent validator evaluates the mission outcome using its contract, complete relevant diff and evidence rather than the implementation conversation. Findings must identify concrete code or a violated requirement. Specialized review is added for demonstrated risk such as security, performance, public API or migration changes.
 
 Findings produce bounded corrections. Repeat the checks invalidated by a correction and verify that the complete mandatory evidence still applies. An AI review cannot waive a failing executable check or replace a missing real-use observation. The implementer cannot close the mission alone.
 
@@ -198,7 +210,7 @@ Destination, scope and authority changes need an explicit user decision. In the 
 | Component/time-based missions | Rejected as the primary cut: they need not deliver an observable outcome. |
 | Markdown-only or structured-data-only contracts | Rejected in favor of readable contracts and distinct structured state. |
 | Kanban-only lifecycle or AI-only completion judgment | Rejected: neither preserves the required evidence and interruption distinctions. |
-| Mandatory fresh review after every packet | Not selected: independent validation is at mission level, with local checks during execution. |
+| Mandatory separate fresh reviewer after every packet in all modes | Initially not selected. D32 now explicitly requires a separate reviewer for direct implementation, while coordinated mode may use its non-implementing coordinator for packet acceptance. Whole-mission fresh validation remains mandatory in both modes. |
 | Separate mission models for each work type | Rejected: multiplies workflows and selection cost. |
 | All packets generated up front / per-packet worktrees | Not selected: stale instructions and unnecessary integration overhead. |
 | Implementer-owned unchecked commits / end-only commit | Not selected: checkpoints follow packet acceptance. |
@@ -271,7 +283,7 @@ D22 additionally requires checking that conception can run without the global br
 | Q2 | Resolved by D25: approved frame versus substantive new decisions. | Preserve evidence of each actual approval. |
 | Q3 | Resolved by the V1 artifact contract and validator. | Structural checking is not lifecycle enforcement or authenticated approval. |
 | Q4 | Resolved by D26 and explicit dirty-work/correction preservation. | No automatic disposal; ask when uncommitted inputs are needed. |
-| Q5 | Policy resolved by D27; actual Codex and Pi discovery, worktree access and fresh-context behavior still need live qualification. | Do not claim a full manual mission was exercised in either harness. |
+| Q5 | D27 is qualified by D31/D32. User-run mission records informed the October change; the new direct/coordinated policy still needs qualification in the intended harnesses. | Fictional evaluations do not prove live discovery, worktree access or execution reliability. |
 | Q6 | Concrete autonomy readiness measurements remain open. | Required before switching from D5 to D6. |
 
 The pilot responsibilities are explicit: this task delivers the reusable bundle and bounded qualification. The user directs the existing Anti-Slop task to align its documents, selects the pilot's project scope there, and starts execution using their preferred harness. This task does not message that task, rewrite its roadmap, select a rule, or launch its agents on the user's behalf.

@@ -16,5 +16,23 @@
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "workspace-write",
     "approval_policy": "never"
+  },
+  "vscode": {
+    "name": "qa-tester",
+    "argument-hint": "Task description.",
+    "tools": [
+      "read",
+      "search",
+      "execute/getTerminalOutput",
+      "execute/killTerminal",
+      "execute/runInTerminal",
+      "execute/sendToTerminal",
+      "todo"
+    ],
+    "model": [
+      "GPT 5.6 Luna (Openai-codex) (customendpoint)",
+      "DeepSeek V4 Flash (Go) (customendpoint)",
+      "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
+    ]
   }
 }

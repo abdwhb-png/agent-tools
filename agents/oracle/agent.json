@@ -14,5 +14,27 @@
     "model": "gpt-6-astra",
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "read-only"
+  },
+  "vscode": {
+    "name": "Oracle",
+    "tools": [
+      "read",
+      "search",
+      "agent",
+      "web",
+      "context7/*",
+      "deepwiki/*",
+      "exa/*"
+    ],
+    "agents": [
+      "factual-researcher",
+      "Librarian",
+      "Scout"
+    ],
+    "model": [
+      "GPT 5.6 Sol (Openai-codex) (customendpoint)",
+      "Z.ai: GLM 5.2 (openrouter)",
+      "DeepSeek: DeepSeek V4 Pro 0813 (openrouter)"
+    ]
   }
 }

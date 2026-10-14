@@ -5,7 +5,7 @@ Synchronize this repository's canonical instructions and specialist agents into 
 | Command | Manages | Supported harnesses | Default configuration |
 | --- | --- | --- | --- |
 | `instruction-sync` | Global operating rules and personal guidance | Pi, Codex, VS Code, Zed | `instructions.config.json` |
-| `agent-sync` | Native specialist agent definitions | Pi, Codex | `agents.config.json` |
+| `agent-sync` | Native specialist agent definitions | Pi, Codex, VS Code | `agents.config.json` |
 
 Each command loads only its own sources, configuration and ownership state. Disabling one workflow or encountering an instruction conflict does not affect the other. Synchronization is manual. The tool does not synchronize skills, install tools, manage global MCP registries or restart runtimes.
 
@@ -99,15 +99,16 @@ Synchronization and adoption previews report operations such as `create`, `updat
 | `--codex-additional-home ID=PATH` | Both | Add or update a named Codex home. Repeatable. |
 | `--enable-pi`, `--disable-pi` | Both | Include or exclude Pi. |
 | `--enable-codex`, `--disable-codex` | Both | Include or exclude all configured Codex homes. |
+| `--vscode-agent-dir ID=PATH` | Agents | Add or update a named exact agent directory. Repeatable. |
 | `--vscode-target PATH` | Instructions | Set exact output paths. Repeat to supply the entire replacement list. |
-| `--enable-vscode`, `--disable-vscode` | Instructions | Include or exclude VS Code. |
+| `--enable-vscode`, `--disable-vscode` | Both | Include or exclude VS Code for this workflow. |
 | `--zed-home PATH` | Instructions | Set the primary Zed home. |
 | `--zed-additional-home ID=PATH` | Instructions | Add or update a named Zed home. Repeatable. |
 | `--enable-zed`, `--disable-zed` | Instructions | Include or exclude Zed. |
 | `--import-legacy` | Both | Import this domain's settings and ownership. Preview by default. |
 | `--legacy-config PATH`, `--legacy-state PATH` | Both | Override import sources. Require `--import-legacy`. |
 
-Repeat the same configure options with `--apply` after reviewing a preview. Named-home options preserve other homes and update an existing home with the same ID. Remove a named home by editing the configuration. Path options alone do not enable a previously disabled harness. Opposing enable/disable flags for the same scope are invalid. Import legacy settings before changing destinations or enabled status.
+Repeat the same configure options with `--apply` after reviewing a preview. Named-home and named-agent-directory options preserve other destinations and update the entry with the same ID. Remove an entry by editing the configuration. Path options alone do not enable a previously disabled harness. Opposing enable/disable flags for the same scope are invalid. Import legacy settings before changing destinations or enabled status.
 
 ### Sync versus adopt
 
@@ -151,13 +152,13 @@ Configuration files are adjacent to this tool and Git-ignored. Create them throu
 | `paths` | Optional map of named, absolute installation paths. Agent configuration only. |
 | `harnesses.pi` | Required object with `enabled` and, when enabled, `agentDir`. |
 | `harnesses.codex` | Required object with `enabled` and, when enabled, `home`. Optional `additionalHomes`. |
-| `harnesses.vscode` | Required for instructions, with `enabled` and a nonempty `targets` array when enabled. Invalid in agent configuration. |
+| `harnesses.vscode` | Instructions require `enabled` and a nonempty `targets` array when enabled. Agents optionally accept `enabled` and named `directories`, which must be nonempty when enabled. |
 | `harnesses.zed` | Optional for instructions, with `enabled`, `home` when enabled, and optional `additionalHomes`. Invalid in agent configuration. |
 | `retiredAgents` | Agent configuration only, on the primary Codex settings or individual additional homes. Exact `.toml` basenames to retire. |
 
 Unknown settings are rejected. Each additional home needs a unique lowercase ID matching `[a-z][a-z0-9-]*` and a distinct absolute path. A harness-level `enabled` switch applies to all its homes. A disabled harness retains its files and ownership records. Moving a harness also preserves the old files, and existing ownership identities can require explicit adoption at the new destination.
 
-On first configuration, Pi defaults to `~/.pi/agent`. Codex uses `CODEX_HOME` when set, otherwise `~/.codex`. Instruction configuration also enables the platform's standard VS Code target and leaves Zed disabled. Agent configuration includes only Pi and Codex. Existing configuration takes precedence over environment-derived defaults.
+On first configuration, Pi defaults to `~/.pi/agent`. Codex uses `CODEX_HOME` when set, otherwise `~/.codex`. Instruction configuration also enables the platform's standard VS Code target and leaves Zed disabled. Agent configuration initially includes only Pi and Codex; VS Code agents require explicit destinations and enablement. Existing configurations and legacy agent imports do not enable VS Code agents.
 
 ### Local agent path bindings
 
@@ -185,7 +186,7 @@ The corresponding top-level setting in your local agent configuration is:
 
 These are excerpts, not complete files. The four bindings above are required by the current Codex catalog. Start from [agents.config.example.json](agents.config.example.json), replace its placeholders, and keep the complete configuration's `schemaVersion`, `kind`, `enabled` and `harnesses` settings. Existing users can add `paths` to their current configuration. These local values are preserved by subsequent `configure` operations.
 
-One shared resolver substitutes references in native string fields, including nested arrays and objects, before the resolved settings are validated and rendered. Use an entire string value such as `"${paths.piSessionRecallScript}"`. Embedded forms such as `"${paths.installDir}/server.js"` are rejected, so bind the complete file path instead. Binding names match `[A-Za-z][A-Za-z0-9_-]*`, and values must be literal absolute paths for the Node platform without nested path references or NUL characters. Neither shell commands nor environment variables are evaluated.
+One shared resolver substitutes references in Pi and Codex native string fields, including nested arrays and objects, before the resolved settings are validated and rendered. Use an entire string value such as `"${paths.piSessionRecallScript}"`. Embedded forms such as `"${paths.installDir}/server.js"` are rejected, so bind the complete file path instead. Binding names match `[A-Za-z][A-Za-z0-9_-]*`, and values must be literal absolute paths for the Node platform without nested path references or NUL characters. Neither shell commands nor environment variables are evaluated. The supported VS Code fields are literal native settings and do not use path bindings.
 
 Generated native files receive the resolved absolute paths. Shared descriptions, role prompts and Markdown supplements should remain portable. Prompt bodies are not templates. Credential environment references such as `env_vars` remain native settings.
 
@@ -213,6 +214,20 @@ VS Code uses exact configured `*.instructions.md` paths. Repeat `--vscode-target
 ```bash
 node dist/instruction-sync.mjs configure --vscode-target /home/example/.config/Code/User/instructions/agent-policy.instructions.md --vscode-target /home/example/.copilot/instructions/agent-policy.instructions.md
 ```
+
+VS Code agents use exact directories rather than a guessed installation or user home. Each `directories` entry contains a lowercase `id` matching `[a-z][a-z0-9-]*` and an absolute `path`. The parser normalizes paths and rejects duplicate IDs or equivalent paths, including case aliases on Windows. All configured directories receive the same native profiles. `--vscode-target` is invalid for agent-sync, and `--vscode-agent-dir` is invalid for instruction-sync.
+
+For example, preview an existing Windows Insiders profile from WSL:
+
+```bash
+node dist/agent-sync.mjs configure --vscode-agent-dir 'insiders=/mnt/c/Users/example/AppData/Roaming/Code - Insiders/User/prompts' --enable-vscode
+```
+
+Repeat with `--apply` only after reviewing configuration. Then run `doctor`, `sync --dry-run` and targeted `adopt --dry-run` for divergent existing files. Adoption replaces their prompt bodies with canonical responsibilities and native procedures, with recovery backups on application. It does not import local prompt bodies into canonical sources.
+
+Destination discovery depends on the selected VS Code runtime. Local sessions read profile storage such as `Code - Insiders/User/prompts`. Copilot Agent Host uses `~/.copilot/agents` on the machine running that host instead of profile user data. A Windows host therefore uses its Windows home, while a WSL or remote host uses its own home. See [VS Code's customization migration documentation](https://code.visualstudio.com/docs/agent-customization/migrate-customizations). Add another named directory explicitly when needed; the synchronizer does not migrate files, discover runtime hosts or change VS Code settings.
+
+Agent target IDs are `vscode-<directory-id>-agent-<role-id>`. Directory names and role IDs that produce an ambiguous target identity are rejected before writes. Disabling or moving a directory preserves its prior files and ownership. Unknown local agents remain unmanaged.
 
 Zed receives personal `AGENTS.md` in each configured home. Typical homes are `%APPDATA%\Zed` on Windows and `~/.config/zed` on Linux. For WSL and a second Linux home:
 
@@ -316,13 +331,15 @@ Canonical specialist definitions live in the repository's [agents directory](../
 ```text
 agents/pi.md                      # optional instructions for every Pi subagent
 agents/codex.md                    # optional instructions for every Codex subagent
+agents/vscode.md                   # optional instructions for every VS Code agent
 agents/<role>/role.md              # required shared responsibilities
 agents/<role>/agent.json           # required metadata and native settings
 agents/<role>/pi.md                # optional Pi procedures
 agents/<role>/codex.md             # optional Codex procedures
+agents/<role>/vscode.md            # optional VS Code procedures
 ```
 
-Every role requires a nonempty shared description, a nonempty role prompt and at least one native `pi` or `codex` section. An absent section produces no profile for that harness. Role directory IDs must match `[a-z][a-z0-9-]*`. Each enabled native profile requires a safe, unique native name consisting of letters, digits, underscores or hyphens and starting with a letter or digit.
+Every role requires a nonempty shared description, a nonempty role prompt and at least one native `pi`, `codex` or `vscode` section. An absent section produces no profile for that harness. Role directory IDs must match `[a-z][a-z0-9-]*`. Pi and Codex profiles require safe, unique native names consisting of letters, digits, underscores or hyphens and starting with a letter or digit. VS Code display names can contain spaces and default to the role ID; duplicate names are rejected.
 
 ### Define a role
 
@@ -357,7 +374,7 @@ For example, create `agents/example-reviewer/role.md` with the role's responsibi
 
 Add `exampleDocsScript` with the absolute script path to your local configuration's `paths` map before enabling this Codex profile. Tool groups and MCP selectors in this example must already exist in the relevant harness. The synchronizer does not install or resolve those tools. Use native environment references for credentials rather than committing secret values.
 
-Descriptions inherit `agent.json.description`. Add `pi.description` or `codex.description` only when responsibilities or selection criteria materially differ. Formatting and native tool procedures do not justify a separate description.
+Descriptions inherit `agent.json.description`. Add a native description only when responsibilities or selection criteria materially differ. Formatting and native tool procedures do not justify a separate description.
 
 The loader composes each prompt once in this order: harness-wide shared instructions, shared `role.md`, then the role's native supplement. Optional missing or empty shared files add no content. Put shared alias semantics in `agents/pi.md` and keep actual group membership in Pi's tool registry. Role supplements own native procedures, and native renderers serialize the resulting prompt without translating settings between harnesses.
 
@@ -367,6 +384,7 @@ The loader composes each prompt once in this order: harness-wide shared instruct
 | --- | --- | --- | --- |
 | Pi | `<agentDir>/agents/` | `<pi.name>.md` | Markdown body after native frontmatter. |
 | Codex | `<home>/agents/` | `<role-directory>.toml` | Composed `developer_instructions`. Native `codex.name` remains authoritative. |
+| VS Code | Exact named directory | `<role-directory>.agent.md`, or explicit `vscode.fileName` | Markdown body after YAML frontmatter. Native display names are independent of filenames. |
 
 Role directory IDs are stable ownership identities. For example, `browser-tester` produces `browser-tester.md` in Pi and `browser-tester.toml` in Codex, with Codex native name `browser_tester`. Renaming a role ID into an existing managed filename blocks synchronization rather than deleting a path still generated. Plan identity/path changes as an explicit migration.
 
@@ -391,15 +409,22 @@ The renderer owns `developer_instructions`, so supply prompt content through Mar
 
 Each native MCP server can define either a process (`command`, `args`, `cwd`) or URL transport (`url`), with optional enablement, required status, timeouts, authentication and environment/header settings. Supported tool selection is `enabled_tools` / `disabled_tools`. Per-tool settings use `tools.<name>.approval_mode` and `output_token_limit`, with approval modes `auto`, `prompt`, `writes` or `approve`. Credential references include `env_vars`, `bearer_token_env_var` and `env_http_headers`. See the explicit validator for the complete nested field list. Parsing a profile does not establish model availability, tool availability, MCP startup or authentication.
 
+VS Code profiles support `name`, `description`, `argument-hint`, `tools`, `agents`, `model`, `user-invocable` and `disable-model-invocation`. Tools are arrays of nonempty native tool names or MCP selectors such as `docs/*`. Models are a nonempty string or nonempty ordered array of model names. Omitting `model` uses the runtime's selected model. Agents accept `*` or a list of nonempty display names; `[]` disables subagent use. When allowing subagents with an explicit tools list, include the `agent` tool. Visibility controls require actual booleans. Unsupported native fields fail before writes rather than being silently omitted. See [VS Code's native field documentation](https://code.visualstudio.com/docs/agent-customization/custom-agents#header-optional).
+
+Optional `vscode.fileName` is synchronizer metadata, not frontmatter. It must be a basename ending in `.agent.md`, with letters, digits, underscores or hyphens before the suffix and a letter or digit first. It preserves existing aliases such as `codebase-scout.agent.md` while the canonical role remains `scout` and its display name remains `Scout`. Otherwise output uses the role ID as its filename. YAML uses deterministic sorted keys and quoted values while preserving model order and booleans.
+
+The initial VS Code profiles preserve the native model lists, tools, names and subagent references from the ten matching Insiders definitions. Shared canonical responsibilities replace divergent local prompt bodies. New review roles use the Code Reviewer model list with `read` and `search`; Quick Worker and Test Engineer use Worker model and tool settings; Browser Tester uses QA Tester settings. New profiles disable delegation with `agents: []`. Model strings are configuration choices, not evidence that a provider is installed or available. Browser Tester uses the available browser CLI through terminal tools. Terminal access cannot enforce a prohibition on application edits. Validate actual discovery, model selection and tools in the intended VS Code session after adoption.
+
 ### Current catalog
 
-The selected catalog has 19 canonical roles, producing 17 Pi profiles and 19 profiles in every Codex home.
+The selected catalog has 18 canonical roles, producing 16 Pi profiles, 18 profiles in every Codex home and 18 profiles in every enabled VS Code agent directory.
 
 | Availability | Roles |
 | --- | --- |
-| Pi and Codex | api-reviewer, architect, browser-tester, code-reviewer, factual-researcher, librarian, oracle, performance-reviewer, pi-expert, plan-reviewer, qa-tester, quick-reviewer, quick-worker, security-reviewer, style-reviewer, test-engineer, videographer |
-| Codex only | scout, worker |
+| Pi, Codex and VS Code | api-reviewer, architect, browser-tester, code-reviewer, factual-researcher, librarian, oracle, performance-reviewer, pi-expert, qa-tester, quick-reviewer, quick-worker, security-reviewer, style-reviewer, test-engineer, videographer |
+| Codex and VS Code | scout, worker |
 | Local Pi definitions outside management | sdd-orchestrator, orchestration-assessor |
+| Local Insiders definitions outside management | atlas-orchestrator, metis, quick-plan |
 
 Worker and scout preserve Pi's packaged definitions. Librarian is explicitly provided to both harnesses. Pi's oracle keeps its native name `oh-my-oracle`. Browser validation and debugging share one role. Pi keeps `browser-tester`, Codex uses `browser_tester`, and Pi's version-1 JSON reporting contract applies when the caller supplies that schema. The previous Codex `browser-debugger.toml` files were retired through backed-up migration.
 

@@ -27,12 +27,12 @@ test("native agent profiles enforce their domain and exclude instruction destina
     parsePolicyConfig(
       JSON.stringify({
         ...profile,
-        harnesses: { ...profile.harnesses, vscode: { enabled: false } },
+        harnesses: { ...profile.harnesses, vscode: { enabled: false, targets: ["/instructions.md"] } },
       }),
       "linux",
       "agents",
     ),
-  ).toThrow("unsupported key: vscode");
+  ).toThrow("unsupported key: targets");
 });
 
 test("agent path bindings round-trip without leaking into instruction settings", () => {

@@ -1,0 +1,1 @@
+Use the configured `execute` terminal tools for interactive CLI validation. Record the executed command, exit status and relevant output. Terminal access can modify files, so keep commands and cleanup within the caller's authorized test scope.

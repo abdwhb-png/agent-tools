@@ -12,7 +12,7 @@ import process from "node:process";
 var WINDOWS = "win32";
 var domainHarnesses = {
   instructions: ["pi", "codex", "vscode", "zed"],
-  agents: ["pi", "codex"]
+  agents: ["pi", "codex", "vscode"]
 };
 function platformPath(platform) {
   return platform === WINDOWS ? path.win32 : path.posix;
@@ -63,7 +63,7 @@ function defaultPolicyConfig(environment = currentEnvironment(), domain) {
     harnesses: {
       pi: { enabled: true, agentDir: homePath(environment, ".pi", "agent") },
       codex: { enabled: true, home: codexHome },
-      vscode: { enabled: domain !== "agents", targets: [vscodeTarget] },
+      vscode: domain === "agents" ? { enabled: false } : { enabled: true, targets: [vscodeTarget] },
       zed: { enabled: false }
     }
   };
@@ -127,6 +127,36 @@ function validateRetirements(value) {
   if (new Set(value).size !== value.length)
     throw new Error("duplicate retired agent basename");
 }
+function validateVsCodeDirectories(config, platform) {
+  assertKeys(config, ["enabled", "directories"], "harnesses.vscode");
+  if (config.enabled && (!Array.isArray(config.directories) || config.directories.length === 0))
+    throw new Error("enabled VS Code agents require a non-empty directories array");
+  if (config.directories === undefined)
+    return;
+  if (!Array.isArray(config.directories))
+    throw new Error("harnesses.vscode.directories must be an array");
+  const ids = new Set;
+  const directories = new Set;
+  for (const entry of config.directories) {
+    if (!isObject(entry))
+      throw new Error("each VS Code directory must be an object");
+    assertKeys(entry, ["id", "path"], "harnesses.vscode.directories entry");
+    if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.path !== "string")
+      throw new Error("each VS Code directory requires a lowercase id and absolute path");
+    if (!entry.path.isWellFormed() || entry.path.includes("\x00"))
+      throw new Error(`VS Code directory ${entry.id} contains invalid path characters`);
+    assertAbsolute(entry.path, `harnesses.vscode.directories.${entry.id}.path`, platform);
+    const normalized = platformPath(platform).resolve(entry.path);
+    const identity = platform === WINDOWS ? normalized.toLowerCase() : normalized;
+    if (ids.has(entry.id))
+      throw new Error(`duplicate VS Code directory id: ${entry.id}`);
+    if (directories.has(identity))
+      throw new Error(`duplicate VS Code directory path: ${entry.path}`);
+    ids.add(entry.id);
+    directories.add(identity);
+    entry.path = normalized;
+  }
+}
 function parsePolicyConfig(raw, platform = process.platform, domain) {
   let parsed;
   try {
@@ -179,16 +209,20 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
   assertKeys(parsed.harnesses, profile ? domainHarnesses[parsed.kind] : domainHarnesses.instructions, "harnesses");
   const pi = assertHarness(parsed.harnesses.pi, "pi");
   const codex = assertHarness(parsed.harnesses.codex, "codex");
-  const vscode = assertHarness(profile && parsed.kind === "agents" ? { enabled: false } : parsed.harnesses.vscode, "vscode");
+  const vscode = assertHarness(profile && parsed.kind === "agents" && parsed.harnesses.vscode === undefined ? { enabled: false } : parsed.harnesses.vscode, "vscode");
   const zed = parsed.harnesses.zed === undefined ? undefined : assertHarness(parsed.harnesses.zed, "zed");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
   validateHomeHarness(codex, "Codex", platform, !profile || parsed.kind === "agents");
   if (zed)
     validateHomeHarness(zed, "Zed", platform);
-  assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
+  const vscodeAgents = profile && parsed.kind === "agents";
+  if (vscodeAgents)
+    validateVsCodeDirectories(vscode, platform);
+  else
+    assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
   if (pi.enabled && typeof pi.agentDir !== "string")
     throw new Error("enabled Pi harness requires agentDir");
-  if (vscode.enabled && (!Array.isArray(vscode.targets) || vscode.targets.length === 0 || vscode.targets.some((target) => typeof target !== "string"))) {
+  if (!vscodeAgents && vscode.enabled && (!Array.isArray(vscode.targets) || vscode.targets.length === 0 || vscode.targets.some((target) => typeof target !== "string"))) {
     throw new Error("enabled VS Code harness requires a non-empty targets array");
   }
   if (typeof pi.agentDir === "string")
@@ -214,6 +248,8 @@ function profileConfig(config, domain) {
     for (const home of codex.additionalHomes || [])
       delete home.retiredAgents;
   }
+  const vscodeProfile = domain === "instructions" ? { enabled: vscode.enabled && vscode.directories === undefined, ...vscode.targets !== undefined ? { targets: vscode.targets } : {} } : { enabled: vscode.enabled && vscode.targets === undefined, ...vscode.directories !== undefined ? { directories: vscode.directories } : {} };
+  const includeVsCode = domain === "instructions" || vscode.directories !== undefined || vscodeProfile.enabled;
   return {
     schemaVersion: 2,
     kind: domain,
@@ -222,7 +258,8 @@ function profileConfig(config, domain) {
     harnesses: {
       pi,
       codex,
-      ...domain === "instructions" ? { vscode, ...zed ? { zed } : {} } : {}
+      ...includeVsCode ? { vscode: vscodeProfile } : {},
+      ...domain === "instructions" && zed ? { zed } : {}
     }
   };
 }
@@ -460,6 +497,36 @@ function validatePi(config, label) {
       throw new Error(`${label}.${key} contains unrepresentable leading indentation`);
   }
 }
+function validateVsCode(config, label) {
+  const strings = ["name", "description", "argument-hint", "fileName"];
+  const booleans = ["user-invocable", "disable-model-invocation"];
+  assertKeys2(config, [...strings, ...booleans, "tools", "agents", "model"], label);
+  for (const key of strings)
+    if (config[key] !== undefined)
+      assertString(config[key], `${label}.${key}`);
+  if (config.name !== undefined && (!config.name.trim() || /[\x00-\x1f\x7f]/.test(config.name)))
+    throw new Error(`${label}.name must be a non-empty display name without control characters`);
+  if (config.fileName !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*\.agent\.md$/.test(config.fileName))
+    throw new Error(`${label}.fileName must be a safe basename ending in .agent.md`);
+  for (const key of booleans)
+    if (config[key] !== undefined && typeof config[key] !== "boolean")
+      throw new Error(`${label}.${key} must be boolean`);
+  for (const key of ["tools", "agents", "model"]) {
+    const value = config[key];
+    if (value === undefined || key === "agents" && value === "*")
+      continue;
+    if (key === "model" && typeof value === "string") {
+      if (!value.trim())
+        throw new Error(`${label}.model must not be empty`);
+      continue;
+    }
+    assertStrings(value, `${label}.${key}`);
+    if (key === "model" && value.length === 0 || value.some((item) => !item.trim()))
+      throw new Error(`${label}.${key} contains an empty selection`);
+  }
+  if ((config.agents === "*" || Array.isArray(config.agents) && config.agents.length > 0) && Array.isArray(config.tools) && !config.tools.includes("agent"))
+    throw new Error(`${label}.agents requires the agent tool in tools`);
+}
 var codexStrings = ["name", "description", "model", "model_provider", "model_reasoning_effort", "model_reasoning_summary", "model_verbosity", "sandbox_mode", "service_tier", "web_search"];
 var mcpStrings = ["command", "cwd", "url", "auth", "bearer_token_env_var", "http_headers_helper", "default_tools_approval_mode", "oauth_resource", "experimental_environment"];
 var mcpLists = ["args", "enabled_tools", "disabled_tools", "scopes"];
@@ -613,7 +680,8 @@ async function loadAgentSources(root) {
   }
   const sharedInstructions = {
     pi: await optionalMarkdown(path4.join(directory, "pi.md")),
-    codex: await optionalMarkdown(path4.join(directory, "codex.md"))
+    codex: await optionalMarkdown(path4.join(directory, "codex.md")),
+    vscode: await optionalMarkdown(path4.join(directory, "vscode.md"))
   };
   const agents = [];
   for (const entry of entries.filter((entry2) => entry2.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
@@ -629,29 +697,31 @@ async function loadAgentSources(root) {
       throw new Error(`${definitionPath} is not valid JSON`);
     }
     const raw = assertObject(parsed, source);
-    assertKeys2(raw, ["description", "pi", "codex"], source);
+    assertKeys2(raw, ["description", "pi", "codex", "vscode"], source);
     assertString(raw.description, `${source}.description`);
     if (!raw.description.trim())
       throw new Error(`${source}.description must not be empty`);
     const role = normalizeInstruction(await fs2.readFile(path4.join(source, "role.md"), "utf8"));
     if (!role.trim())
       throw new Error(`${source}/role.md must not be empty`);
-    if (raw.pi === undefined && raw.codex === undefined)
-      throw new Error(`${source} requires a native pi or codex profile`);
-    const instructions = { pi: "", codex: "" };
-    for (const harness of ["pi", "codex"]) {
+    if (raw.pi === undefined && raw.codex === undefined && raw.vscode === undefined)
+      throw new Error(`${source} requires a native pi, codex or vscode profile`);
+    const instructions = { pi: "", codex: "", vscode: "" };
+    for (const harness of ["pi", "codex", "vscode"]) {
       if (raw[harness] === undefined)
         continue;
       const native = assertObject(raw[harness], `${source}.${harness}`);
       validateNativeValue(native, `${source}.${harness}`);
-      if (typeof native.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(native.name))
+      if (harness !== "vscode" && (typeof native.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(native.name)))
         throw new Error(`${source}.${harness}.name must be a safe native agent name`);
       if (native.description !== undefined)
         assertString(native.description, `${source}.${harness}.description`);
       if (harness === "pi")
         validatePi({ description: raw.description, ...native }, `${source}.pi`);
-      else
+      else if (harness === "codex")
         validateCodex(native, `${source}.codex`);
+      else
+        validateVsCode(native, `${source}.vscode`);
       instructions[harness] = composeInstructions([
         sharedInstructions[harness],
         role,
@@ -664,14 +734,16 @@ async function loadAgentSources(root) {
       role,
       pi: raw.pi,
       codex: raw.codex,
+      vscode: raw.vscode,
       piInstructions: instructions.pi,
-      codexInstructions: instructions.codex
+      codexInstructions: instructions.codex,
+      vscodeInstructions: instructions.vscode
     });
   }
-  for (const harness of ["pi", "codex"]) {
+  for (const harness of ["pi", "codex", "vscode"]) {
     const names = new Set;
     for (const agent of agents) {
-      const name = agent[harness]?.name;
+      const name = agent[harness]?.name ?? (harness === "vscode" && agent.vscode ? agent.id : undefined);
       if (name !== undefined && names.has(name))
         throw new Error(`duplicate ${harness} agent name: ${name}`);
       if (name !== undefined)
@@ -764,6 +836,20 @@ function renderCodexAgent(agent, paths = {}) {
 developer_instructions = """
 ${escaped}"""
 `;
+}
+function renderVsCodeAgent(agent) {
+  assertString(agent.vscodeInstructions, `agents/${agent.id}.vscodeInstructions`);
+  const native = { name: agent.id, description: agent.description, ...agent.vscode };
+  validateNativeValue(native, `agents/${agent.id}.vscode`);
+  validateVsCode(native, `agents/${agent.id}.vscode`);
+  const { fileName, ...config } = native;
+  const lines = Object.keys(config).sort().map((key) => `${key}: ${JSON.stringify(config[key])}`);
+  return `---
+${lines.join(`
+`)}
+---
+
+${agent.vscodeInstructions}`;
 }
 
 // src/sources.ts
@@ -958,7 +1044,8 @@ function agentDirectories(config) {
     return [];
   return [
     ...config.harnesses.pi.enabled ? [{ id: "pi", directory: path6.join(config.harnesses.pi.agentDir, "agents"), extension: ".md" }] : [],
-    ...config.harnesses.codex.enabled ? namedHomes("codex", config.harnesses.codex).map(({ id, home }) => ({ id, directory: path6.join(home, "agents"), extension: ".toml" })) : []
+    ...config.harnesses.codex.enabled ? namedHomes("codex", config.harnesses.codex).map(({ id, home }) => ({ id, directory: path6.join(home, "agents"), extension: ".toml" })) : [],
+    ...config.harnesses.vscode.enabled ? (config.harnesses.vscode.directories || []).map(({ id, path: directory }) => ({ id: `vscode-${id}`, directory, extension: ".agent.md" })) : []
   ];
 }
 function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = false) {
@@ -1012,6 +1099,12 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
   }
   if (config.resources?.agents === true) {
     for (const agent of sources.agents || []) {
+      if (config.harnesses.vscode.enabled && agent.vscode) {
+        const desired = renderVsCodeAgent(agent);
+        for (const { id, path: directory } of config.harnesses.vscode.directories || []) {
+          targets.push({ id: `vscode-${id}-agent-${agent.id}`, kind: "file", path: path6.join(directory, agent.vscode.fileName ?? `${agent.id}.agent.md`), desired, owned: desired, agentDirectory: directory });
+        }
+      }
       if (config.harnesses.pi.enabled && agent.pi) {
         const desired = renderPiAgent(agent, config.paths);
         targets.push({ id: `pi-agent-${agent.id}`, kind: "file", path: path6.join(config.harnesses.pi.agentDir, "agents", `${agent.pi.name}.md`), desired, owned: desired, agentDirectory: path6.join(config.harnesses.pi.agentDir, "agents") });
@@ -1032,9 +1125,13 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
     }
   }
   const paths = new Set;
+  const ids = new Set;
   for (const target of targets) {
+    if (ids.has(target.id))
+      throw new Error(`duplicate target id: ${target.id}`);
     if (paths.has(target.path))
       throw new Error(`duplicate target path: ${target.path}`);
+    ids.add(target.id);
     paths.add(target.path);
   }
   return targets;
@@ -1067,7 +1164,7 @@ async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnma
     const scope = agentDirectories(config).find((scope2) => scope2.directory === prior.agentDirectory && id.startsWith(`${scope2.id}-agent-`));
     if (!scope)
       continue;
-    if (path7.dirname(prior.path) !== scope.directory || path7.extname(prior.path) !== scope.extension)
+    if (path7.dirname(prior.path) !== scope.directory || !path7.basename(prior.path).endsWith(scope.extension))
       throw new Error(`invalid managed agent path for ${id}`);
     targets.push({
       id,
@@ -1282,7 +1379,7 @@ function validateArguments(domain, command, args) {
     "--pi-agent-dir",
     "--codex-home",
     "--codex-additional-home",
-    ...domain === "instructions" ? ["--zed-home", "--zed-additional-home", "--vscode-target"] : []
+    ...domain === "instructions" ? ["--zed-home", "--zed-additional-home", "--vscode-target"] : ["--vscode-agent-dir"]
   ];
   const allowedValues = [
     "--config",
@@ -1306,7 +1403,8 @@ function validateArguments(domain, command, args) {
     "--target",
     "--codex-additional-home",
     "--zed-additional-home",
-    "--vscode-target"
+    "--vscode-target",
+    "--vscode-agent-dir"
   ];
   for (const [option, entries] of args.values) {
     if (!allowedValues.includes(option))
@@ -1335,10 +1433,11 @@ function validateArguments(domain, command, args) {
 }
 function usage(domain) {
   const name = commandNames[domain];
-  const instructionOptions = domain === "instructions" ? `
+  const nativeOptions = domain === "instructions" ? `
   --zed-home PATH --zed-additional-home ID=PATH (repeatable)
   --vscode-target PATH (repeatable)
-  --enable-vscode --disable-vscode --enable-zed --disable-zed` : "";
+  --enable-zed --disable-zed` : `
+  --vscode-agent-dir ID=PATH (repeatable; exact agent directory)`;
   return `Usage: ${name} <configure|doctor|check|sync|adopt> [options]
 
 Manages ${domain} only.
@@ -1359,7 +1458,8 @@ configure options:
   --enable --disable  Enable or disable this workflow only
   --pi-agent-dir PATH --codex-home PATH
   --codex-additional-home ID=PATH (repeatable)
-  --enable-pi --disable-pi --enable-codex --disable-codex${instructionOptions}
+  --enable-pi --disable-pi --enable-codex --disable-codex
+  --enable-vscode --disable-vscode${nativeOptions}
 
 adopt options:
   --dry-run           Preview adoption without writing anything
@@ -1404,6 +1504,20 @@ function configuredPolicy(base, domain, args) {
     const vscode = values(args, "--vscode-target");
     if (vscode.length)
       result.harnesses.vscode.targets = vscode;
+  } else {
+    for (const entry of values(args, "--vscode-agent-dir")) {
+      const separator = entry.indexOf("=");
+      if (separator < 1)
+        throw new Error("--vscode-agent-dir requires ID=PATH");
+      const id = entry.slice(0, separator);
+      const directory = entry.slice(separator + 1);
+      result.harnesses.vscode.directories ||= [];
+      const existing = result.harnesses.vscode.directories.find((item) => item.id === id);
+      if (existing)
+        existing.path = directory;
+      else
+        result.harnesses.vscode.directories.push({ id, path: directory });
+    }
   }
   for (const name of domainHarnesses[domain]) {
     if (args.flags.has(`--enable-${name}`))

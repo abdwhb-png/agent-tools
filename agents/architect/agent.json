@@ -14,5 +14,19 @@
     "model": "gpt-6.1-sol",
     "model_reasoning_effort": "max",
     "sandbox_mode": "read-only"
+  },
+  "vscode": {
+    "name": "Architect",
+    "tools": [
+      "read",
+      "search",
+      "context7/*",
+      "deepwiki/*"
+    ],
+    "model": [
+      "GPT 5.6 Terra (Openai-codex) (customendpoint)",
+      "DeepSeek V4 Pro (Go) (customendpoint)",
+      "Z.ai: GLM 5.2 (openrouter)"
+    ]
   }
 }

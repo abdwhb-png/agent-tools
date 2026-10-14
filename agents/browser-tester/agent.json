@@ -21,8 +21,28 @@
     "mcp_servers": {
       "chrome_devtools": {
         "command": "npx",
-        "args": ["chrome-devtools-mcp@latest"]
+        "args": [
+          "chrome-devtools-mcp@latest"
+        ]
       }
     }
+  },
+  "vscode": {
+    "name": "browser-tester",
+    "tools": [
+      "read",
+      "search",
+      "execute/getTerminalOutput",
+      "execute/killTerminal",
+      "execute/runInTerminal",
+      "execute/sendToTerminal",
+      "todo"
+    ],
+    "model": [
+      "GPT 5.6 Luna (Openai-codex) (customendpoint)",
+      "DeepSeek V4 Flash (Go) (customendpoint)",
+      "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
+    ],
+    "agents": []
   }
 }

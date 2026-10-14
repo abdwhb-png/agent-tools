@@ -1,5 +1,5 @@
 import path from "node:path";
-import { renderPiAgent, renderCodexAgent } from "./agents.js";
+import { renderPiAgent, renderCodexAgent, renderVsCodeAgent } from "./agents.js";
 import type { HomeHarnessConfig, PolicyConfig, RenderedTarget } from "./types.js";
 import {
   renderCodexConfig,
@@ -25,6 +25,7 @@ export function agentDirectories(config: PolicyConfig): { id: string; directory:
   return [
     ...(config.harnesses.pi.enabled ? [{ id: "pi", directory: path.join(config.harnesses.pi.agentDir!, "agents"), extension: ".md" }] : []),
     ...(config.harnesses.codex.enabled ? namedHomes("codex", config.harnesses.codex).map(({ id, home }) => ({ id, directory: path.join(home, "agents"), extension: ".toml" })) : []),
+    ...(config.harnesses.vscode.enabled ? (config.harnesses.vscode.directories || []).map(({ id, path: directory }) => ({ id: `vscode-${id}`, directory, extension: ".agent.md" })) : []),
   ];
 }
 
@@ -92,6 +93,12 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
   }
   if (config.resources?.agents === true) {
     for (const agent of sources.agents || []) {
+      if (config.harnesses.vscode.enabled && agent.vscode) {
+        const desired = renderVsCodeAgent(agent);
+        for (const { id, path: directory } of config.harnesses.vscode.directories || []) {
+          targets.push({ id: `vscode-${id}-agent-${agent.id}`, kind: "file", path: path.join(directory, (agent.vscode.fileName as string | undefined) ?? `${agent.id}.agent.md`), desired, owned: desired, agentDirectory: directory });
+        }
+      }
       if (config.harnesses.pi.enabled && agent.pi) {
         const desired = renderPiAgent(agent, config.paths);
         targets.push({ id: `pi-agent-${agent.id}`, kind: "file", path: path.join(config.harnesses.pi.agentDir!, "agents", `${agent.pi.name}.md`), desired, owned: desired, agentDirectory: path.join(config.harnesses.pi.agentDir!, "agents") });
@@ -111,8 +118,11 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
     }
   }
   const paths = new Set<string>();
+  const ids = new Set<string>();
   for (const target of targets) {
+    if (ids.has(target.id)) throw new Error(`duplicate target id: ${target.id}`);
     if (paths.has(target.path)) throw new Error(`duplicate target path: ${target.path}`);
+    ids.add(target.id);
     paths.add(target.path);
   }
   return targets;

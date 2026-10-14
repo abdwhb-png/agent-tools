@@ -14,6 +14,10 @@
       "enabled": true,
       "home": "/absolute/path/to/.codex",
       "additionalHomes": [{ "id": "windows", "home": "/mnt/c/Users/example/.codex" }]
+    },
+    "vscode": {
+      "enabled": false,
+      "directories": [{ "id": "insiders", "path": "/absolute/path/to/Code - Insiders/User/prompts" }]
     }
   }
 }
