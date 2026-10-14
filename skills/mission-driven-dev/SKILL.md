@@ -1,11 +1,11 @@
 ---
 name: mission-driven-dev
-description: Guide development from evidence-led conception to bounded missions, just-in-time task packets, independent validation and resumable execution records. Use when adopting or continuing a mission-based development process, preparing a progressive implementation roadmap, aligning existing project documents, executing an approved mission, or resuming one from its evidence. Keep preparation and execution authority separate.
+description: Mission-Driven Development (MDD) from evidence-led conception to bounded missions, just-in-time task packets, independent validation and resumable execution records. Use when adopting or continuing a mission-based development process, preparing a progressive implementation roadmap, aligning existing project documents, executing an approved mission, or resuming one from its evidence. Keep preparation and execution authority separate.
 metadata:
   version: v0.4-experimental
 ---
 
-# Mission-Driven Development
+# Mission-Driven Development (MDD)
 
 Carry approved intent into verifiable outcomes without reconstructing it from an entire conversation. Keep one owner for each decision, expose unresolved choices, and use deterministic checks for mechanical consistency rather than asking a model to infer it.
 
