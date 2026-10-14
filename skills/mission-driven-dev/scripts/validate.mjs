@@ -17,6 +17,9 @@ var transitions = {
   superseded: []
 };
 var outcomes = ["accepted", "correction_required", "needs_decision", "blocked"];
+function isExecutionMode(value) {
+  return value === "direct" || value === "coordinated";
+}
 function isStatus(value) {
   return typeof value === "string" && Object.hasOwn(transitions, value);
 }
@@ -62,6 +65,8 @@ function schemaErrors(value) {
   if (value.kind === "state") {
     if (!isStatus(value.status))
       errors.push("Unsupported mission status.");
+    if (value.executionMode !== undefined && value.executionMode !== null && !isExecutionMode(value.executionMode))
+      errors.push("executionMode must be direct, coordinated or null when present.");
     if (!isInterruption(value.interruption))
       errors.push("interruption must be null or a blocked/needs_decision record with reason.");
     if (!isText(value.history))
@@ -274,6 +279,8 @@ async function validateArtifact(path) {
       }
     }
     if (data.kind === "state") {
+      if (["ready", "executing", "validating"].includes(data.status) && !isExecutionMode(data.executionMode))
+        issue(file, "execution-mode", `${data.status} requires executionMode to be direct or coordinated. Record the user's explicit choice before dispatch.`);
       const mission = data.mission;
       if (data.id !== mission.id)
         issue(file, "mission-identity", "State id must match its mission id.");

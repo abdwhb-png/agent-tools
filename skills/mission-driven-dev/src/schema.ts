@@ -14,6 +14,10 @@ export const transitions: Record<string, readonly string[]> = {
 };
 export const outcomes = ["accepted", "correction_required", "needs_decision", "blocked"];
 
+export function isExecutionMode(value: unknown): value is "direct" | "coordinated" {
+  return value === "direct" || value === "coordinated";
+}
+
 export function isStatus(value: unknown): value is string {
   return typeof value === "string" && Object.hasOwn(transitions, value);
 }
@@ -91,6 +95,12 @@ export function schemaErrors(value: unknown): string[] {
     errors.push("baseCommit must be a full Git object id.");
   if (value.kind === "state") {
     if (!isStatus(value.status)) errors.push("Unsupported mission status.");
+    if (
+      value.executionMode !== undefined &&
+      value.executionMode !== null &&
+      !isExecutionMode(value.executionMode)
+    )
+      errors.push("executionMode must be direct, coordinated or null when present.");
     if (!isInterruption(value.interruption))
       errors.push("interruption must be null or a blocked/needs_decision record with reason.");
     if (!isText(value.history)) errors.push("history must name the local JSONL journal.");

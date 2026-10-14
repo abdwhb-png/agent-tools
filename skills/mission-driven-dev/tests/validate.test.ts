@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,7 +36,7 @@ function fixture() {
   return { root, write };
 }
 
-function missionFixture() {
+function missionFixture(status: "draft" | "ready" | "executing" | "validating" = "draft") {
   const f = fixture();
   f.write(
     "docs/missions/m1/r1.md",
@@ -67,17 +67,26 @@ function missionFixture() {
     reason: "Prepare mission",
     evidence: [],
   };
-  f.write(".missions/m1/history.jsonl", `${JSON.stringify(event)}\n`);
+  const phases = ["draft", "ready", "executing", "validating"];
+  const events = phases
+    .slice(0, phases.indexOf(status) + 1)
+    .map((phase, index) => ({
+      ...event,
+      sequence: index + 1,
+      stateRevision: index + 1,
+      status: phase,
+    }));
+  f.write(".missions/m1/history.jsonl", events.map((e) => JSON.stringify(e)).join("\n"));
   const state = {
     schemaVersion: 1,
     kind: "state",
     id: "m1",
-    revision: 1,
+    revision: events.length,
     mission,
-    status: "draft",
+    status,
     interruption: null,
     history: "history.jsonl",
-    lastSequence: 1,
+    lastSequence: events.length,
     currentPacket: null as typeof packetRef | null,
     attempts: [{ packet: packetRef, result: null }],
     checkpoints: [],
@@ -108,6 +117,127 @@ test("accepts a versioned mission contract at the public module boundary", async
   );
   expect(await validateArtifact(path)).toEqual({ valid: true, issues: [], exitCode: 0 });
 });
+
+test.each(["ready", "executing", "validating"] as const)(
+  "requires an execution mode in %s, even when interrupted",
+  async (status) => {
+    const f = missionFixture(status);
+    const historyPath = join(f.root, ".missions/m1/history.jsonl");
+    const initialHistory = readFileSync(historyPath, "utf8");
+    for (const interruption of [
+      null,
+      { kind: "blocked", reason: "Access unavailable" },
+      { kind: "needs_decision", reason: "Choose scope" },
+    ]) {
+      const events = initialHistory.split("\n").map((line) => JSON.parse(line));
+      events[events.length - 1].interruption = interruption;
+      f.write(".missions/m1/history.jsonl", events.map((e) => JSON.stringify(e)).join("\n"));
+      for (const executionMode of [undefined, null, "direct", "coordinated"]) {
+        f.write(".missions/m1/state.json", { ...f.state, executionMode, interruption });
+        const before = [f.path, historyPath].map((path) => [
+          readFileSync(path, "utf8"),
+          statSync(path).mtimeMs,
+        ]);
+        const report = await validateArtifact(f.path);
+        if (executionMode === undefined || executionMode === null) {
+          expect(report).toEqual({
+            valid: false,
+            exitCode: 1,
+            issues: [
+              {
+                path: f.path,
+                rule: "execution-mode",
+                message: `${status} requires executionMode to be direct or coordinated. Record the user's explicit choice before dispatch.`,
+              },
+            ],
+          });
+        } else {
+          expect(report).toEqual({ valid: true, issues: [], exitCode: 0 });
+        }
+        expect(
+          [f.path, historyPath].map((path) => [readFileSync(path, "utf8"), statSync(path).mtimeMs]),
+        ).toEqual(before);
+      }
+    }
+  },
+);
+
+test("drafts can await a choice without defaulting the execution mode", async () => {
+  const f = missionFixture();
+  for (const executionMode of [undefined, null, "direct", "coordinated"]) {
+    f.write(".missions/m1/state.json", { ...f.state, executionMode });
+    expect(await validateArtifact(f.path)).toEqual({ valid: true, issues: [], exitCode: 0 });
+  }
+});
+
+test.each(["", "automatic", "DIRECT", false, 1, {}, []].map((mode) => [mode]))(
+  "rejects a malformed execution mode even in draft: %j",
+  async (executionMode) => {
+    const f = missionFixture();
+    f.write(".missions/m1/state.json", { ...f.state, executionMode });
+    const report = await validateArtifact(f.path);
+    expect(report.valid).toBe(false);
+    expect(report.exitCode).toBe(1);
+    expect(report.issues).toContainEqual({
+      path: f.path,
+      rule: "schema",
+      message: "executionMode must be direct, coordinated or null when present.",
+    });
+  },
+);
+
+test("an older active state can record its mode without rewriting historical events", async () => {
+  const f = missionFixture("executing");
+  expect((await validateArtifact(f.path)).issues.some((i) => i.rule === "execution-mode")).toBe(
+    true,
+  );
+  const historyPath = join(f.root, ".missions/m1/history.jsonl");
+  const originalHistory = readFileSync(historyPath, "utf8");
+  const choice = {
+    ...f.event,
+    sequence: 4,
+    stateRevision: 4,
+    status: "executing",
+    reason: "User explicitly selected coordinated implementation on resumption.",
+  };
+  f.write(".missions/m1/history.jsonl", `${originalHistory}\n${JSON.stringify(choice)}\n`);
+  f.write(".missions/m1/state.json", {
+    ...f.state,
+    revision: 4,
+    lastSequence: 4,
+    executionMode: "coordinated",
+  });
+  expect(await validateArtifact(f.path)).toEqual({ valid: true, issues: [], exitCode: 0 });
+  expect(readFileSync(historyPath, "utf8")).toBe(`${originalHistory}\n${JSON.stringify(choice)}\n`);
+});
+
+test.each(["failed", "cancelled", "superseded"])(
+  "retains legacy %s archives without inventing a mode",
+  async (status) => {
+    const f = missionFixture("executing");
+    const historyPath = join(f.root, ".missions/m1/history.jsonl");
+    f.write(
+      ".missions/m1/history.jsonl",
+      `${readFileSync(historyPath, "utf8")}\n${JSON.stringify({
+        ...f.event,
+        sequence: 4,
+        stateRevision: 4,
+        status,
+        reason: "Explicit terminal decision retained from the previous workflow version.",
+      })}\n`,
+    );
+    for (const executionMode of [undefined, null, "direct", "coordinated"]) {
+      f.write(".missions/m1/state.json", {
+        ...f.state,
+        revision: 4,
+        lastSequence: 4,
+        status,
+        executionMode,
+      });
+      expect(await validateArtifact(f.path)).toEqual({ valid: true, issues: [], exitCode: 0 });
+    }
+  },
+);
 
 test.each([
   { schemaVersion: 2, kind: "mission", id: "m1", revision: 1, repository: "." },

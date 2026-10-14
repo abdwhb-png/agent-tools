@@ -1,5 +1,13 @@
 # Qualification
 
+## 2026-10-14 — Minimal Execution-Mode Check
+
+Scope: v0.4-experimental adds `executionMode` to existing state, rejecting missing/null choices in ready, executing and validating, even during an interruption. Invalid values are rejected in every phase. Drafts and terminal archives remain compatible without the field. The existing journal format is unchanged: an authorized older mission records its verified choice through a new state revision and appended event. Guidance requires invoking the validator before direct implementation, dispatch, resumption or progression and after record changes. A failed or unavailable check cannot be replaced by manual inspection. This does not authenticate consent or force an agent to invoke the validator.
+
+Executable RED → GREEN evidence: the new ready-state regression initially failed because both the real exported module and delivered Node CLI accepted a missing choice. Malformed-value cases also failed before their schema check was added. After implementation and regeneration, all 41 bundle tests passed (562 assertions), including the new mode/phase/interruption matrix, foreign-cwd CLI parity, unchanged state/journal contents and mtimes, legacy archives and append-only resumption. Existing reference, stale-packet, independent-acceptance, example and local-link regressions passed. Bun 1.3.14, Node 24.18.0 and TypeScript 7.0.2 were used. Strict source typecheck, distribution parity, evaluation JSON/unique IDs and scoped whitespace checks passed. Frontmatter validation passed with `/usr/bin/python3`; the first attempt with the shell-selected Python lacked PyYAML. No dependency was installed. Automated lint/format tools were unavailable locally and were not installed; task code was formatted and reviewed directly.
+
+Behavioral case 11 was added, and cases 8/9 aligned with the structured choice. No new agent evaluation or live Pi/Codex mission qualification was executed for this revision. Earlier paired evaluations remain historical and do not qualify this change. Only the skill bundle was edited: no harness controls, project artifact type, global installation, project migration or commit was added.
+
 ## 2026-10-14 — Active-Actor Resumption Follow-up
 
 The user authorized a narrow clarification and fictional test of a previous worker still active after the principal's session was lost. The existing resumption rule now names live actor identity, status, assignment and worktree; it forbids overlapping writes when the worker is active or its status unknown, and reconciles retained work when inactivity is established. No phase, schema or project artifact was added.

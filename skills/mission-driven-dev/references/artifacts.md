@@ -68,6 +68,7 @@ For **state**, additionally require:
 | --- | --- |
 | `mission` | Active contract reference; its id equals state id. |
 | `status` | `draft`, `ready`, `executing`, `validating`, `completed`, `failed`, `cancelled` or `superseded`. |
+| `executionMode` | `direct` or `coordinated`, recording the user's choice. Initialize to null while unresolved. |
 | `interruption` | null, or `{ "kind": "needs_decision" | "blocked", "reason": "..." }`; preserve the current phase. |
 | `history`, `lastSequence` | Local journal path and last positive event sequence. |
 | `currentPacket` | Active packet reference or null; register it in attempts first. |
@@ -75,6 +76,10 @@ For **state**, additionally require:
 | `checkpoints` | Accepted checkpoints as defined above. |
 | `evidence` | Local evidence references supporting the current state. |
 | `validation` | Mission result reference for the active revision, or null. |
+
+Require a selected `executionMode` in `ready`, `executing` and `validating`, including when interrupted. Missing or null values fail with rule `execution-mode`; any other value fails schema validation in every phase. Drafts and terminal archives may omit the field or retain null for compatibility, but this never grants dispatch authority. Preserve a selected mode through closure. No automatic default or retroactive approval is supplied.
+
+Keep the current mode in state only, with its decision and authority evidence in the existing journal's `reason`/`evidence` or linked execution evidence. Do not add a mode field to old events or rewrite approved contracts. On authorized resumption of an older active state, record a verified existing explicit choice or obtain one, increment state revision and append an event before rerunning validation. Inspection alone does not authorize that update. Journal checks do not authenticate the mode choice or reconstruct its history.
 
 Increment state revision whenever recording a change. Append one JSONL **event** with `schemaVersion: 1`, `kind: event`, consecutive `sequence` starting at 1, `stateRevision`, ISO timestamp with timezone `at`, `actor`, exact `mission` reference, resulting `status`, `interruption`, `reason` and `evidence`. Paths in an event belong to the journal file. Start in draft. Keep one mission id, nondecreasing contract revisions and increasing state revisions. Keep the state snapshot aligned with the last event; this is an audit journal, not a required event-sourcing system.
 

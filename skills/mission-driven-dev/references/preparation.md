@@ -33,6 +33,6 @@ Expose intermediate observable outcomes and their dependencies where they help e
 
 Mark a validation layer not applicable only with a reason. For documentation-only work, use proportionate consistency checks instead of inventing a RED test. For production behavior, require executable RED evidence through the owning public boundary.
 
-Create the draft execution state and its initial history event together. Keep unapproved and blocked matters explicit. Move to ready only when dependencies, authority and decisive unknowns are resolved; structural validity alone is insufficient. Do not prepare all future packets or start agents while merely aligning documentation.
+Create the draft execution state and its initial history event together. Keep unapproved and blocked matters explicit, including an unresolved execution mode. Move to ready only when dependencies, authority, mode choice and decisive unknowns are resolved; structural validity alone is insufficient. Do not prepare all future packets or start agents while merely aligning documentation.
 
 Preserve approved contract revisions. When new evidence changes scope or decisions, create a revision and reassess affected future work. Keep completed history unchanged. Reassess the roadmap at mission boundaries, but stop an in-progress mission immediately on a blocking contradiction or missing authority.

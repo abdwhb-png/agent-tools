@@ -12,7 +12,7 @@ Run the structural validator on the state. Verify referenced commits and actual 
 
 Keep old packets and results attached to their original revisions. Their age alone is not a failure. Check that the packet being dispatched references the current mission revision and accepted Git state. Do not relabel historical proof as proof for a revised requirement.
 
-Summarize the destination, approved wave, active mission/revision, accepted work, recorded execution mode and delegation limits, interruption or missing decision, required remaining evidence and next permitted step. Show what is known and what has not been verified. Apply [mode selection](execution.md#choose-the-execution-mode) only where the choice is missing or must change, not on every new session.
+Summarize the destination, approved wave, active mission/revision, accepted work, state's `executionMode` and its supporting decision/authority evidence, interruption or missing decision, required remaining evidence and next permitted step. Show what is known and what has not been verified. For an older state missing the field, follow [the compatibility rule](artifacts.md#state-and-history) before dispatch. Apply [mode selection](execution.md#choose-the-execution-mode) only where the actual choice is missing or must change, not on every new session.
 
 ## Continue Only Within Authority
 

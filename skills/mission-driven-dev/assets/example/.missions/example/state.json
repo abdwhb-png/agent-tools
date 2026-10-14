@@ -10,6 +10,7 @@
     "path": "../../docs/missions/example/r1.md"
   },
   "status": "draft",
+  "executionMode": null,
   "interruption": null,
   "history": "history.jsonl",
   "lastSequence": 1,

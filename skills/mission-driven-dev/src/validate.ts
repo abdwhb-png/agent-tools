@@ -1,6 +1,13 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { eventErrors, schemaErrors, transitions, type Data, type Reference } from "./schema.js";
+import {
+  eventErrors,
+  isExecutionMode,
+  schemaErrors,
+  transitions,
+  type Data,
+  type Reference,
+} from "./schema.js";
 
 export interface Issue {
   path: string;
@@ -210,6 +217,15 @@ export async function validateArtifact(path: string): Promise<ValidationReport> 
       }
     }
     if (data.kind === "state") {
+      if (
+        ["ready", "executing", "validating"].includes(data.status as string) &&
+        !isExecutionMode(data.executionMode)
+      )
+        issue(
+          file,
+          "execution-mode",
+          `${data.status} requires executionMode to be direct or coordinated. Record the user's explicit choice before dispatch.`,
+        );
       const mission = data.mission as Reference;
       if (data.id !== mission.id)
         issue(file, "mission-identity", "State id must match its mission id.");

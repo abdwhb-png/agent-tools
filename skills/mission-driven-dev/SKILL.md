@@ -2,7 +2,7 @@
 name: mission-driven-dev
 description: Guide development from evidence-led conception to bounded missions, just-in-time task packets, independent validation and resumable execution records. Use when adopting or continuing a mission-based development process, preparing a progressive implementation roadmap, aligning existing project documents, executing an approved mission, or resuming one from its evidence. Keep preparation and execution authority separate.
 metadata:
-  version: v0.3-experimental
+  version: v0.4-experimental
 ---
 
 # Mission-Driven Development
@@ -53,6 +53,6 @@ From the installed skill directory, run:
 node scripts/validate.mjs /absolute/path/to/artifact --json
 ```
 
-Resolve the script relative to this skill, not the project. Validate the state before dispatch and after changing records; validating an archived packet alone does not establish that it is current. Read every diagnostic and distinguish invalid input from unavailable files.
+Resolve the script relative to this skill, not the project. Always run the validator on the current mission state before starting or resuming a packet, whether the principal implements directly or dispatches a worker, and before advancing or closing the mission. Run it again after changing records. Validating a contract, packet or journal alone does not replace validating state. A nonzero exit, unavailable validator or missing check blocks implementation and progression; report the diagnostic and resolve it before retrying, without bypassing it by manual inspection. Scoped record corrections remain possible under the user's authority.
 
-Treat success as structural consistency only. Verify claims against actual code, commands, revisions, permissions and real-use observations. Follow [maintainer verification](MAINTENANCE.md) when changing this bundle; do not run its tests as a substitute for project validation.
+Treat success as structural consistency only. The validator checks the recorded execution mode, not whether the user actually chose it, and cannot force its own invocation. Verify claims against actual code, commands, revisions, permissions and real-use observations. Follow [maintainer verification](MAINTENANCE.md) when changing this bundle; do not run its tests as a substitute for project validation.

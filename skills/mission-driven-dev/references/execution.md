@@ -4,7 +4,7 @@ Implement one bounded assignment against an exact approved contract and reposito
 
 ## Establish the Execution Boundary
 
-Read the contract, state, applicable project instructions and evidence. Validate the state and inspect Git before dispatch. Resolve contradictions and interruptions first. Use one mission worktree from an explicitly recorded commit; accumulate accepted packets there sequentially.
+Read the contract, state, applicable project instructions and evidence. Apply the entrypoint's mandatory state-validation check and inspect Git before direct implementation or worker dispatch. Implementation starts from ready or resumes in executing, not from a structurally valid draft or terminal archive. Resolve contradictions and interruptions first. Use one mission worktree from an explicitly recorded commit; accumulate accepted packets there sequentially.
 
 Do not copy uncommitted source changes into a worktree implicitly. If they are prerequisites, ask how to preserve and include them. Keep contract files and `.missions/` records available at their referenced paths in the chosen worktree. Do not commit, stash, reset or clean the original checkout to make isolation convenient.
 
@@ -21,7 +21,7 @@ The principal agent owns sequencing in either mode so the user does not have to 
 
 Length or risk alone does not justify multiple implementers. Coordination does not imply parallel writes: keep dependent packets sequential in the mission worktree. Parallel execution needs its own justified isolation and authority. Both modes retain the acceptance rules below; direct implementation does not mean self-validation.
 
-Wait for the user's explicit mode choice unless already given. State which implementation and review delegations are actually available and authorized; mode preference alone is not blanket delegation permission. Resolve missing authority before the affected action. Record the choice, recommendation rationale and granted limits in the existing contract's Execution Boundaries when preparing it, or in linked execution evidence and state/history for an approved contract. Do not rewrite approved revisions or add a mode file, schema field or second plan.
+Wait for the user's explicit mode choice unless already given. State which implementation and review delegations are actually available and authorized; mode preference alone is not blanket delegation permission. Resolve missing authority before the affected action. Record the selected value in the existing state's `executionMode` following [the artifact contract](artifacts.md#state-and-history), with the recommendation rationale, explicit choice and granted limits in existing history/evidence. Never populate it from a recommendation, tool availability or presumed consent. Do not rewrite approved revisions or add a mode file or second plan.
 
 Reuse that choice on resumption. If it conflicts with an explicit contract constraint, such as mandatory fresh implementation, resolve the conflict before work. If capabilities or scope require changing mode, explain the reason and obtain a new choice instead of silently switching. Preserve the user's harness and model configuration.
 
