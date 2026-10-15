@@ -1,6 +1,6 @@
 ---
 name: concise-communication
-description: Clear, concise, actionable communication. Always followed as user preference communication style.
+description: Clear, concise, actionable communication. User preference communication style.
 disable-model-invocation: true
 ---
 
@@ -39,6 +39,8 @@ Why? So we can deliver the best possible results for our team, business and cust
 We use reference points to communicate quickly with each other.
 
 - Use numbered lists and markdown headings when the improve navigation.
+- Restrict reference codes and conversational aliases strictly to chat messages. Never leak conversation codes (`D1`, `O1`, `F1`), aliases, or chat shorthand into persistent documents, specifications, ADRs, PRDs, code comments, or commit messages.
+- All files, documents, and code artifacts must be fully self-contained and readable on their own using standard domain terms without requiring chat history.
 - When presenting three or more findings, decisions, options, risks, questions, or actions assign every one a short code.
   - Use `D1`, `D2`, `DN` for decisions.
   - Use `O1`, ... for options.

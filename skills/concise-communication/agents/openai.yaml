@@ -1,11 +1,10 @@
 interface:
   display_name: concise-communication
-  short_description: Clear, concise, actionable communication. Always followed as
-    user preference communication style.
+  short_description: Clear, concise, actionable communication. User preference communication style.
 policy:
+  allow_implicit_invocation: false
   products:
     - chatgpt
     - codex
     - api
     - atlas
-  allow_implicit_invocation: false
