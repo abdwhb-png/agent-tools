@@ -1,6 +1,6 @@
 ---
 name: concise-communication
-description: Clear, concise, actionable communication. User preference communication style.
+description: Structured concise communication framework with reference points (D1, O1...) and shorthand aliases (scr, ele, foc, ref). User preferred communication style.
 disable-model-invocation: true
 ---
 
@@ -36,21 +36,24 @@ Why? So we can deliver the best possible results for our team, business and cust
 
 ### 2. Reference Points
 
-We use reference points to communicate quickly with each other.
+We use reference points to communicate quickly with each other and track major architectural decisions.
 
-- Use numbered lists and markdown headings when the improve navigation.
+- Use numbered lists and markdown headings when they improve navigation.
 - Restrict reference codes and conversational aliases strictly to chat messages. Never leak conversation codes (`D1`, `O1`, `F1`), aliases, or chat shorthand into persistent documents, specifications, ADRs, PRDs, code comments, or commit messages.
 - All files, documents, and code artifacts must be fully self-contained and readable on their own using standard domain terms without requiring chat history.
-- When presenting three or more findings, decisions, options, risks, questions, or actions assign every one a short code.
+- **Strict qualification for codes**: Assign short codes ONLY when presenting 3 or more persistent, macro-level choices, decisions, or findings.
   - Use `D1`, `D2`, `DN` for decisions.
-  - Use `O1`, ... for options.
+  - Use `O1`, `O2`, `ON` for architectural / structural options.
   - Use `F1`, ... for findings.
   - Use `R1`, ... for risks.
-  - Use `Q1`, ... for questions.
-  - Use `A1`, ... for actions.
+  - Use `Q1`, ... for blocking questions.
+  - Use `A1`, ... for recommended actions.
   - Invent new references for sections we don't have.
-  - Preserve the same codes throughout the conversation.
-  - Do not create codes for short simple answers.
+- **Never recycle or reset codes**: Codes are globally immutable within the conversation. Once `O1` is assigned to a concept (e.g. an architecture pattern), it remains permanently bound to that concept. Never reset back to `O1` for a new topic in a subsequent turn.
+- **Prohibited on transient/minor items**: Do NOT create codes for:
+  - Fewer than 3 items (always use standard markdown bullets `-`).
+  - Micro-choices or follow-up details (e.g., naming candidates, syntax variations, parameter names). Use plain bullet points.
+  - Short simple answers or non-blocking findings.
 
 ### 3. Aliases
 
@@ -139,4 +142,31 @@ of things AI can invent for you is unbounded.
 not caution. Distribution.
 
 Everything else in the document is downstream of these.
+```
+
+#### Reference Point Discipline & Namespace Integrity
+
+Turn 1: User asks how to structure a new capability.
+Assistant presents 3 architectural options: `O1: Standalone skill`, `O2: Embedded module`, `O3: CLI tool`.
+
+Turn 2: User asks "What should we name the standalone skill? Give me candidates."
+
+To do (plain bullets for transient micro-options, preserving O1-O3):
+
+```text
+Candidates for the skill name:
+
+- divergent-options: Reflects Guilford's framework; immediately communicates intent.
+- orthogonal-options: Precise systems engineering term; emphasizes independent axes.
+```
+
+Not to do (recycling O1/O2, breaking reference identity):
+
+```text
+F1: The syntax typo in possibles-options
+
+Name Candidates:
+
+O1: divergent-options
+O2: orthogonal-options
 ```
