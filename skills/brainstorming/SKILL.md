@@ -101,6 +101,11 @@ If a condition fails, keep resolving the blocking uncertainty. These may remain 
 
 **Exploring approaches:**
 
+- **Debiasing Guardrails (breaking typicality bias and token anchoring):**
+  - **Skeletize candidate theses first:** Formulate concise one-sentence core theses across all candidate approaches simultaneously before elaborating any approach in detail. Elaborating the baseline first anchors attention tokens and collapses subsequent alternatives into minor variations.
+  - **Surface and invert implicit axioms:** Identify at least one unstated assumption inherited from the problem framing (e.g., "this must run in the request lifecycle", "this requires persistent state") and ensure at least one alternative explicitly rejects that assumption.
+  - **Disallow superficial tool swaps:** Reject alternatives that differ only by library brand or syntax while sharing the same execution model, state authority, and boundary. Alternatives must vary on causal structural axes (execution timing, state topology, boundary depth, or radical deletion).
+  - **Legitimate contrarian viability:** The contrarian/long-tail option must be a serious, defensible engineering architecture under specific constraints (e.g., radical YAGNI/deletion, pure compile-time derivation, or zero-state design), not an unworkable strawman.
 - Propose the ceremony-tier count of materially different approaches spanning the full solution distribution (Verbalized Sampling) rather than superficial variations of a single mainstream pattern (see "Adapt the ceremony to the stakes"):
   1. **Idiomatic / Direct Baseline (High probability — Conventional A):** The direct path using existing codebase patterns, built-in framework primitives, or minimal extensions (lowest friction, in-house conventions).
   2. **Ecosystem / Pattern-Driven Alternative (High probability — Conventional B):** The second mainstream industry standard leveraging proven libraries, established design patterns (e.g., state machines, adapter/strategy, dedicated middleware), or structured decoupling.
@@ -174,7 +179,7 @@ Do not silently revive a ruled-out path later. Reconsider it only when new evide
 
 - **Hypothesis Generator** - You generate possibilities, you do not dictate truth.
 - **Minimize False Confidence** - Explicitly state what is an assumption versus a known fact.
-- **Break Mode Collapse** - Force distribution-level exploration across standard, alternative, and long-tail (unconventional) possibilities.
+- **Break Mode Collapse** - Force distribution-level exploration across standard, alternative, and long-tail possibilities using candidate skeletization, axiom inversion, and structural axis shifts rather than superficial brand swaps.
 - **Name the Destination** - Keep exploration anchored to the end state it must enable.
 - **Preserve the Unknown** - Visible uncertainty is safer than an invented default.
 - **Sharpen Before Solving** - Resolve a question only after it can be stated precisely.
