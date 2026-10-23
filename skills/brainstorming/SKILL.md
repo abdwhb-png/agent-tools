@@ -105,14 +105,22 @@ If a condition fails, keep resolving the blocking uncertainty. These may remain 
   - **Skeletize candidate theses first:** Formulate concise one-sentence core theses across all candidate approaches simultaneously before elaborating any approach in detail. Elaborating the baseline first anchors attention tokens and collapses subsequent alternatives into minor variations.
   - **Surface and invert implicit axioms:** Identify at least one unstated assumption inherited from the problem framing (e.g., "this must run in the request lifecycle", "this requires persistent state") and ensure at least one alternative explicitly rejects that assumption.
   - **Disallow superficial tool swaps:** Reject alternatives that differ only by library brand or syntax while sharing the same execution model, state authority, and boundary. Alternatives must vary on causal structural axes (execution timing, state topology, boundary depth, or radical deletion).
-  - **Legitimate contrarian viability:** The contrarian/long-tail option must be a serious, defensible engineering architecture under specific constraints (e.g., radical YAGNI/deletion, pure compile-time derivation, or zero-state design), not an unworkable strawman.
-- Propose the ceremony-tier count of materially different approaches spanning the full solution distribution (Verbalized Sampling) rather than superficial variations of a single mainstream pattern (see "Adapt the ceremony to the stakes"):
-  1. **Idiomatic / Direct Baseline (High probability — Conventional A):** The direct path using existing codebase patterns, built-in framework primitives, or minimal extensions (lowest friction, in-house conventions).
-  2. **Ecosystem / Pattern-Driven Alternative (High probability — Conventional B):** The second mainstream industry standard leveraging proven libraries, established design patterns (e.g., state machines, adapter/strategy, dedicated middleware), or structured decoupling.
-  3. **Structural / Boundary Trade-off (Medium probability — Alternative):** A distinct architectural trade-off shifting responsibilities across boundaries (e.g., compile-time vs runtime, push vs pull, client-driven vs server-orchestrated, async/event-driven vs synchronous).
-  4. **Unconventional / Long-tail approach (Low probability / Tail-sampled $p < 0.10$ — Contrarian/Tail):** A non-obvious, contrarian solution that challenges a standard assumption (e.g., radical simplification/YAGNI, eliminating an entire layer, inverse data flow, or novel UX paradigm).
-- For each approach, identify assumptions that could change the recommendation and conditions that would make the approach fail.
-- Label each approach with its distribution profile (Conventional Baseline, Conventional Ecosystem/Pattern, Structural Alternative, or Contrarian/Tail) so the trade-offs between safety and innovation remain transparent.
+  - **Anti-Goldilocks & legitimate contrarian viability:** Do not treat alternatives or long-tail options as decorative strawmen designed only to make the baseline look practical. Every approach must be a serious, defensible engineering architecture under specific constraints (e.g., extreme scale, zero maintenance, or strict latency).
+- **Distribution Profiles:** Propose the ceremony-tier count of materially different approaches spanning the full solution distribution (Verbalized Sampling) rather than superficial variations of a single mainstream pattern (see "Adapt the ceremony to the stakes"):
+  1. **Idiomatic / Direct Baseline (High probability ~0.60 — Conventional A):** The direct path extending existing codebase modules, built-in framework primitives, or minimal extensions with zero new abstractions or external dependencies (lowest friction, in-house conventions).
+  2. **Pattern-Driven / Formal Boundary (High probability ~0.25 — Conventional B):** Introduces a proven architectural pattern (e.g., state machine, event broker, repository/adapter) to isolate volatile domain rules. Must differ from Baseline by its boundary contract and lifecycle, not merely by importing an external package.
+  3. **Structural / Boundary Trade-off (Medium probability ~0.10 — Alternative):** A distinct architectural trade-off shifting responsibilities across fundamental technical axes:
+     - _Execution Timing_: Synchronous runtime vs. asynchronous background worker vs. build-time/compile-time derivation.
+     - _State Topology & Authority_: Central persistent DB vs. client/edge ephemeral vs. zero-state on-demand calculation.
+     - _Control Flow_: Polling/push vs. event-stream/pull vs. caller-orchestrated.
+  4. **Unconventional / Long-tail Inversion (Low probability p < 0.05 — Contrarian/Tail):** A non-obvious solution that challenges a standard assumption or enforces an extreme constraint (e.g., radical simplification/YAGNI eliminating an entire layer, pure compile-time type-level enforcement, or inverse data flow).
+- **Orthogonality Verification Gate:** Before detailing approaches, verify that no two candidates share the same execution timing, state authority, and module boundary. If two candidates occupy the same quadrant, mutate one along a structural axis before presenting.
+- **Uniform Approach Schema:** Present each candidate approach using a consistent 4-part structure:
+  - **Mechanism:** Concrete data flow, execution sequence, and module boundary contract.
+  - **Structural Axis Shift:** The exact axis (timing, state topology, boundary depth, or elimination) distinguishing it from the other options.
+  - **When It Wins:** The specific operational reality, scale threshold, or maintenance profile where this option is superior.
+  - **Kill Condition:** The exact technical failure condition, volume threshold, or operational constraint that invalidates this option.
+- **Recommendation Justification:** When presenting the recommended option, explicitly explain why the structural trade-off of the Alternative or the radical simplification of the Contrarian approach was not chosen, rather than dismissing them out of hand.
 
 Classify each decision-critical assumption:
 
