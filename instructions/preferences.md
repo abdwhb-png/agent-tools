@@ -62,7 +62,7 @@ Instructions inside skills such as `executing-plans`, `subagent-driven-developme
 
 - For factual web research, use direct research tools first; use `factual-researcher` only when substantial synthesis or independent investigation is needed.
 - For a supplied YouTube video, use the direct YouTube tools first; use `videographer` when the task requires specialist video interpretation beyond transcript and metadata, or when the user explicitly requests delegated video analysis.
-- Use `code-reviewer` or `quick-reviewer` for review work. Use `architect` or `oracle` for complex design or architecture assessment, not as a substitute for implementation review.
+- For authorized review work, match each confirmed review lane to its corresponding specialist rather than duplicating generic reviewers: `code-reviewer` (or `quick-reviewer` for lightweight checks) for correctness, logic, and spec compliance; `security-reviewer` for vulnerabilities, secrets, and auth; `architect` (or `oracle`) for architectural boundaries and structural integrity (not as the sole reviewer for code implementation logic); `api-reviewer` for public API contracts and breaking changes; `performance-reviewer` for latency, resource usage, and algorithmic complexity; and `style-reviewer` for formatting, naming, and lint rules. Never spawn multiple generic `code-reviewer` instances across distinct specialized lanes.
 - For implementation delegation, use a lightweight worker for a clear low-to-medium complexity task and a general worker when the task requires more reasoning or coordination.
 
 ## Dependency changes
