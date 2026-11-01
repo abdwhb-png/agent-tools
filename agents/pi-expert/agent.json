@@ -13,8 +13,8 @@
   },
   "codex": {
     "name": "pi-expert",
-    "model": "gpt-6-luna",
-    "model_reasoning_effort": "xhigh",
+    "model": "gpt-6-sol",
+    "model_reasoning_effort": "low",
     "sandbox_mode": "read-only",
     "nickname_candidates": [
       "Pi Expert"

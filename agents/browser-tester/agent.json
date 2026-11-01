@@ -15,15 +15,13 @@
   },
   "codex": {
     "name": "browser_tester",
-    "model": "gpt-6-luna",
+    "model": "gpt-6.1-terra",
     "model_reasoning_effort": "high",
     "sandbox_mode": "workspace-write",
     "mcp_servers": {
       "chrome_devtools": {
         "command": "npx",
-        "args": [
-          "chrome-devtools-mcp@latest"
-        ]
+        "args": ["chrome-devtools-mcp@latest"]
       }
     }
   },

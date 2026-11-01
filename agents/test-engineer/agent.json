@@ -9,7 +9,7 @@
   },
   "codex": {
     "name": "test-engineer",
-    "model": "gpt-6.1-sol",
+    "model": "gpt-6.1-terra",
     "model_reasoning_effort": "xhigh",
     "sandbox_mode": "workspace-write"
   },
