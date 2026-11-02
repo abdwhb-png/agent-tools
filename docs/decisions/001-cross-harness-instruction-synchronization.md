@@ -197,6 +197,9 @@ generic extension point.
 Manage only a clearly delimited `developer_instructions` region. The
 synchronizer must preserve all unrelated `config.toml` content. Initial adoption
 of an existing unmanaged value requires an explicit operation and a backup.
+[ADR-009](009-codex-managed-region-hardening.md) refines the boundary: the owned
+region is the `developer_instructions` assignment itself, its marker positions
+are derived on every render, and neighbouring keys are never absorbed.
 
 For VS Code, generate one combined `*.instructions.md` file with `applyTo: "**"`.
 Place invariants before preferences inside that file to avoid relying on ordering
