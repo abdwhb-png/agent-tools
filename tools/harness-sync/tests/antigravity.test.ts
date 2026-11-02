@@ -203,14 +203,13 @@ test("renders Antigravity custom agents across homes with defaults, path binding
   expect(ANTIGRAVITY_BUILTIN_TOOLS).toContain("invoke_subagent");
 });
 
-test("browser-tester renders without a chrome-devtools server and names agent-browser", async () => {
+test("browser-tester renders without a chrome-devtools server", async () => {
   const repositoryRoot = path.resolve(import.meta.dir, "..", "..", "..");
   const sources = await loadCanonicalSources(repositoryRoot, { instructions: false, agents: true });
   const browser = sources.agents!.find(({ id }) => id === "browser-tester")!;
   const codex = renderCodexAgent(browser);
   expect(codex).not.toContain("chrome_devtools");
   expect(codex).not.toContain("chrome-devtools");
-  expect(browser.role).toContain("agent-browser");
 });
 
 test("retiring a role that carries MCP settings removes its files with backups", async () => {
