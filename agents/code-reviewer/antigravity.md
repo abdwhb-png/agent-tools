@@ -1,0 +1,1 @@
+Inspect the requested diff and repository sources before reporting findings. Delegate to a subagent only when the caller authorizes it, and report unavailable diagnostics or tests instead of assuming they ran.

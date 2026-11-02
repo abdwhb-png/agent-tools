@@ -4,8 +4,8 @@ Synchronize this repository's canonical instructions and specialist agents into 
 
 | Command | Manages | Supported harnesses | Default configuration |
 | --- | --- | --- | --- |
-| `instruction-sync` | Global operating rules and personal guidance | Pi, Codex, VS Code, Zed | `instructions.config.json` |
-| `agent-sync` | Native specialist agent definitions | Pi, Codex, VS Code | `agents.config.json` |
+| `instruction-sync` | Global operating rules and personal guidance | Pi, Codex, VS Code, Zed, Antigravity | `instructions.config.json` |
+| `agent-sync` | Native specialist agent definitions | Pi, Codex, VS Code, Antigravity | `agents.config.json` |
 
 Each command loads only its own sources, configuration and ownership state. Disabling one workflow or encountering an instruction conflict does not affect the other. Synchronization is manual. The tool does not synchronize skills, install tools, manage global MCP registries or restart runtimes.
 
@@ -105,6 +105,9 @@ Synchronization and adoption previews report operations such as `create`, `updat
 | `--zed-home PATH` | Instructions | Set the primary Zed home. |
 | `--zed-additional-home ID=PATH` | Instructions | Add or update a named Zed home. Repeatable. |
 | `--enable-zed`, `--disable-zed` | Instructions | Include or exclude Zed. |
+| `--antigravity-home PATH` | Both | Set the primary Antigravity home, usually `~/.gemini`. |
+| `--antigravity-additional-home ID=PATH` | Both | Add or update a named Antigravity home. Repeatable. |
+| `--enable-antigravity`, `--disable-antigravity` | Both | Include or exclude Antigravity for this workflow. |
 | `--import-legacy` | Both | Import this domain's settings and ownership. Preview by default. |
 | `--legacy-config PATH`, `--legacy-state PATH` | Both | Override import sources. Require `--import-legacy`. |
 
@@ -154,6 +157,7 @@ Configuration files are adjacent to this tool and Git-ignored. Create them throu
 | `harnesses.codex` | Required object with `enabled` and, when enabled, `home`. Optional `additionalHomes`. |
 | `harnesses.vscode` | Instructions require `enabled` and a nonempty `targets` array when enabled. Agents optionally accept `enabled` and named `directories`, which must be nonempty when enabled. |
 | `harnesses.zed` | Optional for instructions, with `enabled`, `home` when enabled, and optional `additionalHomes`. Invalid in agent configuration. |
+| `harnesses.antigravity` | Optional for both domains, with `enabled`, `home` when enabled, and optional `additionalHomes`. `retiredAgents` is invalid. |
 | `retiredAgents` | Agent configuration only, on the primary Codex settings or individual additional homes. Exact `.toml` basenames to retire. |
 
 Unknown settings are rejected. Each additional home needs a unique lowercase ID matching `[a-z][a-z0-9-]*` and a distinct absolute path. A harness-level `enabled` switch applies to all its homes. A disabled harness retains its files and ownership records. Moving a harness also preserves the old files, and existing ownership identities can require explicit adoption at the new destination.
@@ -178,13 +182,12 @@ The corresponding top-level setting in your local agent configuration is:
   "paths": {
     "piSessionRecallScript": "/absolute/path/to/pi-session-recall/dist/mcp-bin.js",
     "piProjectDir": "/absolute/path/to/.pi",
-    "factualResearchSkill": "/absolute/path/to/skills/factual-research/SKILL.md",
-    "youtubeServerScript": "/absolute/path/to/youtube-mcp-server/dist/index.js"
+    "factualResearchSkill": "/absolute/path/to/skills/factual-research/SKILL.md"
   }
 }
 ```
 
-These are excerpts, not complete files. The four bindings above are required by the current Codex catalog. Start from [agents.config.example.json](agents.config.example.json), replace its placeholders, and keep the complete configuration's `schemaVersion`, `kind`, `enabled` and `harnesses` settings. Existing users can add `paths` to their current configuration. These local values are preserved by subsequent `configure` operations.
+These are excerpts, not complete files. The three bindings above are the ones the current catalog can require. Start from [agents.config.example.json](agents.config.example.json), replace its placeholders, and keep the complete configuration's `schemaVersion`, `kind`, `enabled` and `harnesses` settings. Existing users can add `paths` to their current configuration. These local values are preserved by subsequent `configure` operations.
 
 One shared resolver substitutes references in Pi and Codex native string fields, including nested arrays and objects, before the resolved settings are validated and rendered. Use an entire string value such as `"${paths.piSessionRecallScript}"`. Embedded forms such as `"${paths.installDir}/server.js"` are rejected, so bind the complete file path instead. Binding names match `[A-Za-z][A-Za-z0-9_-]*`, and values must be literal absolute paths for the Node platform without nested path references or NUL characters. Neither shell commands nor environment variables are evaluated. The supported VS Code fields are literal native settings and do not use path bindings.
 
@@ -237,6 +240,35 @@ node dist/instruction-sync.mjs configure --zed-home /mnt/c/Users/example/AppData
 
 These examples preview settings. Repeat the intended command with `--apply` to save them. Zed external agents have their own instruction mechanisms.
 
+### Antigravity destinations
+
+Antigravity reads personal customizations from a home directory, usually `~/.gemini`, and shares that layout between the Antigravity App, the Antigravity CLI (`agy`) and the Antigravity IDE. Each configured home receives three instruction targets and one file per canonical agent:
+
+| Target | Path | Content |
+| --- | --- | --- |
+| `<homeId>-gemini` | `<home>/GEMINI.md` | Operating layer: `invariant.md` plus `instructions/antigravity/system/*.md`. Plain Markdown, always active. |
+| `<homeId>-preferences` | `<home>/config/rules/agent-policy-preferences.md` | `preferences.md` plus `instructions/antigravity/agents/*.md`, with `trigger: always_on`. |
+| `<homeId>-technology-defaults` | `<home>/config/rules/agent-policy-technology-defaults.md` | `technology-defaults.md`, with `trigger: model_decision`. |
+| `<homeId>-agent-<role>` | `<home>/config/agents/<name>.md` | One custom agent per canonical role, with `mainAgent`, `subagent` and per-role `inheritMcp`. |
+| `<homeId>-mcp-config` | `<home>/config/mcp_config.json` | The canonical global MCP registry from `mcp/antigravity.json`. Whole-file ownership, so a server added through the UI conflicts until `adopt` runs. |
+
+For WSL and a second Antigravity home:
+
+```bash
+node dist/instruction-sync.mjs configure --antigravity-home /home/example/.gemini --antigravity-additional-home windows=/mnt/c/Users/example/.gemini --enable-antigravity
+node dist/agent-sync.mjs configure --antigravity-home /home/example/.gemini --antigravity-additional-home windows=/mnt/c/Users/example/.gemini --enable-antigravity
+```
+
+Antigravity truncates any single rule file above 24,000 bytes and requires a valid snake-case `trigger` in frontmatter. The renderer therefore rejects an oversized rule during preflight instead of writing a silently incomplete one, and emits `technology-defaults` as `model_decision` so it loads only when a project has not established its own stack. Editing `<home>/GEMINI.md` through the Antigravity Customizations UI creates an ownership conflict until `adopt` is run, because that file is shared with the standalone Gemini CLI.
+
+A custom agent entry that names an undocumented built-in tool can hang subagent execution, so `agent-sync` validates every `tools` value against the documented Antigravity tool set and rejects unknown or duplicate names before any write.
+
+`mcp/antigravity.json` is the canonical global MCP registry and publishes `context7`, `deepwiki`, `exa` and `firecrawl-mcp`. Credentials never enter the repository: the Firecrawl server declares a `variables` entry so Antigravity prompts for `FIRECRAWL_API_KEY`, and the renderer rejects any key named `apiKey`, `token`, `secret` or `password` during preflight. Because the file is owned as a whole, servers added later through the Antigravity UI make it conflicted until `adopt` runs; add them to the canonical source and sync instead.
+
+`inheritMcp` is `true` for the research and review roles and `false` for the execution roles, so documentation and scraping servers do not reach roles whose task is writing code. Role-specific servers stay in the role's own `mcpServers`; only `pi-expert` declares one, for session recall.
+
+Agent target IDs are `<homeId>-agent-<role-id>`, with the same unchanged-and-owned deletion rule as other agent destinations. Disabling or moving an Antigravity home preserves its prior files and ownership, and unmanaged files are left untouched.
+
 ### Ownership state locations
 
 State is local and separate from configuration. The default platform-specific root contains `instructions/state.json` and `agents/state.json`:
@@ -276,9 +308,10 @@ The operating layer combines `invariant.md` with that harness's system modules. 
 | Harness | Operating layer | Personal guidance | Append source |
 | --- | --- | --- | --- |
 | Pi | First in `<agentDir>/APPEND_SYSTEM.md` | `<agentDir>/AGENTS.md` | After the operating layer in the same append file. |
-| Codex | Managed `developer_instructions` block in `<home>/config.toml` | `<home>/AGENTS.md` | Excluded. |
+| Codex | Managed `developer_instructions` region in `<home>/config.toml` | `<home>/AGENTS.md` | Excluded. |
 | VS Code | Combined output at each configured target, with invariants and preferences sections and `applyTo: "**"` | Included in the same file. | Excluded. |
 | Zed | Combined operating layer then personal guidance in `<home>/AGENTS.md` | Included in the same file. | Excluded. |
+| Antigravity | `<home>/GEMINI.md` as plain Markdown, always active | Its own `always_on` rule at `<home>/config/rules/agent-policy-preferences.md` | Excluded. |
 
 Pi retains its native system prompt. The synchronizer never creates `SYSTEM.md` and retires its former managed output through the protected transition below. Source separation does not grant system or developer priority to VS Code or Zed files. Instructions express intended behavior, which should be checked separately in a fresh harness session.
 
@@ -312,7 +345,7 @@ Generated operating instructions.
 # <<< agent-policy developer_instructions <<<
 ```
 
-Other settings are preserved. An existing unmanaged `developer_instructions` assignment requires explicit adoption. The supported adoption form is a multiline TOML basic string with its opening and closing delimiters on separate lines. Unsupported assignments or malformed managed markers fail validation. The global `AGENTS.md` and other standalone instruction outputs are owned as whole files.
+Other settings are preserved. The synchronizer owns the `developer_instructions` assignment itself, not the span between markers: marker positions are derived on every render, so keys that Codex writes next to the value are never absorbed, moved, or deleted. A file that lost one marker is rebuilt and reported as a stale update, while an edit inside the assignment still reports a conflict. An existing unmanaged `developer_instructions` assignment requires explicit adoption. The supported adoption form is a multiline TOML basic string with its opening and closing delimiters on separate lines. Unsupported or ambiguous assignments, such as two assignments under one marker pair, fail validation. The global `AGENTS.md` and other standalone instruction outputs are owned as whole files.
 
 ### Transition existing Pi instructions
 
@@ -332,14 +365,16 @@ Canonical specialist definitions live in the repository's [agents directory](../
 agents/pi.md                      # optional instructions for every Pi subagent
 agents/codex.md                    # optional instructions for every Codex subagent
 agents/vscode.md                   # optional instructions for every VS Code agent
+agents/antigravity.md              # optional instructions for every Antigravity agent
 agents/<role>/role.md              # required shared responsibilities
 agents/<role>/agent.json           # required metadata and native settings
 agents/<role>/pi.md                # optional Pi procedures
 agents/<role>/codex.md             # optional Codex procedures
 agents/<role>/vscode.md            # optional VS Code procedures
+agents/<role>/antigravity.md       # optional Antigravity procedures
 ```
 
-Every role requires a nonempty shared description, a nonempty role prompt and at least one native `pi`, `codex` or `vscode` section. An absent section produces no profile for that harness. Role directory IDs must match `[a-z][a-z0-9-]*`. Pi and Codex profiles require safe, unique native names consisting of letters, digits, underscores or hyphens and starting with a letter or digit. VS Code display names can contain spaces and default to the role ID; duplicate names are rejected.
+Every role requires a nonempty shared description, a nonempty role prompt and at least one native `pi`, `codex`, `vscode` or `antigravity` section. An absent section produces no profile for that harness. Role directory IDs must match `[a-z][a-z0-9-]*`. Pi and Codex profiles require safe, unique native names consisting of letters, digits, underscores or hyphens and starting with a letter or digit. VS Code display names can contain spaces; VS Code and Antigravity names default to the role ID; duplicate names are rejected.
 
 ### Define a role
 
@@ -385,6 +420,7 @@ The loader composes each prompt once in this order: harness-wide shared instruct
 | Pi | `<agentDir>/agents/` | `<pi.name>.md` | Markdown body after native frontmatter. |
 | Codex | `<home>/agents/` | `<role-directory>.toml` | Composed `developer_instructions`. Native `codex.name` remains authoritative. |
 | VS Code | Exact named directory | `<role-directory>.agent.md`, or explicit `vscode.fileName` | Markdown body after YAML frontmatter. Native display names are independent of filenames. |
+| Antigravity | `<home>/config/agents/` | `<role-directory>.md`, or explicit `antigravity.name` | Markdown body after YAML frontmatter. |
 
 Role directory IDs are stable ownership identities. For example, `browser-tester` produces `browser-tester.md` in Pi and `browser-tester.toml` in Codex, with Codex native name `browser_tester`. Renaming a role ID into an existing managed filename blocks synchronization rather than deleting a path still generated. Plan identity/path changes as an explicit migration.
 
@@ -415,14 +451,17 @@ Optional `vscode.fileName` is synchronizer metadata, not frontmatter. It must be
 
 The initial VS Code profiles preserve the native model lists, tools, names and subagent references from the ten matching Insiders definitions. Shared canonical responsibilities replace divergent local prompt bodies. New review roles use the Code Reviewer model list with `read` and `search`; Quick Worker and Test Engineer use Worker model and tool settings; Browser Tester uses QA Tester settings. New profiles disable delegation with `agents: []`. Model strings are configuration choices, not evidence that a provider is installed or available. Browser Tester uses the available browser CLI through terminal tools. Terminal access cannot enforce a prohibition on application edits. Validate actual discovery, model selection and tools in the intended VS Code session after adoption.
 
+Antigravity profiles support `name`, `description`, `mainAgent`, `subagent`, `model`, `commandExecutionPolicy`, `tools`, `skills`, `plugins`, `mcpServers`, `inheritMcp` and `inheritCustomizations`. Omitting `name` uses the role ID, and `mainAgent`/`subagent` default to `true`, so each synced role is both selectable in `/agents` and delegable through `invoke_subagent`. `model` accepts the tiers `inherit`, `flash_lite`, `flash` or `pro`; `commandExecutionPolicy` accepts `off`, `auto`, `eager` or `sandbox`. `tools` must list documented built-in tool names only: an unmapped name can hang subagent execution, so unknown or duplicate entries are rejected before any write. `inheritMcp` keeps workspace and personal MCP servers authoritative instead of duplicating them. The renderer emits deterministic sorted YAML field names with quoted values.
+
 ### Current catalog
 
-The selected catalog has 18 canonical roles, producing 16 Pi profiles, 18 profiles in every Codex home and 18 profiles in every enabled VS Code agent directory.
+The selected catalog has 17 canonical roles, producing 16 Pi profiles, 17 profiles in every Codex home, 17 profiles in every enabled VS Code agent directory and 17 profiles in every enabled Antigravity home.
 
 | Availability | Roles |
 | --- | --- |
-| Pi, Codex and VS Code | api-reviewer, architect, browser-tester, code-reviewer, factual-researcher, librarian, oracle, performance-reviewer, pi-expert, qa-tester, quick-reviewer, quick-worker, security-reviewer, style-reviewer, test-engineer, videographer |
-| Codex and VS Code | scout, worker |
+| Pi, Codex, VS Code and Antigravity | api-reviewer, architect, browser-tester, code-reviewer, factual-researcher, librarian, oracle, performance-reviewer, pi-expert, qa-tester, quick-reviewer, quick-worker, security-reviewer, style-reviewer, test-engineer |
+| Codex, VS Code and Antigravity | scout, worker |
+| Retired, retained under [legacy/agents/](../../legacy/agents/) | videographer |
 | Local Pi definitions outside management | sdd-orchestrator, orchestration-assessor |
 | Local Insiders definitions outside management | atlas-orchestrator, metis, quick-plan |
 
@@ -481,7 +520,7 @@ To keep an agent local while removing it from canonical management, back up its 
 
 Read the reported error and backup directory first. A normal transaction failure rolls back completed writes. If rollback reports failures, recover the affected target contents and corresponding ownership state from that transaction's `.bak` files, then run `doctor` and preview sync before applying again. Backups are content snapshots, not a restore command or an automatic merge. Do not delete ownership state to bypass a conflict because doing so discards protection for managed outputs.
 
-For a missing managed file, either restore its previous content and sync or explicitly adopt its conflicted target to recreate canonical output. For independent edits you want to retain, update the appropriate canonical source before adopting the target. For `Codex developer_instructions is unmanaged`, use the instruction adoption flow only after reviewing the assignment and its supported multiline-string form.
+For a missing managed file, either restore its previous content and sync or explicitly adopt its conflicted target to recreate canonical output. For independent edits you want to retain, update the appropriate canonical source before adopting the target. A Codex target reporting `managed-region markers need repair` is a layout repair, not an edit: sync rewrites the file with the markers wrapped tightly around `developer_instructions` and leaves every other line in place. For `Codex developer_instructions is unmanaged`, use the instruction adoption flow only after reviewing the assignment and its supported multiline-string form.
 
 ## Legacy migration
 

@@ -36,5 +36,24 @@
       "Z.ai: GLM 5.2 (openrouter)",
       "DeepSeek: DeepSeek V4 Pro 0813 (openrouter)"
     ]
+  },
+  "antigravity": {
+    "name": "oracle",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": true,
+    "model": "pro",
+    "commandExecutionPolicy": "off",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "code_search",
+      "list_dir",
+      "search_web",
+      "read_url_content",
+      "invoke_subagent",
+      "manage_subagents"
+    ]
   }
 }

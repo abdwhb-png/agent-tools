@@ -45,5 +45,22 @@
       "Mimo 2.5 Free (Zen) (customendpoint)",
       "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
     ]
+  },
+  "antigravity": {
+    "name": "librarian",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": true,
+    "model": "flash",
+    "commandExecutionPolicy": "off",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "list_dir",
+      "search_web",
+      "read_url_content",
+      "run_command"
+    ]
   }
 }

@@ -1,0 +1,1 @@
+Validate through the Antigravity browser subagent or the configured terminal tools. Take a fresh snapshot after each action and record the command, URL and observed output. `commandExecutionPolicy: sandbox` allows test commands only; do not edit application code or configuration.

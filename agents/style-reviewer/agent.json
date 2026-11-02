@@ -24,5 +24,20 @@
       "DeepSeek V4 Pro (Go) (customendpoint)"
     ],
     "agents": []
+  },
+  "antigravity": {
+    "name": "style-reviewer",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": true,
+    "model": "flash",
+    "commandExecutionPolicy": "off",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "code_search",
+      "list_dir"
+    ]
   }
 }

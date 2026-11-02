@@ -1,9 +1,17 @@
 import path from "node:path";
-import { renderPiAgent, renderCodexAgent, renderVsCodeAgent } from "./agents.js";
+import {
+  renderAntigravityAgent,
+  renderCodexAgent,
+  renderPiAgent,
+  renderVsCodeAgent,
+} from "./agents.js";
 import type { HomeHarnessConfig, PolicyConfig, RenderedTarget } from "./types.js";
 import {
+  assertAntigravityRuleSize,
+  renderAntigravityRule,
   renderCodexConfig,
   renderInstructionModules,
+  renderMcpConfig,
   renderVsCode,
 } from "./renderers.js";
 import {
@@ -26,6 +34,13 @@ export function agentDirectories(config: PolicyConfig): { id: string; directory:
     ...(config.harnesses.pi.enabled ? [{ id: "pi", directory: path.join(config.harnesses.pi.agentDir!, "agents"), extension: ".md" }] : []),
     ...(config.harnesses.codex.enabled ? namedHomes("codex", config.harnesses.codex).map(({ id, home }) => ({ id, directory: path.join(home, "agents"), extension: ".toml" })) : []),
     ...(config.harnesses.vscode.enabled ? (config.harnesses.vscode.directories || []).map(({ id, path: directory }) => ({ id: `vscode-${id}`, directory, extension: ".agent.md" })) : []),
+    ...(config.harnesses.antigravity?.enabled
+      ? namedHomes("antigravity", config.harnesses.antigravity).map(({ id, home }) => ({
+          id,
+          directory: path.join(home, "config", "agents"),
+          extension: ".md",
+        }))
+      : []),
   ];
 }
 
@@ -34,12 +49,9 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
   if (config.resources?.instructions !== false) {
     const layers = {} as Record<HarnessName, { system: string; agents: string }>;
     for (const harness of HARNESS_NAMES) {
-      const systemModules = renderInstructionModules(
-        sources.harnessInstructions[harness].system,
-      );
-      const agentsModules = renderInstructionModules(
-        sources.harnessInstructions[harness].agents,
-      );
+      const modules = sources.harnessInstructions[harness] ?? { system: [], agents: [] };
+      const systemModules = renderInstructionModules(modules.system);
+      const agentsModules = renderInstructionModules(modules.agents);
       const introduction = systemModules || agentsModules
         ? "Follow the instructions in the tagged modules below."
         : "";
@@ -90,6 +102,65 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
         targets.push({ id: `vscode-${index}`, kind: "file", path: target, desired: output, owned: output });
       }
     }
+    if (config.harnesses.antigravity?.enabled) {
+      const antigravityAgents = renderInstructionModules(
+        (sources.harnessInstructions.antigravity ?? { agents: [] }).agents,
+      );
+      const preferencesBody = composeInstructions([sources.preferences, antigravityAgents]);
+      const technologyBody = composeInstructions([sources.technologyDefaults]);
+      for (const { id, home } of namedHomes("antigravity", config.harnesses.antigravity)) {
+        const geminiId = `${id}-gemini`;
+        const gemini = assertAntigravityRuleSize(layers.antigravity.system, geminiId);
+        const preferencesId = `${id}-preferences`;
+        const preferences = renderAntigravityRule(
+          {
+            trigger: "always_on",
+            description: "Global engineering preferences, coding philosophy, TDD, and validation rules.",
+          },
+          preferencesBody,
+          preferencesId,
+        );
+        const technologyId = `${id}-technology-defaults`;
+        const technology = renderAntigravityRule(
+          {
+            trigger: "model_decision",
+            description:
+              "Apply when selecting a new technology stack, framework, test runner, linter, or build tool where the project has not established its own choice, or when explicitly migrating stacks.",
+          },
+          technologyBody,
+          technologyId,
+        );
+        if (sources.antigravityMcp !== undefined) {
+          const mcpId = `${id}-mcp-config`;
+          const mcpConfig = renderMcpConfig(sources.antigravityMcp, mcpId);
+          targets.push({
+            id: mcpId,
+            kind: "file",
+            path: path.join(home, "config", "mcp_config.json"),
+            desired: mcpConfig,
+            owned: mcpConfig,
+          });
+        }
+        const rulesDirectory = path.join(home, "config", "rules");
+        targets.push(
+          { id: geminiId, kind: "file", path: path.join(home, "GEMINI.md"), desired: gemini, owned: gemini },
+          {
+            id: preferencesId,
+            kind: "file",
+            path: path.join(rulesDirectory, "agent-policy-preferences.md"),
+            desired: preferences,
+            owned: preferences,
+          },
+          {
+            id: technologyId,
+            kind: "file",
+            path: path.join(rulesDirectory, "agent-policy-technology-defaults.md"),
+            desired: technology,
+            owned: technology,
+          },
+        );
+      }
+    }
   }
   if (config.resources?.agents === true) {
     for (const agent of sources.agents || []) {
@@ -107,6 +178,21 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
         const desired = renderCodexAgent(agent, config.paths);
         for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
           targets.push({ id: `${id}-agent-${agent.id}`, kind: "file", path: path.join(home, "agents", `${agent.id}.toml`), desired, owned: desired, agentDirectory: path.join(home, "agents") });
+        }
+      }
+      if (config.harnesses.antigravity?.enabled && agent.antigravity) {
+        const desired = renderAntigravityAgent(agent, config.paths);
+        const fileName = `${(agent.antigravity.name as string | undefined) ?? agent.id}.md`;
+        for (const { id, home } of namedHomes("antigravity", config.harnesses.antigravity)) {
+          const directory = path.join(home, "config", "agents");
+          targets.push({
+            id: `${id}-agent-${agent.id}`,
+            kind: "file",
+            path: path.join(directory, fileName),
+            desired,
+            owned: desired,
+            agentDirectory: directory,
+          });
         }
       }
     }

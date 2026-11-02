@@ -1,4 +1,4 @@
-export type HarnessName = "pi" | "codex" | "vscode" | "zed";
+export type HarnessName = "pi" | "codex" | "vscode" | "zed" | "antigravity";
 export type SyncDomain = "instructions" | "agents";
 
 export interface HarnessConfig {
@@ -20,6 +20,7 @@ export interface PolicyConfig {
     codex: HomeHarnessConfig;
     vscode: HarnessConfig & { targets?: string[]; directories?: { id: string; path: string }[] };
     zed?: HomeHarnessConfig;
+    antigravity?: HomeHarnessConfig;
   };
 }
 
@@ -33,6 +34,7 @@ export interface SyncProfile {
     codex: HomeHarnessConfig;
     vscode?: PolicyConfig["harnesses"]["vscode"];
     zed?: HomeHarnessConfig;
+    antigravity?: HomeHarnessConfig;
   };
 }
 

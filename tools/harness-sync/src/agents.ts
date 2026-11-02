@@ -12,9 +12,11 @@ export interface AgentSource {
   pi?: NativeConfig;
   codex?: NativeConfig;
   vscode?: NativeConfig;
+  antigravity?: NativeConfig;
   piInstructions: string;
   codexInstructions: string;
   vscodeInstructions?: string;
+  antigravityInstructions?: string;
 }
 
 function assertObject(value: unknown, label: string): Record<string, unknown> {
@@ -97,6 +99,147 @@ function validateVsCode(config: Record<string, unknown>, label: string): void {
   if ((config.agents === "*" || (Array.isArray(config.agents) && config.agents.length > 0)) &&
       Array.isArray(config.tools) && !config.tools.includes("agent"))
     throw new Error(`${label}.agents requires the agent tool in tools`);
+}
+
+export const ANTIGRAVITY_BUILTIN_TOOLS = [
+  "view_file",
+  "write_to_file",
+  "replace_file_content",
+  "multi_replace_file_content",
+  "list_dir",
+  "find_by_name",
+  "grep_search",
+  "code_search",
+  "search_web",
+  "read_url_content",
+  "run_command",
+  "manage_task",
+  "schedule",
+  "list_permissions",
+  "ask_permission",
+  "invoke_subagent",
+  "define_subagent",
+  "send_message",
+  "manage_subagents",
+  "ask_question",
+  "generate_image",
+] as const;
+
+const antigravityToolSet = new Set<string>(ANTIGRAVITY_BUILTIN_TOOLS);
+const antigravityModels = ["inherit", "flash_lite", "flash", "pro"];
+const antigravityCommandPolicies = ["off", "auto", "eager", "sandbox"];
+
+function validateAntigravity(config: Record<string, unknown>, label: string): void {
+  const strings = ["name", "description", "model", "commandExecutionPolicy"];
+  const booleans = ["mainAgent", "subagent", "inheritMcp", "inheritCustomizations"];
+  assertKeys(
+    config,
+    [...strings, ...booleans, "tools", "skills", "plugins", "mcpServers"],
+    label,
+  );
+  for (const key of strings)
+    if (config[key] !== undefined) assertString(config[key], `${label}.${key}`);
+  if (
+    config.name !== undefined &&
+    !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(config.name as string)
+  ) {
+    throw new Error(`${label}.name must be a lowercase kebab-case identifier`);
+  }
+  if (config.description !== undefined && !(config.description as string).trim()) {
+    throw new Error(`${label}.description must not be empty`);
+  }
+  if (config.model !== undefined) {
+    assertOneOf(config.model, antigravityModels, `${label}.model`);
+  }
+  if (config.commandExecutionPolicy !== undefined) {
+    assertOneOf(
+      config.commandExecutionPolicy,
+      antigravityCommandPolicies,
+      `${label}.commandExecutionPolicy`,
+    );
+  }
+  for (const key of booleans) {
+    if (config[key] !== undefined && typeof config[key] !== "boolean") {
+      throw new Error(`${label}.${key} must be boolean`);
+    }
+  }
+  if (config.tools !== undefined) {
+    assertStrings(config.tools, `${label}.tools`);
+    const seen = new Set<string>();
+    for (const tool of config.tools) {
+      if (!antigravityToolSet.has(tool)) {
+        throw new Error(`${label}.tools contains unknown Antigravity tool: ${tool}`);
+      }
+      if (seen.has(tool)) {
+        throw new Error(`${label}.tools contains duplicate tool: ${tool}`);
+      }
+      seen.add(tool);
+    }
+  }
+  for (const key of ["skills", "plugins"] as const) {
+    if (config[key] === undefined) continue;
+    assertStrings(config[key], `${label}.${key}`);
+    if ((config[key] as string[]).some((entry) => !entry.trim())) {
+      throw new Error(`${label}.${key} contains an empty selection`);
+    }
+  }
+  if (config.mcpServers !== undefined) {
+    if (!Array.isArray(config.mcpServers)) {
+      throw new Error(`${label}.mcpServers must be an array`);
+    }
+    const allowed = new Set([
+      "name",
+      "command",
+      "args",
+      "env",
+      "cwd",
+      "url",
+      "headers",
+      "oauth",
+      "variables",
+    ]);
+    const names = new Set<string>();
+    config.mcpServers.forEach((entry, index) => {
+      const entryLabel = `${label}.mcpServers[${index}]`;
+      const server = assertObject(entry, `${entryLabel} must be an object`);
+      assertKeys(server, [...allowed], entryLabel);
+      if (
+        typeof server.name !== "string" ||
+        !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(server.name)
+      ) {
+        throw new Error(`${entryLabel}.name must be a lowercase kebab-case identifier`);
+      }
+      if (names.has(server.name)) {
+        throw new Error(`${entryLabel}.name duplicates server ${server.name}`);
+      }
+      names.add(server.name);
+      if (server.command !== undefined && server.url !== undefined) {
+        throw new Error(`${entryLabel} cannot combine command and url`);
+      }
+      for (const key of ["command", "cwd", "url"] as const) {
+        if (server[key] !== undefined) assertString(server[key], `${entryLabel}.${key}`);
+      }
+      if (server.args !== undefined) assertStrings(server.args, `${entryLabel}.args`);
+      for (const key of ["env", "headers"] as const) {
+        if (server[key] === undefined) continue;
+        const mapping = assertObject(server[key], `${entryLabel}.${key}`);
+        for (const [name, value] of Object.entries(mapping)) {
+          assertString(value, `${entryLabel}.${key}.${name}`);
+        }
+      }
+      if (server.variables !== undefined) {
+        if (!Array.isArray(server.variables)) {
+          throw new Error(`${entryLabel}.variables must be an array`);
+        }
+        server.variables.forEach((variable, position) => {
+          const variableLabel = `${entryLabel}.variables[${position}]`;
+          const parsed = assertObject(variable, variableLabel);
+          assertKeys(parsed, ["name", "title", "description", "link"], variableLabel);
+          assertString(parsed.name, `${variableLabel}.name`);
+        });
+      }
+    });
+  }
 }
 
 const codexStrings = ["name", "description", "model", "model_provider", "model_reasoning_effort", "model_reasoning_summary", "model_verbosity", "sandbox_mode", "service_tier", "web_search"];
@@ -217,6 +360,7 @@ export async function loadAgentSources(root: string): Promise<AgentSource[]> {
     pi: await optionalMarkdown(path.join(directory, "pi.md")),
     codex: await optionalMarkdown(path.join(directory, "codex.md")),
     vscode: await optionalMarkdown(path.join(directory, "vscode.md")),
+    antigravity: await optionalMarkdown(path.join(directory, "antigravity.md")),
   };
   const agents: AgentSource[] = [];
   for (const entry of entries.filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
@@ -228,33 +372,41 @@ export async function loadAgentSources(root: string): Promise<AgentSource[]> {
     try { parsed = JSON.parse(definitionText); }
     catch { throw new Error(`${definitionPath} is not valid JSON`); }
     const raw = assertObject(parsed, source);
-    assertKeys(raw, ["description", "pi", "codex", "vscode"], source);
+    assertKeys(raw, ["description", "pi", "codex", "vscode", "antigravity"], source);
     assertString(raw.description, `${source}.description`);
     if (!(raw.description as string).trim()) throw new Error(`${source}.description must not be empty`);
     const role = normalizeInstruction(await fs.readFile(path.join(source, "role.md"), "utf8"));
     if (!role.trim()) throw new Error(`${source}/role.md must not be empty`);
-    if (raw.pi === undefined && raw.codex === undefined && raw.vscode === undefined) throw new Error(`${source} requires a native pi, codex or vscode profile`);
-    const instructions = { pi: "", codex: "", vscode: "" };
-    for (const harness of ["pi", "codex", "vscode"] as const) {
+    if (
+      raw.pi === undefined &&
+      raw.codex === undefined &&
+      raw.vscode === undefined &&
+      raw.antigravity === undefined
+    )
+      throw new Error(`${source} requires a native pi, codex, vscode or antigravity profile`);
+    const instructions = { pi: "", codex: "", vscode: "", antigravity: "" };
+    for (const harness of ["pi", "codex", "vscode", "antigravity"] as const) {
       if (raw[harness] === undefined) continue;
       const native = assertObject(raw[harness], `${source}.${harness}`);
       validateNativeValue(native, `${source}.${harness}`);
-      if (harness !== "vscode" && (typeof native.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(native.name))) throw new Error(`${source}.${harness}.name must be a safe native agent name`);
+      if ((harness === "pi" || harness === "codex") && (typeof native.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(native.name))) throw new Error(`${source}.${harness}.name must be a safe native agent name`);
       if (native.description !== undefined) assertString(native.description, `${source}.${harness}.description`);
       if (harness === "pi") validatePi({ description: raw.description, ...native }, `${source}.pi`);
       else if (harness === "codex") validateCodex(native, `${source}.codex`);
-      else validateVsCode(native, `${source}.vscode`);
+      else if (harness === "vscode") validateVsCode(native, `${source}.vscode`);
+      else validateAntigravity(native, `${source}.antigravity`);
       instructions[harness] = composeInstructions([
         sharedInstructions[harness], role, await optionalMarkdown(path.join(source, `${harness}.md`)),
       ]);
     }
-    agents.push({ id: entry.name, description: raw.description as string, role, pi: raw.pi as NativeConfig | undefined, codex: raw.codex as NativeConfig | undefined, vscode: raw.vscode as NativeConfig | undefined,
-      piInstructions: instructions.pi, codexInstructions: instructions.codex, vscodeInstructions: instructions.vscode });
+    agents.push({ id: entry.name, description: raw.description as string, role, pi: raw.pi as NativeConfig | undefined, codex: raw.codex as NativeConfig | undefined, vscode: raw.vscode as NativeConfig | undefined, antigravity: raw.antigravity as NativeConfig | undefined,
+      piInstructions: instructions.pi, codexInstructions: instructions.codex, vscodeInstructions: instructions.vscode, antigravityInstructions: instructions.antigravity });
   }
-  for (const harness of ["pi", "codex", "vscode"] as const) {
+  for (const harness of ["pi", "codex", "vscode", "antigravity"] as const) {
     const names = new Set<string>();
     for (const agent of agents) {
-      const name = (agent[harness]?.name ?? (harness === "vscode" && agent.vscode ? agent.id : undefined)) as string | undefined;
+      const name = (agent[harness]?.name ??
+        ((harness === "vscode" || harness === "antigravity") && agent[harness] ? agent.id : undefined)) as string | undefined;
       if (name !== undefined && names.has(name)) throw new Error(`duplicate ${harness} agent name: ${name}`);
       if (name !== undefined) names.add(name);
     }
@@ -304,17 +456,22 @@ function resolvePathBindings(
 
 function resolvedAgentConfig(
   agent: AgentSource,
-  harness: "pi" | "codex",
+  harness: "pi" | "codex" | "antigravity",
   paths: Record<string, string>,
 ): NativeConfig {
   const label = `agents/${agent.id}/agent.json.${harness}`;
+  const defaults: NativeConfig =
+    harness === "antigravity"
+      ? { name: agent.id, description: agent.description, mainAgent: true, subagent: true }
+      : { description: agent.description };
   const config = resolvePathBindings(
-    { description: agent.description, ...agent[harness]! },
+    { ...defaults, ...agent[harness]! },
     paths,
     label,
   ) as NativeConfig;
   if (harness === "pi") validatePi(config, label);
-  else validateCodex(config, label);
+  else if (harness === "codex") validateCodex(config, label);
+  else validateAntigravity(config, label);
   return config;
 }
 
@@ -345,7 +502,21 @@ export function renderVsCodeAgent(agent: AgentSource): string {
   const native: NativeConfig = { name: agent.id, description: agent.description, ...agent.vscode };
   validateNativeValue(native, `agents/${agent.id}.vscode`);
   validateVsCode(native, `agents/${agent.id}.vscode`);
-  const { fileName, ...config } = native;
+  delete native.fileName;
+  const config = native;
   const lines = Object.keys(config).sort().map((key) => `${key}: ${JSON.stringify(config[key])}`);
   return `---\n${lines.join("\n")}\n---\n\n${agent.vscodeInstructions}`;
+}
+
+export function renderAntigravityAgent(
+  agent: AgentSource,
+  paths: Record<string, string> = {},
+): string {
+  assertString(agent.antigravityInstructions, `agents/${agent.id}.antigravityInstructions`);
+  const config = resolvedAgentConfig(agent, "antigravity", paths);
+  validateNativeValue(config, `agents/${agent.id}/agent.json.antigravity`);
+  const lines = Object.keys(config)
+    .sort()
+    .map((key) => `${key}: ${JSON.stringify(config[key])}`);
+  return `---\n${lines.join("\n")}\n---\n\n${agent.antigravityInstructions}`;
 }

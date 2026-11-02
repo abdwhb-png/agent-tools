@@ -28,5 +28,22 @@
       "DeepSeek V4 Pro (Go) (customendpoint)",
       "Z.ai: GLM 5.2 (openrouter)"
     ]
+  },
+  "antigravity": {
+    "name": "architect",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": true,
+    "model": "pro",
+    "commandExecutionPolicy": "off",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "code_search",
+      "list_dir",
+      "search_web",
+      "read_url_content"
+    ]
   }
 }

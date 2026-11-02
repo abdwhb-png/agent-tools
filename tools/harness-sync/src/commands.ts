@@ -61,6 +61,8 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
     "--pi-agent-dir",
     "--codex-home",
     "--codex-additional-home",
+    "--antigravity-home",
+    "--antigravity-additional-home",
     ...(domain === "instructions"
       ? ["--zed-home", "--zed-additional-home", "--vscode-target"]
       : ["--vscode-agent-dir"]),
@@ -88,6 +90,7 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
   const repeatable = [
     "--target",
     "--codex-additional-home",
+    "--antigravity-additional-home",
     "--zed-additional-home",
     "--vscode-target",
     "--vscode-agent-dir",
@@ -150,8 +153,9 @@ configure options:
   --enable --disable  Enable or disable this workflow only
   --pi-agent-dir PATH --codex-home PATH
   --codex-additional-home ID=PATH (repeatable)
+  --antigravity-home PATH --antigravity-additional-home ID=PATH (repeatable)
   --enable-pi --disable-pi --enable-codex --disable-codex
-  --enable-vscode --disable-vscode${nativeOptions}
+  --enable-vscode --disable-vscode --enable-antigravity --disable-antigravity${nativeOptions}
 
 adopt options:
   --dry-run           Preview adoption without writing anything
@@ -185,6 +189,22 @@ function configuredPolicy(base: PolicyConfig, domain: SyncDomain, args: Argument
     values(args, "--codex-additional-home"),
     "--codex-additional-home",
   );
+  const antigravity = value(args, "--antigravity-home");
+  const antigravityAdditional = values(args, "--antigravity-additional-home");
+  if (
+    antigravity ||
+    antigravityAdditional.length ||
+    args.flags.has("--enable-antigravity") ||
+    args.flags.has("--disable-antigravity")
+  )
+    result.harnesses.antigravity ||= { enabled: false };
+  if (antigravity) result.harnesses.antigravity!.home = antigravity;
+  if (antigravityAdditional.length)
+    setAdditionalHomes(
+      result.harnesses.antigravity!,
+      antigravityAdditional,
+      "--antigravity-additional-home",
+    );
   if (domain === "instructions") {
     const zed = value(args, "--zed-home");
     const additional = values(args, "--zed-additional-home");

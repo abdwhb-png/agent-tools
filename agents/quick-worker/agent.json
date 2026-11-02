@@ -38,5 +38,25 @@
       "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
     ],
     "agents": []
+  },
+  "antigravity": {
+    "name": "quick-worker",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": false,
+    "model": "flash",
+    "commandExecutionPolicy": "sandbox",
+    "tools": [
+      "view_file",
+      "write_to_file",
+      "replace_file_content",
+      "multi_replace_file_content",
+      "list_dir",
+      "find_by_name",
+      "grep_search",
+      "code_search",
+      "run_command",
+      "manage_task"
+    ]
   }
 }

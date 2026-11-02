@@ -17,13 +17,7 @@
     "name": "browser_tester",
     "model": "gpt-6.1-terra",
     "model_reasoning_effort": "high",
-    "sandbox_mode": "workspace-write",
-    "mcp_servers": {
-      "chrome_devtools": {
-        "command": "npx",
-        "args": ["chrome-devtools-mcp@latest"]
-      }
-    }
+    "sandbox_mode": "workspace-write"
   },
   "vscode": {
     "name": "browser-tester",
@@ -42,5 +36,23 @@
       "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
     ],
     "agents": []
+  },
+  "antigravity": {
+    "name": "browser-tester",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": false,
+    "model": "flash",
+    "commandExecutionPolicy": "sandbox",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "code_search",
+      "list_dir",
+      "run_command",
+      "manage_task",
+      "read_url_content"
+    ]
   }
 }

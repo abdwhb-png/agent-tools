@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { emptyState } from "../src/config.js";
+import { CODEX_END } from "../src/renderers.js";
 import { assessTargets, loadState, nodeFileOps, synchronize, type FileOps } from "../src/sync.js";
 import type { PolicyConfig } from "../src/types.js";
 
@@ -31,6 +32,7 @@ const source = {
     codex: { system: [{ source: "codex/system/policy.md", content: "Codex only\n" }], agents: [] },
     vscode: { system: [], agents: [] },
     zed: { system: [], agents: [] },
+    antigravity: { system: [], agents: [] },
   },
 };
 
@@ -205,6 +207,74 @@ test("adopt explicitly replaces an unmanaged target and records a recovery backu
   expect((await loadState(statePath)).targets["pi-agents"]).toBeDefined();
 });
 
+function codexOnly(home: string): PolicyConfig {
+  return {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: true, home },
+      vscode: { enabled: false },
+    },
+  };
+}
+
+test("repairs a displaced Codex marker without dropping configuration keys", async () => {
+  const root = await sandbox();
+  const home = path.join(root, "codex");
+  const config = codexOnly(home);
+  const statePath = path.join(root, "state.json");
+  await synchronize(config, emptyState(), statePath, source);
+  const file = path.join(home, "config.toml");
+  const written = await fs.readFile(file, "utf8");
+  await fs.writeFile(file, written.replace(CODEX_END, `service_tier = "default"\n${CODEX_END}`));
+  const state = await loadState(statePath);
+  const assessment = (await assessTargets(config, state, source)).find(
+    (item) => item.target.id === "codex-config",
+  );
+  expect(assessment?.status).toBe("stale");
+  expect((await synchronize(config, state, statePath, source)).changed).toContain("codex-config");
+  expect(await fs.readFile(file, "utf8")).toBe(`${written}service_tier = "default"\n`);
+  expect(
+    (await assessTargets(config, await loadState(statePath), source)).every(
+      (item) => item.status === "current",
+    ),
+  ).toBe(true);
+});
+
+test("treats edits inside the Codex value as a conflict", async () => {
+  const root = await sandbox();
+  const home = path.join(root, "codex");
+  const config = codexOnly(home);
+  const statePath = path.join(root, "state.json");
+  await synchronize(config, emptyState(), statePath, source);
+  const file = path.join(home, "config.toml");
+  const written = await fs.readFile(file, "utf8");
+  await fs.writeFile(file, written.replace("Codex only", "tampered"));
+  const assessment = (await assessTargets(config, await loadState(statePath), source)).find(
+    (item) => item.target.id === "codex-config",
+  );
+  expect(assessment?.status).toBe("conflict");
+  expect(assessment?.detail).toContain("changed independently");
+});
+
+test("rebuilds a Codex region that lost its closing marker", async () => {
+  const root = await sandbox();
+  const home = path.join(root, "codex");
+  const config = codexOnly(home);
+  const statePath = path.join(root, "state.json");
+  await synchronize(config, emptyState(), statePath, source);
+  const file = path.join(home, "config.toml");
+  const written = await fs.readFile(file, "utf8");
+  await fs.writeFile(file, written.replace(`${CODEX_END}\n`, ""));
+  const state = await loadState(statePath);
+  const assessment = (await assessTargets(config, state, source)).find(
+    (item) => item.target.id === "codex-config",
+  );
+  expect(assessment?.status).toBe("stale");
+  expect((await synchronize(config, state, statePath, source)).changed).toContain("codex-config");
+  expect(await fs.readFile(file, "utf8")).toBe(written);
+});
+
 test("assessment reports an unmanaged Codex value as a conflict without throwing", async () => {
   const root = await sandbox();
   const codexHome = path.join(root, "codex");
@@ -365,4 +435,45 @@ test("overlapping Zed and Codex homes fail before writing targets", async () => 
     synchronize(config, emptyState(), path.join(root, "state.json"), source),
   ).rejects.toThrow("duplicate target path");
   expect(await fs.exists(path.join(shared, "AGENTS.md"))).toBe(false);
+});
+
+test("unmanaged edits to Antigravity GEMINI.md block synchronization until explicitly adopted", async () => {
+  const root = await sandbox();
+  const home = path.join(root, "antigravity");
+  const statePath = path.join(root, "state.json");
+  const config: PolicyConfig = {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: false },
+      vscode: { enabled: false },
+      antigravity: { enabled: true, home },
+    },
+  };
+  await fs.mkdir(home, { recursive: true });
+  await fs.writeFile(path.join(home, "GEMINI.md"), "unmanaged UI rule\n");
+
+  await expect(synchronize(config, emptyState(), statePath, source)).rejects.toThrow(
+    "sync preflight failed: antigravity-gemini",
+  );
+  expect(await fs.exists(path.join(home, "config", "rules"))).toBe(false);
+
+  const adopted = await synchronize(config, emptyState(), statePath, source, {
+    adopt: true,
+    adoptTargets: new Set(["antigravity-gemini"]),
+  });
+  expect(adopted.changed).toEqual(["antigravity-gemini"]);
+  expect(adopted.backups).toHaveLength(1);
+  expect(await fs.readFile(path.join(home, "GEMINI.md"), "utf8")).toBe("invariants\n");
+
+  const synced = await synchronize(config, await loadState(statePath), statePath, source);
+  expect(synced.changed).toEqual([
+    "antigravity-preferences",
+    "antigravity-technology-defaults",
+  ]);
+  expect(
+    (await assessTargets(config, await loadState(statePath), source)).every(
+      ({ status }) => status === "current",
+    ),
+  ).toBe(true);
 });

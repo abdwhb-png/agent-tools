@@ -11,8 +11,8 @@ export interface RuntimeEnvironment {
 
 const WINDOWS = "win32";
 export const domainHarnesses = {
-  instructions: ["pi", "codex", "vscode", "zed"],
-  agents: ["pi", "codex", "vscode"],
+  instructions: ["pi", "codex", "vscode", "zed", "antigravity"],
+  agents: ["pi", "codex", "vscode", "antigravity"],
 } as const;
 
 function platformPath(platform: string): any {
@@ -120,7 +120,7 @@ function assertHarness(value: unknown, name: HarnessName): Record<string, unknow
   return value;
 }
 
-type HarnessName = "pi" | "codex" | "vscode" | "zed";
+type HarnessName = "pi" | "codex" | "vscode" | "zed" | "antigravity";
 
 function assertAbsolute(value: string, label: string, platform: string): void {
   if (!platformPath(platform).isAbsolute(value))
@@ -129,7 +129,7 @@ function assertAbsolute(value: string, label: string, platform: string): void {
 
 function validateHomeHarness(
   config: Record<string, unknown>,
-  name: "Codex" | "Zed",
+  name: "Codex" | "Zed" | "Antigravity",
   platform: string,
   allowRetirements = name === "Codex",
 ): void {
@@ -274,9 +274,14 @@ export function parsePolicyConfig(
   );
   const zed =
     parsed.harnesses.zed === undefined ? undefined : assertHarness(parsed.harnesses.zed, "zed");
+  const antigravity =
+    parsed.harnesses.antigravity === undefined
+      ? undefined
+      : assertHarness(parsed.harnesses.antigravity, "antigravity");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
   validateHomeHarness(codex, "Codex", platform, !profile || parsed.kind === "agents");
   if (zed) validateHomeHarness(zed, "Zed", platform);
+  if (antigravity) validateHomeHarness(antigravity, "Antigravity", platform, false);
   const vscodeAgents = profile && parsed.kind === "agents";
   if (vscodeAgents) validateVsCodeDirectories(vscode, platform);
   else assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
@@ -304,12 +309,18 @@ export function parsePolicyConfig(
       instructions: parsed.kind === "instructions" && parsed.enabled === true,
       agents: parsed.kind === "agents" && parsed.enabled === true,
     },
-    harnesses: { pi, codex, vscode, ...(zed ? { zed } : {}) },
+    harnesses: {
+      pi,
+      codex,
+      vscode,
+      ...(zed ? { zed } : {}),
+      ...(antigravity ? { antigravity } : {}),
+    },
   } as unknown as PolicyConfig;
 }
 
 export function profileConfig(config: PolicyConfig, domain: SyncDomain): SyncProfile {
-  const { pi, codex, vscode, zed } = structuredClone(config.harnesses);
+  const { pi, codex, vscode, zed, antigravity } = structuredClone(config.harnesses);
   if (domain === "instructions") {
     delete codex.retiredAgents;
     for (const home of codex.additionalHomes || []) delete home.retiredAgents;
@@ -333,6 +344,7 @@ export function profileConfig(config: PolicyConfig, domain: SyncDomain): SyncPro
       codex,
       ...(includeVsCode ? { vscode: vscodeProfile } : {}),
       ...(domain === "instructions" && zed ? { zed } : {}),
+      ...(antigravity ? { antigravity } : {}),
     },
   };
 }

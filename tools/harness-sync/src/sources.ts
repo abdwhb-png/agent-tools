@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { loadAgentSources, type AgentSource } from "./agents.js";
 
-export const HARNESS_NAMES = ["pi", "codex", "vscode", "zed"] as const;
+export const HARNESS_NAMES = ["pi", "codex", "vscode", "zed", "antigravity"] as const;
 export type HarnessName = (typeof HARNESS_NAMES)[number];
 
 export interface InstructionModule {
@@ -19,6 +19,7 @@ export interface CanonicalSources {
     { system: InstructionModule[]; agents: InstructionModule[] }
   >;
   piAppendSystem: string;
+  antigravityMcp?: unknown;
   agents?: AgentSource[];
 }
 
@@ -71,6 +72,8 @@ export async function loadCanonicalSources(root: string, resources: { instructio
     path.join(root, "instructions", ...parts);
   if (resources.instructions === false) return {
     invariants: "", preferences: "", technologyDefaults: "", piAppendSystem: "",
+    // SAFETY: Object.fromEntries widens the key type to string, while the mapped entries are
+    // exactly HARNESS_NAMES, so the record is exhaustive over HarnessName.
     harnessInstructions: Object.fromEntries(HARNESS_NAMES.map((harness) => [harness, { system: [], agents: [] }])) as unknown as CanonicalSources["harnessInstructions"],
     agents: resources.agents === false ? [] : await loadAgentSources(root),
   };
@@ -114,6 +117,21 @@ export async function loadCanonicalSources(root: string, resources: { instructio
   } catch (error: any) {
     if (error?.code !== "ENOENT") throw error;
   }
+  let antigravityMcp: unknown;
+  const mcpSource = path.join(root, "mcp", "antigravity.json");
+  let mcpText: string | undefined;
+  try {
+    mcpText = await fs.readFile(mcpSource, "utf8");
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  if (mcpText !== undefined) {
+    try {
+      antigravityMcp = JSON.parse(mcpText);
+    } catch {
+      throw new Error("mcp/antigravity.json is not valid JSON");
+    }
+  }
   return {
     invariants: await readInstruction(instructionPath("invariant.md")),
     preferences: await readInstruction(instructionPath("preferences.md")),
@@ -122,6 +140,7 @@ export async function loadCanonicalSources(root: string, resources: { instructio
     ),
     harnessInstructions,
     piAppendSystem,
+    antigravityMcp,
     agents: resources.agents === false ? [] : await loadAgentSources(root),
   };
 }

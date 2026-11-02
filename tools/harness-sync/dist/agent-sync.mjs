@@ -11,8 +11,8 @@ import path from "node:path";
 import process from "node:process";
 var WINDOWS = "win32";
 var domainHarnesses = {
-  instructions: ["pi", "codex", "vscode", "zed"],
-  agents: ["pi", "codex", "vscode"]
+  instructions: ["pi", "codex", "vscode", "zed", "antigravity"],
+  agents: ["pi", "codex", "vscode", "antigravity"]
 };
 function platformPath(platform) {
   return platform === WINDOWS ? path.win32 : path.posix;
@@ -211,10 +211,13 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
   const codex = assertHarness(parsed.harnesses.codex, "codex");
   const vscode = assertHarness(profile && parsed.kind === "agents" && parsed.harnesses.vscode === undefined ? { enabled: false } : parsed.harnesses.vscode, "vscode");
   const zed = parsed.harnesses.zed === undefined ? undefined : assertHarness(parsed.harnesses.zed, "zed");
+  const antigravity = parsed.harnesses.antigravity === undefined ? undefined : assertHarness(parsed.harnesses.antigravity, "antigravity");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
   validateHomeHarness(codex, "Codex", platform, !profile || parsed.kind === "agents");
   if (zed)
     validateHomeHarness(zed, "Zed", platform);
+  if (antigravity)
+    validateHomeHarness(antigravity, "Antigravity", platform, false);
   const vscodeAgents = profile && parsed.kind === "agents";
   if (vscodeAgents)
     validateVsCodeDirectories(vscode, platform);
@@ -238,11 +241,17 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
       instructions: parsed.kind === "instructions" && parsed.enabled === true,
       agents: parsed.kind === "agents" && parsed.enabled === true
     },
-    harnesses: { pi, codex, vscode, ...zed ? { zed } : {} }
+    harnesses: {
+      pi,
+      codex,
+      vscode,
+      ...zed ? { zed } : {},
+      ...antigravity ? { antigravity } : {}
+    }
   };
 }
 function profileConfig(config, domain) {
-  const { pi, codex, vscode, zed } = structuredClone(config.harnesses);
+  const { pi, codex, vscode, zed, antigravity } = structuredClone(config.harnesses);
   if (domain === "instructions") {
     delete codex.retiredAgents;
     for (const home of codex.additionalHomes || [])
@@ -259,7 +268,8 @@ function profileConfig(config, domain) {
       pi,
       codex,
       ...includeVsCode ? { vscode: vscodeProfile } : {},
-      ...domain === "instructions" && zed ? { zed } : {}
+      ...domain === "instructions" && zed ? { zed } : {},
+      ...antigravity ? { antigravity } : {}
     }
   };
 }
@@ -527,6 +537,135 @@ function validateVsCode(config, label) {
   if ((config.agents === "*" || Array.isArray(config.agents) && config.agents.length > 0) && Array.isArray(config.tools) && !config.tools.includes("agent"))
     throw new Error(`${label}.agents requires the agent tool in tools`);
 }
+var ANTIGRAVITY_BUILTIN_TOOLS = [
+  "view_file",
+  "write_to_file",
+  "replace_file_content",
+  "multi_replace_file_content",
+  "list_dir",
+  "find_by_name",
+  "grep_search",
+  "code_search",
+  "search_web",
+  "read_url_content",
+  "run_command",
+  "manage_task",
+  "schedule",
+  "list_permissions",
+  "ask_permission",
+  "invoke_subagent",
+  "define_subagent",
+  "send_message",
+  "manage_subagents",
+  "ask_question",
+  "generate_image"
+];
+var antigravityToolSet = new Set(ANTIGRAVITY_BUILTIN_TOOLS);
+var antigravityModels = ["inherit", "flash_lite", "flash", "pro"];
+var antigravityCommandPolicies = ["off", "auto", "eager", "sandbox"];
+function validateAntigravity(config, label) {
+  const strings = ["name", "description", "model", "commandExecutionPolicy"];
+  const booleans = ["mainAgent", "subagent", "inheritMcp", "inheritCustomizations"];
+  assertKeys2(config, [...strings, ...booleans, "tools", "skills", "plugins", "mcpServers"], label);
+  for (const key of strings)
+    if (config[key] !== undefined)
+      assertString(config[key], `${label}.${key}`);
+  if (config.name !== undefined && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(config.name)) {
+    throw new Error(`${label}.name must be a lowercase kebab-case identifier`);
+  }
+  if (config.description !== undefined && !config.description.trim()) {
+    throw new Error(`${label}.description must not be empty`);
+  }
+  if (config.model !== undefined) {
+    assertOneOf(config.model, antigravityModels, `${label}.model`);
+  }
+  if (config.commandExecutionPolicy !== undefined) {
+    assertOneOf(config.commandExecutionPolicy, antigravityCommandPolicies, `${label}.commandExecutionPolicy`);
+  }
+  for (const key of booleans) {
+    if (config[key] !== undefined && typeof config[key] !== "boolean") {
+      throw new Error(`${label}.${key} must be boolean`);
+    }
+  }
+  if (config.tools !== undefined) {
+    assertStrings(config.tools, `${label}.tools`);
+    const seen = new Set;
+    for (const tool of config.tools) {
+      if (!antigravityToolSet.has(tool)) {
+        throw new Error(`${label}.tools contains unknown Antigravity tool: ${tool}`);
+      }
+      if (seen.has(tool)) {
+        throw new Error(`${label}.tools contains duplicate tool: ${tool}`);
+      }
+      seen.add(tool);
+    }
+  }
+  for (const key of ["skills", "plugins"]) {
+    if (config[key] === undefined)
+      continue;
+    assertStrings(config[key], `${label}.${key}`);
+    if (config[key].some((entry) => !entry.trim())) {
+      throw new Error(`${label}.${key} contains an empty selection`);
+    }
+  }
+  if (config.mcpServers !== undefined) {
+    if (!Array.isArray(config.mcpServers)) {
+      throw new Error(`${label}.mcpServers must be an array`);
+    }
+    const allowed = new Set([
+      "name",
+      "command",
+      "args",
+      "env",
+      "cwd",
+      "url",
+      "headers",
+      "oauth",
+      "variables"
+    ]);
+    const names = new Set;
+    config.mcpServers.forEach((entry, index) => {
+      const entryLabel = `${label}.mcpServers[${index}]`;
+      const server = assertObject(entry, `${entryLabel} must be an object`);
+      assertKeys2(server, [...allowed], entryLabel);
+      if (typeof server.name !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(server.name)) {
+        throw new Error(`${entryLabel}.name must be a lowercase kebab-case identifier`);
+      }
+      if (names.has(server.name)) {
+        throw new Error(`${entryLabel}.name duplicates server ${server.name}`);
+      }
+      names.add(server.name);
+      if (server.command !== undefined && server.url !== undefined) {
+        throw new Error(`${entryLabel} cannot combine command and url`);
+      }
+      for (const key of ["command", "cwd", "url"]) {
+        if (server[key] !== undefined)
+          assertString(server[key], `${entryLabel}.${key}`);
+      }
+      if (server.args !== undefined)
+        assertStrings(server.args, `${entryLabel}.args`);
+      for (const key of ["env", "headers"]) {
+        if (server[key] === undefined)
+          continue;
+        const mapping = assertObject(server[key], `${entryLabel}.${key}`);
+        for (const [name, value] of Object.entries(mapping)) {
+          assertString(value, `${entryLabel}.${key}.${name}`);
+        }
+      }
+      if (server.variables !== undefined) {
+        if (!Array.isArray(server.variables)) {
+          throw new Error(`${entryLabel}.variables must be an array`);
+        }
+        server.variables.forEach((variable, position) => {
+          const variableLabel = `${entryLabel}.variables[${position}]`;
+          const parsed = assertObject(variable, variableLabel);
+          assertKeys2(parsed, ["name", "title", "description", "link"], variableLabel);
+          assertString(parsed.name, `${variableLabel}.name`);
+        });
+      }
+    });
+  }
+}
 var codexStrings = ["name", "description", "model", "model_provider", "model_reasoning_effort", "model_reasoning_summary", "model_verbosity", "sandbox_mode", "service_tier", "web_search"];
 var mcpStrings = ["command", "cwd", "url", "auth", "bearer_token_env_var", "http_headers_helper", "default_tools_approval_mode", "oauth_resource", "experimental_environment"];
 var mcpLists = ["args", "enabled_tools", "disabled_tools", "scopes"];
@@ -554,8 +693,8 @@ function validateMcp(value, label) {
         if (typeof entry !== "boolean")
           throw new Error(`${field} must be boolean`);
       } else if (["env", "http_headers", "env_http_headers"].includes(key)) {
-        for (const [name2, value2] of Object.entries(assertObject(entry, field)))
-          assertString(value2, `${field}.${name2}`);
+        for (const [name, value] of Object.entries(assertObject(entry, field)))
+          assertString(value, `${field}.${name}`);
       } else if (key === "env_vars") {
         if (!Array.isArray(entry))
           throw new Error(`${field} must be an array`);
@@ -568,23 +707,23 @@ function validateMcp(value, label) {
           assertString(mapping.source, `${field}.source`);
         }
       } else if (key === "tools") {
-        for (const [name2, rawTool] of Object.entries(assertObject(entry, field))) {
-          const tool = assertObject(rawTool, `${field}.${name2}`);
-          assertKeys2(tool, ["approval_mode", "output_token_limit"], `${field}.${name2}`);
+        for (const [name, rawTool] of Object.entries(assertObject(entry, field))) {
+          const tool = assertObject(rawTool, `${field}.${name}`);
+          assertKeys2(tool, ["approval_mode", "output_token_limit"], `${field}.${name}`);
           if (tool.approval_mode !== undefined)
-            assertOneOf(tool.approval_mode, approvalModes, `${field}.${name2}.approval_mode`);
+            assertOneOf(tool.approval_mode, approvalModes, `${field}.${name}.approval_mode`);
           if (tool.output_token_limit !== undefined && (!Number.isInteger(tool.output_token_limit) || tool.output_token_limit <= 0))
-            throw new Error(`${field}.${name2}.output_token_limit must be a positive integer`);
+            throw new Error(`${field}.${name}.output_token_limit must be a positive integer`);
         }
       } else if (key === "oauth") {
         const oauth = assertObject(entry, field);
         assertKeys2(oauth, ["client_id", "callback_url", "callback_port"], field);
-        for (const [key2, value2] of Object.entries(oauth)) {
-          if (key2 === "callback_port") {
-            if (!Number.isInteger(value2) || value2 <= 0 || value2 > 65535)
+        for (const [key, value] of Object.entries(oauth)) {
+          if (key === "callback_port") {
+            if (!Number.isInteger(value) || value <= 0 || value > 65535)
               throw new Error(`${field}.callback_port must be a port`);
           } else
-            assertString(value2, `${field}.${key2}`);
+            assertString(value, `${field}.${key}`);
         }
       }
     }
@@ -681,10 +820,11 @@ async function loadAgentSources(root) {
   const sharedInstructions = {
     pi: await optionalMarkdown(path4.join(directory, "pi.md")),
     codex: await optionalMarkdown(path4.join(directory, "codex.md")),
-    vscode: await optionalMarkdown(path4.join(directory, "vscode.md"))
+    vscode: await optionalMarkdown(path4.join(directory, "vscode.md")),
+    antigravity: await optionalMarkdown(path4.join(directory, "antigravity.md"))
   };
   const agents = [];
-  for (const entry of entries.filter((entry2) => entry2.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
+  for (const entry of entries.filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
     if (!/^[a-z][a-z0-9-]*$/.test(entry.name))
       throw new Error(`invalid canonical agent directory: ${entry.name}`);
     const source = path4.join(directory, entry.name);
@@ -697,22 +837,22 @@ async function loadAgentSources(root) {
       throw new Error(`${definitionPath} is not valid JSON`);
     }
     const raw = assertObject(parsed, source);
-    assertKeys2(raw, ["description", "pi", "codex", "vscode"], source);
+    assertKeys2(raw, ["description", "pi", "codex", "vscode", "antigravity"], source);
     assertString(raw.description, `${source}.description`);
     if (!raw.description.trim())
       throw new Error(`${source}.description must not be empty`);
     const role = normalizeInstruction(await fs2.readFile(path4.join(source, "role.md"), "utf8"));
     if (!role.trim())
       throw new Error(`${source}/role.md must not be empty`);
-    if (raw.pi === undefined && raw.codex === undefined && raw.vscode === undefined)
-      throw new Error(`${source} requires a native pi, codex or vscode profile`);
-    const instructions = { pi: "", codex: "", vscode: "" };
-    for (const harness of ["pi", "codex", "vscode"]) {
+    if (raw.pi === undefined && raw.codex === undefined && raw.vscode === undefined && raw.antigravity === undefined)
+      throw new Error(`${source} requires a native pi, codex, vscode or antigravity profile`);
+    const instructions = { pi: "", codex: "", vscode: "", antigravity: "" };
+    for (const harness of ["pi", "codex", "vscode", "antigravity"]) {
       if (raw[harness] === undefined)
         continue;
       const native = assertObject(raw[harness], `${source}.${harness}`);
       validateNativeValue(native, `${source}.${harness}`);
-      if (harness !== "vscode" && (typeof native.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(native.name)))
+      if ((harness === "pi" || harness === "codex") && (typeof native.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(native.name)))
         throw new Error(`${source}.${harness}.name must be a safe native agent name`);
       if (native.description !== undefined)
         assertString(native.description, `${source}.${harness}.description`);
@@ -720,8 +860,10 @@ async function loadAgentSources(root) {
         validatePi({ description: raw.description, ...native }, `${source}.pi`);
       else if (harness === "codex")
         validateCodex(native, `${source}.codex`);
-      else
+      else if (harness === "vscode")
         validateVsCode(native, `${source}.vscode`);
+      else
+        validateAntigravity(native, `${source}.antigravity`);
       instructions[harness] = composeInstructions([
         sharedInstructions[harness],
         role,
@@ -735,15 +877,17 @@ async function loadAgentSources(root) {
       pi: raw.pi,
       codex: raw.codex,
       vscode: raw.vscode,
+      antigravity: raw.antigravity,
       piInstructions: instructions.pi,
       codexInstructions: instructions.codex,
-      vscodeInstructions: instructions.vscode
+      vscodeInstructions: instructions.vscode,
+      antigravityInstructions: instructions.antigravity
     });
   }
-  for (const harness of ["pi", "codex", "vscode"]) {
+  for (const harness of ["pi", "codex", "vscode", "antigravity"]) {
     const names = new Set;
     for (const agent of agents) {
-      const name = agent[harness]?.name ?? (harness === "vscode" && agent.vscode ? agent.id : undefined);
+      const name = agent[harness]?.name ?? ((harness === "vscode" || harness === "antigravity") && agent[harness] ? agent.id : undefined);
       if (name !== undefined && names.has(name))
         throw new Error(`duplicate ${harness} agent name: ${name}`);
       if (name !== undefined)
@@ -795,11 +939,14 @@ function resolvePathBindings(value, paths, label) {
 }
 function resolvedAgentConfig(agent, harness, paths) {
   const label = `agents/${agent.id}/agent.json.${harness}`;
-  const config = resolvePathBindings({ description: agent.description, ...agent[harness] }, paths, label);
+  const defaults = harness === "antigravity" ? { name: agent.id, description: agent.description, mainAgent: true, subagent: true } : { description: agent.description };
+  const config = resolvePathBindings({ ...defaults, ...agent[harness] }, paths, label);
   if (harness === "pi")
     validatePi(config, label);
-  else
+  else if (harness === "codex")
     validateCodex(config, label);
+  else
+    validateAntigravity(config, label);
   return config;
 }
 function renderPiAgent(agent, paths = {}) {
@@ -842,7 +989,8 @@ function renderVsCodeAgent(agent) {
   const native = { name: agent.id, description: agent.description, ...agent.vscode };
   validateNativeValue(native, `agents/${agent.id}.vscode`);
   validateVsCode(native, `agents/${agent.id}.vscode`);
-  const { fileName, ...config } = native;
+  delete native.fileName;
+  const config = native;
   const lines = Object.keys(config).sort().map((key) => `${key}: ${JSON.stringify(config[key])}`);
   return `---
 ${lines.join(`
@@ -851,9 +999,21 @@ ${lines.join(`
 
 ${agent.vscodeInstructions}`;
 }
+function renderAntigravityAgent(agent, paths = {}) {
+  assertString(agent.antigravityInstructions, `agents/${agent.id}.antigravityInstructions`);
+  const config = resolvedAgentConfig(agent, "antigravity", paths);
+  validateNativeValue(config, `agents/${agent.id}/agent.json.antigravity`);
+  const lines = Object.keys(config).sort().map((key) => `${key}: ${JSON.stringify(config[key])}`);
+  return `---
+${lines.join(`
+`)}
+---
+
+${agent.antigravityInstructions}`;
+}
 
 // src/sources.ts
-var HARNESS_NAMES = ["pi", "codex", "vscode", "zed"];
+var HARNESS_NAMES = ["pi", "codex", "vscode", "zed", "antigravity"];
 function normalizeInstruction(source) {
   const normalized = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, `
 `);
@@ -921,12 +1081,29 @@ async function loadCanonicalSources(root, resources = { agents: true }) {
     if (error?.code !== "ENOENT")
       throw error;
   }
+  let antigravityMcp;
+  const mcpSource = path5.join(root, "mcp", "antigravity.json");
+  let mcpText;
+  try {
+    mcpText = await fs3.readFile(mcpSource, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT")
+      throw error;
+  }
+  if (mcpText !== undefined) {
+    try {
+      antigravityMcp = JSON.parse(mcpText);
+    } catch {
+      throw new Error("mcp/antigravity.json is not valid JSON");
+    }
+  }
   return {
     invariants: await readInstruction(instructionPath("invariant.md")),
     preferences: await readInstruction(instructionPath("preferences.md")),
     technologyDefaults: await readInstruction(instructionPath("technology-defaults.md")),
     harnessInstructions,
     piAppendSystem,
+    antigravityMcp,
     agents: resources.agents === false ? [] : await loadAgentSources(root)
   };
 }
@@ -937,6 +1114,7 @@ import path7 from "node:path";
 import { isDeepStrictEqual as isDeepStrictEqual2 } from "node:util";
 
 // src/renderers.ts
+import { TextEncoder } from "node:util";
 var reservedModuleTag = new RegExp(`<\\/?(?:${HARNESS_NAMES.join("|")})_(?:system|agents)_[A-Za-z0-9_]+(?=[\\s/>])`);
 function renderInstructionModules(modules) {
   const rendered = [];
@@ -981,8 +1159,88 @@ ${normalizeInstruction(preferences).trimEnd()}`
   ].join(`
 `);
 }
+var ANTIGRAVITY_RULE_BYTE_LIMIT = 24000;
+var antigravityTriggers = ["always_on", "model_decision", "glob", "manual"];
+function renderMcpConfig(value, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label} must be an object`);
+  const servers = value.mcpServers;
+  if (servers === null || typeof servers !== "object" || Array.isArray(servers))
+    throw new Error(`${label}.mcpServers must be an object`);
+  const secretKeys = new Set(["apikey", "token", "secret", "password"]);
+  const assertNoSecrets = (entry, entryLabel) => {
+    if (entry === null || typeof entry !== "object")
+      return;
+    for (const [key, nested] of Object.entries(entry)) {
+      if (secretKeys.has(key.toLowerCase()))
+        throw new Error(`${entryLabel} contains a secret-like key: ${key}`);
+      assertNoSecrets(nested, `${entryLabel}.${key}`);
+    }
+  };
+  const sortedServers = {};
+  for (const name of Object.keys(servers).sort()) {
+    const server = servers[name];
+    if (server === null || typeof server !== "object" || Array.isArray(server))
+      throw new Error(`${label}.mcpServers.${name} must be a server object`);
+    assertNoSecrets(server, `${label}.mcpServers.${name}`);
+    const sorted = {};
+    for (const key of Object.keys(server).sort()) {
+      sorted[key] = server[key];
+    }
+    sortedServers[name] = sorted;
+  }
+  return `${JSON.stringify({ mcpServers: sortedServers }, null, 2)}
+`;
+}
+function assertAntigravityRuleSize(content, label) {
+  const bytes = new TextEncoder().encode(content).byteLength;
+  if (bytes > ANTIGRAVITY_RULE_BYTE_LIMIT) {
+    throw new Error(`Antigravity target ${label} (${bytes} bytes) exceeds Antigravity ${ANTIGRAVITY_RULE_BYTE_LIMIT}-byte rule limit`);
+  }
+  return content;
+}
+function renderAntigravityRule(frontmatter, body, label = "antigravity-rule") {
+  if (!antigravityTriggers.includes(frontmatter.trigger)) {
+    throw new Error(`Antigravity rule ${label} trigger must be one of ${antigravityTriggers.join(", ")}`);
+  }
+  if (frontmatter.trigger === "model_decision" && !frontmatter.description?.trim()) {
+    throw new Error(`Antigravity rule ${label} with trigger model_decision requires description`);
+  }
+  if (frontmatter.trigger === "glob" && !frontmatter.globs?.trim()) {
+    throw new Error(`Antigravity rule ${label} with trigger glob requires globs`);
+  }
+  const fields = { trigger: frontmatter.trigger };
+  if (frontmatter.globs !== undefined)
+    fields.globs = frontmatter.globs;
+  if (frontmatter.description !== undefined)
+    fields.description = frontmatter.description;
+  const header = Object.entries(fields).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(`
+`);
+  const normalized = normalizeInstruction(body);
+  const rendered = `---
+${header}
+---
+
+${normalized}`;
+  return assertAntigravityRuleSize(rendered, label);
+}
 var CODEX_BEGIN = "# >>> agent-policy developer_instructions >>>";
 var CODEX_END = "# <<< agent-policy developer_instructions <<<";
+var CODEX_ASSIGNMENT = /^developer_instructions\s*=\s*"""\n[\s\S]*?^"""\n?/gm;
+function codexAssignmentBounds(config) {
+  let found;
+  for (const match of config.matchAll(CODEX_ASSIGNMENT)) {
+    if (found)
+      throw new Error("Codex managed-region delimiters are malformed");
+    found = { start: match.index, end: match.index + match[0].length };
+  }
+  return found;
+}
+function stripCodexMarkers(config) {
+  return config.split(`
+`).filter((line) => line !== CODEX_BEGIN && line !== CODEX_END).join(`
+`);
+}
 function renderCodexBlock(instructions) {
   const normalized = normalizeInstruction(instructions).trimEnd();
   if (normalized.includes('"""'))
@@ -996,35 +1254,40 @@ ${CODEX_END}
 }
 function managedCodexBlock(config) {
   const normalized = normalizeInstruction(config);
-  const start = normalized.indexOf(CODEX_BEGIN);
-  const end = normalized.indexOf(CODEX_END);
-  if (start < 0 && end < 0)
+  if (!normalized.includes(CODEX_BEGIN) && !normalized.includes(CODEX_END))
     return;
-  if (start < 0 || end < 0 || end < start)
+  const bounds = codexAssignmentBounds(normalized);
+  if (bounds === undefined)
     throw new Error("Codex managed-region delimiters are malformed");
-  const trailing = end + CODEX_END.length;
-  if (normalized.slice(trailing).startsWith(`
-`))
-    return normalized.slice(start, trailing + 1);
-  return normalized.slice(start, trailing);
+  const assignment = normalized.slice(bounds.start, bounds.end).replace(/\n?$/, `
+`);
+  return `${CODEX_BEGIN}
+${assignment}${CODEX_END}
+`;
 }
 function renderCodexConfig(existing, instructions, adoptUnmanaged = false) {
   const block = renderCodexBlock(instructions);
   if (existing === undefined)
     return { desired: block, owned: block };
   const normalized = normalizeInstruction(existing);
-  const managed = managedCodexBlock(normalized);
-  if (managed !== undefined) {
-    return { desired: normalized.replace(managed, block), owned: block };
+  if (normalized.includes(CODEX_BEGIN) || normalized.includes(CODEX_END)) {
+    const stripped = stripCodexMarkers(normalized);
+    const bounds = codexAssignmentBounds(stripped);
+    if (bounds === undefined)
+      throw new Error("Codex managed-region delimiters are malformed");
+    return {
+      desired: `${stripped.slice(0, bounds.start)}${block}${stripped.slice(bounds.end)}`,
+      owned: block
+    };
   }
-  if (/^developer_instructions\s*=/m.test(normalized)) {
-    if (adoptUnmanaged) {
-      const assignment = /^developer_instructions\s*=\s*"""\n[\s\S]*?^"""\n?/m.exec(normalized);
-      if (!assignment)
-        throw new Error("unmanaged Codex developer_instructions is not a supported multiline TOML string");
-      return { desired: normalized.replace(assignment[0], block), owned: block };
-    }
-    throw new Error("Codex developer_instructions is unmanaged; run adopt explicitly before sync");
+  const bounds = codexAssignmentBounds(normalized);
+  if (bounds !== undefined) {
+    if (!adoptUnmanaged)
+      throw new Error("Codex developer_instructions is unmanaged; run adopt explicitly before sync");
+    return {
+      desired: `${normalized.slice(0, bounds.start)}${block}${normalized.slice(bounds.end)}`,
+      owned: block
+    };
   }
   return { desired: `${normalized.trimEnd()}
 
@@ -1045,7 +1308,12 @@ function agentDirectories(config) {
   return [
     ...config.harnesses.pi.enabled ? [{ id: "pi", directory: path6.join(config.harnesses.pi.agentDir, "agents"), extension: ".md" }] : [],
     ...config.harnesses.codex.enabled ? namedHomes("codex", config.harnesses.codex).map(({ id, home }) => ({ id, directory: path6.join(home, "agents"), extension: ".toml" })) : [],
-    ...config.harnesses.vscode.enabled ? (config.harnesses.vscode.directories || []).map(({ id, path: directory }) => ({ id: `vscode-${id}`, directory, extension: ".agent.md" })) : []
+    ...config.harnesses.vscode.enabled ? (config.harnesses.vscode.directories || []).map(({ id, path: directory }) => ({ id: `vscode-${id}`, directory, extension: ".agent.md" })) : [],
+    ...config.harnesses.antigravity?.enabled ? namedHomes("antigravity", config.harnesses.antigravity).map(({ id, home }) => ({
+      id,
+      directory: path6.join(home, "config", "agents"),
+      extension: ".md"
+    })) : []
   ];
 }
 function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = false) {
@@ -1053,8 +1321,9 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
   if (config.resources?.instructions !== false) {
     const layers = {};
     for (const harness of HARNESS_NAMES) {
-      const systemModules = renderInstructionModules(sources.harnessInstructions[harness].system);
-      const agentsModules = renderInstructionModules(sources.harnessInstructions[harness].agents);
+      const modules = sources.harnessInstructions[harness] ?? { system: [], agents: [] };
+      const systemModules = renderInstructionModules(modules.system);
+      const agentsModules = renderInstructionModules(modules.agents);
       const introduction = systemModules || agentsModules ? "Follow the instructions in the tagged modules below." : "";
       layers[harness] = {
         system: composeInstructions([
@@ -1096,6 +1365,50 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
         targets.push({ id: `vscode-${index}`, kind: "file", path: target, desired: output, owned: output });
       }
     }
+    if (config.harnesses.antigravity?.enabled) {
+      const antigravityAgents = renderInstructionModules((sources.harnessInstructions.antigravity ?? { agents: [] }).agents);
+      const preferencesBody = composeInstructions([sources.preferences, antigravityAgents]);
+      const technologyBody = composeInstructions([sources.technologyDefaults]);
+      for (const { id, home } of namedHomes("antigravity", config.harnesses.antigravity)) {
+        const geminiId = `${id}-gemini`;
+        const gemini = assertAntigravityRuleSize(layers.antigravity.system, geminiId);
+        const preferencesId = `${id}-preferences`;
+        const preferences = renderAntigravityRule({
+          trigger: "always_on",
+          description: "Global engineering preferences, coding philosophy, TDD, and validation rules."
+        }, preferencesBody, preferencesId);
+        const technologyId = `${id}-technology-defaults`;
+        const technology = renderAntigravityRule({
+          trigger: "model_decision",
+          description: "Apply when selecting a new technology stack, framework, test runner, linter, or build tool where the project has not established its own choice, or when explicitly migrating stacks."
+        }, technologyBody, technologyId);
+        if (sources.antigravityMcp !== undefined) {
+          const mcpId = `${id}-mcp-config`;
+          const mcpConfig = renderMcpConfig(sources.antigravityMcp, mcpId);
+          targets.push({
+            id: mcpId,
+            kind: "file",
+            path: path6.join(home, "config", "mcp_config.json"),
+            desired: mcpConfig,
+            owned: mcpConfig
+          });
+        }
+        const rulesDirectory = path6.join(home, "config", "rules");
+        targets.push({ id: geminiId, kind: "file", path: path6.join(home, "GEMINI.md"), desired: gemini, owned: gemini }, {
+          id: preferencesId,
+          kind: "file",
+          path: path6.join(rulesDirectory, "agent-policy-preferences.md"),
+          desired: preferences,
+          owned: preferences
+        }, {
+          id: technologyId,
+          kind: "file",
+          path: path6.join(rulesDirectory, "agent-policy-technology-defaults.md"),
+          desired: technology,
+          owned: technology
+        });
+      }
+    }
   }
   if (config.resources?.agents === true) {
     for (const agent of sources.agents || []) {
@@ -1113,6 +1426,21 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
         const desired = renderCodexAgent(agent, config.paths);
         for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
           targets.push({ id: `${id}-agent-${agent.id}`, kind: "file", path: path6.join(home, "agents", `${agent.id}.toml`), desired, owned: desired, agentDirectory: path6.join(home, "agents") });
+        }
+      }
+      if (config.harnesses.antigravity?.enabled && agent.antigravity) {
+        const desired = renderAntigravityAgent(agent, config.paths);
+        const fileName = `${agent.antigravity.name ?? agent.id}.md`;
+        for (const { id, home } of namedHomes("antigravity", config.harnesses.antigravity)) {
+          const directory = path6.join(home, "config", "agents");
+          targets.push({
+            id: `${id}-agent-${agent.id}`,
+            kind: "file",
+            path: path6.join(directory, fileName),
+            desired,
+            owned: desired,
+            agentDirectory: directory
+          });
         }
       }
     }
@@ -1161,7 +1489,7 @@ async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnma
   for (const [id, prior] of Object.entries(state.targets)) {
     if (prior.agentDirectory === undefined || targets.some((target) => target.id === id))
       continue;
-    const scope = agentDirectories(config).find((scope2) => scope2.directory === prior.agentDirectory && id.startsWith(`${scope2.id}-agent-`));
+    const scope = agentDirectories(config).find((scope) => scope.directory === prior.agentDirectory && id.startsWith(`${scope.id}-agent-`));
     if (!scope)
       continue;
     if (path7.dirname(prior.path) !== scope.directory || !path7.basename(prior.path).endsWith(scope.extension))
@@ -1215,6 +1543,13 @@ async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnma
         });
       } else if (hash(target.owned) !== prior.ownedHash) {
         assessments.push({ target, status: "stale", existing, detail: "canonical source changed" });
+      } else if (target.kind === "codex" && existing !== undefined && normalizeInstruction(existing) !== target.desired) {
+        assessments.push({
+          target,
+          status: "stale",
+          existing,
+          detail: "managed-region markers need repair"
+        });
       } else {
         assessments.push({ target, status: "current", existing, detail: "current" });
       }
@@ -1379,6 +1714,8 @@ function validateArguments(domain, command, args) {
     "--pi-agent-dir",
     "--codex-home",
     "--codex-additional-home",
+    "--antigravity-home",
+    "--antigravity-additional-home",
     ...domain === "instructions" ? ["--zed-home", "--zed-additional-home", "--vscode-target"] : ["--vscode-agent-dir"]
   ];
   const allowedValues = [
@@ -1402,6 +1739,7 @@ function validateArguments(domain, command, args) {
   const repeatable = [
     "--target",
     "--codex-additional-home",
+    "--antigravity-additional-home",
     "--zed-additional-home",
     "--vscode-target",
     "--vscode-agent-dir"
@@ -1420,7 +1758,7 @@ function validateArguments(domain, command, args) {
   }
   if (args.flags.has("--apply") && args.flags.has("--dry-run"))
     throw new Error("--apply and --dry-run cannot be combined");
-  for (const name of ["", ...harnesses.map((name2) => `-${name2}`)]) {
+  for (const name of ["", ...harnesses.map((name) => `-${name}`)]) {
     if (args.flags.has(`--enable${name}`) && args.flags.has(`--disable${name}`))
       throw new Error(`--enable${name} and --disable${name} cannot be combined`);
   }
@@ -1458,8 +1796,9 @@ configure options:
   --enable --disable  Enable or disable this workflow only
   --pi-agent-dir PATH --codex-home PATH
   --codex-additional-home ID=PATH (repeatable)
+  --antigravity-home PATH --antigravity-additional-home ID=PATH (repeatable)
   --enable-pi --disable-pi --enable-codex --disable-codex
-  --enable-vscode --disable-vscode${nativeOptions}
+  --enable-vscode --disable-vscode --enable-antigravity --disable-antigravity${nativeOptions}
 
 adopt options:
   --dry-run           Preview adoption without writing anything
@@ -1492,6 +1831,14 @@ function configuredPolicy(base, domain, args) {
   if (codex)
     result.harnesses.codex.home = codex;
   setAdditionalHomes(result.harnesses.codex, values(args, "--codex-additional-home"), "--codex-additional-home");
+  const antigravity = value(args, "--antigravity-home");
+  const antigravityAdditional = values(args, "--antigravity-additional-home");
+  if (antigravity || antigravityAdditional.length || args.flags.has("--enable-antigravity") || args.flags.has("--disable-antigravity"))
+    result.harnesses.antigravity ||= { enabled: false };
+  if (antigravity)
+    result.harnesses.antigravity.home = antigravity;
+  if (antigravityAdditional.length)
+    setAdditionalHomes(result.harnesses.antigravity, antigravityAdditional, "--antigravity-additional-home");
   if (domain === "instructions") {
     const zed = value(args, "--zed-home");
     const additional = values(args, "--zed-additional-home");
@@ -1550,7 +1897,7 @@ function printWriteResults(items, result) {
   const changed = new Set(result.changed);
   const removed = result.assessments.filter((item) => changed.has(item.target.id) && item.target.operation === "delete");
   items = [
-    ...items.filter((item) => !removed.some((removed2) => removed2.target.id === item.target.id)),
+    ...items.filter((item) => !removed.some((removed) => removed.target.id === item.target.id)),
     ...removed.map((item) => ({ ...item, status: "current" }))
   ];
   console.log(changed.size ? `Changed ${changed.size} target${changed.size === 1 ? "" : "s"}.` : "No target files changed.");
@@ -1596,19 +1943,19 @@ async function main(domain, moduleUrl, argv, io) {
   if (configPath === statePath)
     throw new Error("configuration and ownership state must use different paths");
   if (command === "configure" && args.flags.has("--import-legacy")) {
-    const result2 = await importLegacy(domain, {
+    const result = await importLegacy(domain, {
       config: configPath,
       state: statePath,
       legacyConfig: value(args, "--legacy-config") || defaultConfigPath(environment, toolDirectory),
       legacyState: value(args, "--legacy-state") || defaultStatePath(environment)
     }, !args.flags.has("--apply"), io);
     console.log(`Configuration: ${configPath}
-${JSON.stringify(result2.profile, null, 2)}
+${JSON.stringify(result.profile, null, 2)}
 State: ${statePath}
-Ownership records: ${Object.keys(result2.state.targets).length}`);
-    printPlan(result2.changes, result2.changes.some((change) => change.id === "ownership-state"));
-    console.log(args.flags.has("--apply") ? result2.changes.length ? "Legacy settings and ownership imported. Runtime targets unchanged." : "Legacy settings and ownership already imported." : "Preview only. Re-run with --apply to import settings and ownership.");
-    printBackups(result2.backups);
+Ownership records: ${Object.keys(result.state.targets).length}`);
+    printPlan(result.changes, result.changes.some((change) => change.id === "ownership-state"));
+    console.log(args.flags.has("--apply") ? result.changes.length ? "Legacy settings and ownership imported. Runtime targets unchanged." : "Legacy settings and ownership already imported." : "Preview only. Re-run with --apply to import settings and ownership.");
+    printBackups(result.backups);
     return;
   }
   const rawConfig = await readOptional(io, configPath);

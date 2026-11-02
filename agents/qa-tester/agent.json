@@ -34,5 +34,23 @@
       "DeepSeek V4 Flash (Go) (customendpoint)",
       "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
     ]
+  },
+  "antigravity": {
+    "name": "qa-tester",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": false,
+    "model": "pro",
+    "commandExecutionPolicy": "sandbox",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "code_search",
+      "list_dir",
+      "run_command",
+      "manage_task",
+      "ask_question"
+    ]
   }
 }

@@ -38,4 +38,7 @@ declare module "node:url" {
 
 declare module "node:util" {
   export function isDeepStrictEqual(left: unknown, right: unknown): boolean;
+  export class TextEncoder {
+    encode(input?: string): { byteLength: number };
+  }
 }

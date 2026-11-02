@@ -48,5 +48,33 @@
       "pi-lens/*",
       "pi-session-recall/*"
     ]
+  },
+  "antigravity": {
+    "name": "pi-expert",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": true,
+    "model": "pro",
+    "commandExecutionPolicy": "off",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "code_search",
+      "list_dir",
+      "search_web",
+      "read_url_content"
+    ],
+    "mcpServers": [
+      {
+        "name": "pi-session-recall",
+        "command": "node",
+        "args": [
+          "${paths.piSessionRecallScript}",
+          "--project-dir",
+          "${paths.piProjectDir}"
+        ]
+      }
+    ]
   }
 }

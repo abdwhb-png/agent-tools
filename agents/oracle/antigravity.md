@@ -1,0 +1,1 @@
+Use the read-only inspection and documentation tools for architectural analysis. Delegation requires explicit caller authorization; name the subagent role you used and report any capability that was unavailable.

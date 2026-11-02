@@ -1190,3 +1190,49 @@ test("adopt all reports changed, unchanged, and missing targets once", async () 
   expect(result.stdout.match(/pi-agents/g)).toHaveLength(1);
   expect(await fs.exists(path.join(piHome, "SYSTEM.md"))).toBe(false);
 });
+
+test("both CLIs configure Antigravity homes, validate flags, and reject misplaced root instruction modules", async () => {
+  const f = await fixture();
+  const primary = path.join(f.output, "antigravity");
+  const windows = path.join(f.output, "windows-antigravity");
+
+  const instHelp = f.run("--help");
+  const agentHelp = f.runAgent("--help");
+  expect(instHelp.stdout).toContain("--antigravity-home PATH");
+  expect(instHelp.stdout).toContain("--antigravity-additional-home ID=PATH");
+  expect(instHelp.stdout).toContain("--enable-antigravity --disable-antigravity");
+  expect(agentHelp.stdout).toContain("--antigravity-home PATH");
+  expect(agentHelp.stdout).toContain("--antigravity-additional-home ID=PATH");
+  expect(agentHelp.stdout).toContain("--enable-antigravity --disable-antigravity");
+
+  const args = [
+    "--antigravity-home",
+    primary,
+    "--antigravity-additional-home",
+    `windows=${windows}`,
+    "--enable-antigravity",
+  ];
+  const preview = f.run("configure", ...args);
+  expect(preview.code).toBe(0);
+  expect(preview.stdout).toContain(primary);
+  expect(JSON.parse(await fs.readFile(f.configPath, "utf8")).harnesses.antigravity).toBeUndefined();
+
+  expect(f.run("configure", ...args, "--apply").code).toBe(0);
+  expect(f.runAgent("configure", ...args, "--apply").code).toBe(0);
+  const expected = {
+    enabled: true,
+    home: primary,
+    additionalHomes: [{ id: "windows", home: windows }],
+  };
+  expect(JSON.parse(await fs.readFile(f.configPath, "utf8")).harnesses.antigravity).toEqual(expected);
+  expect(JSON.parse(await fs.readFile(f.agentsConfigPath, "utf8")).harnesses.antigravity).toEqual(expected);
+
+  expect(f.run("configure", "--enable-antigravity", "--disable-antigravity").code).toBe(2);
+  expect(f.run("configure", "--import-legacy", "--antigravity-home", primary).code).toBe(2);
+
+  await fs.mkdir(path.join(f.instructions, "antigravity"), { recursive: true });
+  await fs.writeFile(path.join(f.instructions, "antigravity", "misplaced.md"), "Bad.\n");
+  const bad = f.run("doctor");
+  expect(bad.code).toBe(2);
+  expect(bad.stderr).toContain("misplaced instruction source");
+});

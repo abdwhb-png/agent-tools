@@ -34,5 +34,24 @@
       "Architect",
       "qa-tester"
     ]
+  },
+  "antigravity": {
+    "name": "code-reviewer",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": true,
+    "model": "pro",
+    "commandExecutionPolicy": "off",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "code_search",
+      "list_dir",
+      "read_url_content",
+      "invoke_subagent",
+      "manage_subagents",
+      "ask_question"
+    ]
   }
 }

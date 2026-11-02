@@ -20,5 +20,20 @@
       "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
     ],
     "fileName": "codebase-scout.agent.md"
+  },
+  "antigravity": {
+    "name": "scout",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": true,
+    "model": "flash_lite",
+    "commandExecutionPolicy": "off",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "find_by_name",
+      "code_search",
+      "list_dir"
+    ]
   }
 }

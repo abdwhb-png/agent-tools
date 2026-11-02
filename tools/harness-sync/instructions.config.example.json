@@ -20,6 +20,11 @@
       "enabled": false,
       "home": "/mnt/c/Users/example/AppData/Roaming/Zed",
       "additionalHomes": [{ "id": "linux", "home": "/home/example/.config/zed" }]
+    },
+    "antigravity": {
+      "enabled": false,
+      "home": "/home/example/.gemini",
+      "additionalHomes": [{ "id": "windows", "home": "/mnt/c/Users/example/.gemini" }]
     }
   }
 }

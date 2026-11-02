@@ -1,0 +1,1 @@
+Use `run_command` and `manage_task` only for the requested verification commands. Keep source files unchanged, scope cleanup to artifacts this task created, and report the exact command, exit status and relevant output.

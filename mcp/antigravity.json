@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "deepwiki": {
+      "url": "https://mcp.deepwiki.com/mcp"
+    },
+    "exa": {
+      "url": "https://mcp.exa.ai/mcp"
+    },
+    "firecrawl-mcp": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
+      },
+      "variables": [
+        {
+          "name": "FIRECRAWL_API_KEY",
+          "title": "Firecrawl API key",
+          "description": "Personal Firecrawl API key used by the Firecrawl MCP server for scraping and search.",
+          "link": "https://www.firecrawl.dev/app/api-keys"
+        }
+      ]
+    }
+  }
+}

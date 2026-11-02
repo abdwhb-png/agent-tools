@@ -27,6 +27,7 @@ test("merges technology defaults into every preferences target", () => {
         codex: { system: [], agents: [] },
         vscode: { system: [], agents: [] },
         zed: { system: [], agents: [] },
+        antigravity: { system: [], agents: [] },
       },
     },
     {},
@@ -42,7 +43,7 @@ test("merges technology defaults into every preferences target", () => {
   );
 });
 
-test.each(["pi", "codex", "zed", "vscode"] as const)(
+test.each(["pi", "codex", "zed", "vscode", "antigravity"] as const)(
   "introduces agents-only %s modules once across the generated prompt",
   (harness) => {
     const config: PolicyConfig = {
@@ -52,6 +53,7 @@ test.each(["pi", "codex", "zed", "vscode"] as const)(
         codex: { enabled: true, home: "/codex" },
         zed: { enabled: true, home: "/zed" },
         vscode: { enabled: true, targets: ["/vscode.instructions.md"] },
+        antigravity: { enabled: true, home: "/antigravity" },
       },
     };
     const sources: CanonicalSources = {
@@ -64,6 +66,7 @@ test.each(["pi", "codex", "zed", "vscode"] as const)(
         codex: { system: [], agents: [] },
         zed: { system: [], agents: [] },
         vscode: { system: [], agents: [] },
+        antigravity: { system: [], agents: [] },
       },
     };
     sources.harnessInstructions[harness].agents = [
@@ -78,9 +81,10 @@ test.each(["pi", "codex", "zed", "vscode"] as const)(
     expect(prompt).not.toContain(`<${harness}_agents_empty>`);
     expect(prompt).not.toContain("instruction_module");
     expect(prompt).not.toContain("source=");
-    if (harness === "pi" || harness === "codex") {
-      expect(selected.find(({ id }) => id.endsWith("-agents"))?.desired)
-        .not.toContain("Follow the instructions in the tagged modules");
+    if (harness === "pi" || harness === "codex" || harness === "antigravity") {
+      expect(
+        selected.find(({ id }) => id.endsWith("-agents") || id.endsWith("-preferences"))?.desired,
+      ).not.toContain("Follow the instructions in the tagged modules");
     }
     for (const target of targets.filter(({ id }) => !id.startsWith(`${harness}-`))) {
       expect(target.desired).not.toContain("Follow the instructions in the tagged modules");
@@ -93,3 +97,72 @@ test.each(["pi", "codex", "zed", "vscode"] as const)(
     }
   },
 );
+
+test("renders hybrid Antigravity GEMINI.md and modular config/rules targets across homes", () => {
+  const config: PolicyConfig = {
+    schemaVersion: 1,
+    harnesses: {
+      pi: { enabled: false },
+      codex: { enabled: false },
+      vscode: { enabled: false },
+      antigravity: {
+        enabled: true,
+        home: "/home/dev/.gemini",
+        additionalHomes: [{ id: "windows", home: "/mnt/c/Users/dev/.gemini" }],
+      },
+    },
+  };
+  const targets = renderTargets(config, {
+    invariants: "Core invariant\n",
+    preferences: "Core preference\n",
+    technologyDefaults: "Tech default\n",
+    piAppendSystem: "",
+    harnessInstructions: {
+      pi: { system: [], agents: [] },
+      codex: { system: [], agents: [] },
+      vscode: { system: [], agents: [] },
+      zed: { system: [], agents: [] },
+      antigravity: {
+        system: [{ source: "antigravity/system/shell.md", content: "Shell rule\n" }],
+        agents: [{ source: "antigravity/agents/style.md", content: "Style rule\n" }],
+      },
+    },
+  });
+
+  expect(targets.map(({ id, path }) => ({ id, path }))).toEqual([
+    { id: "antigravity-gemini", path: "/home/dev/.gemini/GEMINI.md" },
+    {
+      id: "antigravity-preferences",
+      path: "/home/dev/.gemini/config/rules/agent-policy-preferences.md",
+    },
+    {
+      id: "antigravity-technology-defaults",
+      path: "/home/dev/.gemini/config/rules/agent-policy-technology-defaults.md",
+    },
+    { id: "antigravity-windows-gemini", path: "/mnt/c/Users/dev/.gemini/GEMINI.md" },
+    {
+      id: "antigravity-windows-preferences",
+      path: "/mnt/c/Users/dev/.gemini/config/rules/agent-policy-preferences.md",
+    },
+    {
+      id: "antigravity-windows-technology-defaults",
+      path: "/mnt/c/Users/dev/.gemini/config/rules/agent-policy-technology-defaults.md",
+    },
+  ]);
+
+  const gemini = targets.find(({ id }) => id === "antigravity-gemini")!;
+  expect(gemini.desired).toBe(
+    "Core invariant\n\nFollow the instructions in the tagged modules below.\n\n<antigravity_system_shell>\n\nShell rule\n\n</antigravity_system_shell>\n",
+  );
+  expect(targets.find(({ id }) => id === "antigravity-windows-gemini")!.desired).toBe(gemini.desired);
+
+  const prefs = targets.find(({ id }) => id === "antigravity-preferences")!;
+  expect(Bun.YAML.parse(prefs.desired.split("---\n")[1]).trigger).toBe("always_on");
+  expect(prefs.desired.split("---\n")[2]).toBe(
+    "\nCore preference\n\n<antigravity_agents_style>\n\nStyle rule\n\n</antigravity_agents_style>\n",
+  );
+
+  const tech = targets.find(({ id }) => id === "antigravity-technology-defaults")!;
+  expect(Bun.YAML.parse(tech.desired.split("---\n")[1]).trigger).toBe("model_decision");
+  expect(tech.desired.split("---\n")[2]).toBe("\nTech default\n");
+});

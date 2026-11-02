@@ -58,5 +58,20 @@
       "youtube-mcp-server/*",
       "youtube-transcript/*"
     ]
+  },
+  "antigravity": {
+    "name": "videographer",
+    "mainAgent": true,
+    "subagent": true,
+    "inheritMcp": true,
+    "model": "flash",
+    "commandExecutionPolicy": "off",
+    "tools": [
+      "view_file",
+      "grep_search",
+      "list_dir",
+      "search_web",
+      "read_url_content"
+    ]
   }
 }

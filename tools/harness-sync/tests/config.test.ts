@@ -217,3 +217,81 @@ test("rejects Windows-style target paths when syncing from Linux", () => {
     windows.harnesses.zed.home,
   );
 });
+
+test("supports optional Antigravity homes in both domains while keeping omitted configs unchanged", () => {
+  const baseInstructions = {
+    schemaVersion: 2 as const,
+    kind: "instructions" as const,
+    enabled: true,
+    harnesses: {
+      pi: { enabled: true, agentDir: "/pi/agent" },
+      codex: { enabled: true, home: "/codex" },
+      vscode: { enabled: true, targets: ["/vscode/agent-policy.instructions.md"] },
+    },
+  };
+  expect(
+    profileConfig(parsePolicyConfig(JSON.stringify(baseInstructions), "linux", "instructions"), "instructions"),
+  ).toEqual(baseInstructions);
+
+  const antigravity = {
+    enabled: true,
+    home: "/home/agent/.gemini",
+    additionalHomes: [{ id: "windows", home: "/mnt/c/Users/agent/.gemini" }],
+  };
+  for (const domain of ["instructions", "agents"] as const) {
+    const profile = {
+      schemaVersion: 2 as const,
+      kind: domain,
+      enabled: true,
+      harnesses: {
+        pi: { enabled: false },
+        codex: { enabled: false },
+        ...(domain === "instructions" ? { vscode: { enabled: false } } : {}),
+        antigravity,
+      },
+    };
+    const parsed = parsePolicyConfig(JSON.stringify(profile), "linux", domain);
+    expect(parsed.harnesses.antigravity).toEqual(antigravity);
+    expect(profileConfig(parsed, domain)).toEqual(profile);
+  }
+
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        ...baseInstructions,
+        harnesses: { ...baseInstructions.harnesses, antigravity: { enabled: true } },
+      }),
+      "linux",
+      "instructions",
+    ),
+  ).toThrow("enabled Antigravity harness requires home");
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        ...baseInstructions,
+        harnesses: {
+          ...baseInstructions.harnesses,
+          antigravity: { enabled: true, home: "relative/.gemini" },
+        },
+      }),
+      "linux",
+      "instructions",
+    ),
+  ).toThrow("harnesses.antigravity.home must be an absolute path for linux");
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        schemaVersion: 2,
+        kind: "agents",
+        enabled: true,
+        harnesses: {
+          pi: { enabled: false },
+          codex: { enabled: false },
+          antigravity: { enabled: true, home: "/home/agent/.gemini", retiredAgents: ["old.md"] },
+        },
+      }),
+      "linux",
+      "agents",
+    ),
+  ).toThrow("unsupported key: retiredAgents");
+});

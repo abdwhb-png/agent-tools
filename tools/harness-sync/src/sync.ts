@@ -139,6 +139,17 @@ export async function assessTargets(
         });
       } else if (hash(target.owned) !== prior.ownedHash) {
         assessments.push({ target, status: "stale", existing, detail: "canonical source changed" });
+      } else if (
+        target.kind === "codex" &&
+        existing !== undefined &&
+        normalizeInstruction(existing) !== target.desired
+      ) {
+        assessments.push({
+          target,
+          status: "stale",
+          existing,
+          detail: "managed-region markers need repair",
+        });
       } else {
         assessments.push({ target, status: "current", existing, detail: "current" });
       }
