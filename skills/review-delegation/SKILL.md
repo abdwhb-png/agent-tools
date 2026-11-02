@@ -35,7 +35,8 @@ Gather the exact review boundaries before proposing lanes, so the proposal is gr
 3. **Propose the lane set** from the review angle matrix below, with one line of reasoning per lane. Drop any angle the change does not actually trigger.
 4. **Confirm with the user before launching anything.** Ask which lanes to run using the host's question tool, presenting the recommended set as the default. A single-lane run is a valid answer. Do not launch a fan-out on your own judgment when the host can ask.
 
-> **Harness-specific delegation:** this skill expresses review *angles*, not agent names or tool names. Agent identity and read-only tool access belong to the host. If you are running in:
+> **Harness-specific delegation:** this skill expresses review _angles_, not agent names or tool names. Agent identity and read-only tool access belong to the host. If you are running in:
+>
 > - the **pi** harness (earendil-works/pi-coding-agent): read [references/pi-harness.md](references/pi-harness.md) before delegating — it covers how to resolve lanes to agents, child tool contracts, and deadlines.
 > - **Codex** (OpenAI Codex CLI/IDE/desktop): read [references/codex-harness.md](references/codex-harness.md) before delegating.
 >
@@ -45,14 +46,14 @@ Gather the exact review boundaries before proposing lanes, so the proposal is gr
 
 Pick angles from the change, then resolve each chosen angle to a reviewer the host actually exposes. The baseline angle is the one that covers spec compliance and logic.
 
-| Angle | Trigger Conditions & Scope | Key Focus Areas |
-| --- | --- | --- |
-| **Correctness & spec** *(baseline)* | Every review | Spec compliance, logic errors, edge cases, error handling, tests |
-| **Security** | Auth, tokens, crypto, user input, queries, file I/O, network endpoints, dependencies | Injection, permission escalation, secret exposure, unsanitized inputs |
-| **Architecture & boundaries** | Major refactoring, new module seams, dependency direction changes, new subsystems | Boundary integrity, interface coupling, long-term maintenance, devil's advocate |
-| **Interface & compatibility** | Changes to public functions, exported types, REST/RPC endpoints, CLI flags, configs | Backward compatibility, breaking changes, schema consistency, ergonomics |
-| **Performance** | High-frequency loops, database indexing, concurrency, large payload parsing, large payload or file expansion | CPU/memory bottlenecks, resource leaks, algorithmic complexity, `O(N)` regressions |
-| **Style & docs** | Large formatting overhauls, convention migrations, doc updates | Codebase idioms, naming rules, documentation completeness |
+| Angle                               | Canonical Specialist               | Trigger Conditions & Scope                                                                                   | Key Focus Areas                                                                    |
+| ----------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| **Correctness & spec** _(baseline)_ | `code-reviewer` / `quick-reviewer` | Every review                                                                                                 | Spec compliance, logic errors, edge cases, error handling, tests                   |
+| **Security**                        | `security-reviewer`                | Auth, tokens, crypto, user input, queries, file I/O, network endpoints, dependencies                         | Injection, permission escalation, secret exposure, unsanitized inputs              |
+| **Architecture & boundaries**       | `architect` / `oracle`             | Major refactoring, new module seams, dependency direction changes, new subsystems                            | Boundary integrity, interface coupling, long-term maintenance, devil's advocate    |
+| **Interface & compatibility**       | `api-reviewer`                     | Changes to public functions, exported types, REST/RPC endpoints, CLI flags, configs                          | Backward compatibility, breaking changes, schema consistency, ergonomics           |
+| **Performance**                     | `performance-reviewer`             | High-frequency loops, database indexing, concurrency, large payload parsing, large payload or file expansion | CPU/memory bottlenecks, resource leaks, algorithmic complexity, `O(N)` regressions |
+| **Style & docs**                    | `style-reviewer`                   | Large formatting overhauls, convention migrations, doc updates                                               | Codebase idioms, naming rules, documentation completeness                          |
 
 ### Orchestration Pattern
 
@@ -66,14 +67,15 @@ Delegate one lane per chosen angle, concurrently, each with clean context and re
 
 Classify every finding into one of four objective severity tiers:
 
-| Severity | Definition | Merge Impact |
-| --- | --- | --- |
-| **CRITICAL** | Security exploit, data loss, auth bypass, or fatal crash | Hard merge blocker |
-| **HIGH** | Spec violation, logic bug, regression, or unhandled error path | Hard merge blocker |
-| **MEDIUM** | Performance issue, missing test coverage, or anti-pattern | Important improvement |
-| **LOW** | Minor style nitpick, naming suggestion, or documentation typo | Non-blocking comment |
+| Severity     | Definition                                                     | Merge Impact          |
+| ------------ | -------------------------------------------------------------- | --------------------- |
+| **CRITICAL** | Security exploit, data loss, auth bypass, or fatal crash       | Hard merge blocker    |
+| **HIGH**     | Spec violation, logic bug, regression, or unhandled error path | Hard merge blocker    |
+| **MEDIUM**   | Performance issue, missing test coverage, or anti-pattern      | Important improvement |
+| **LOW**      | Minor style nitpick, naming suggestion, or documentation typo  | Non-blocking comment  |
 
 Every finding must provide:
+
 1. **Location**: `file:line` citation.
 2. **Issue**: Concrete description of what is wrong.
 3. **Risk & Impact**: What fails, breaks, or leaks if unfixed.
@@ -97,7 +99,7 @@ Combine findings and lane recommendations into a deterministic verdict:
    - No CRITICAL or HIGH issues.
    - The architecture lane reports **CLEAR** (when that lane ran).
 
-*Never substitute self-review for a failed lane. If a lane fails, report the review as incomplete.*
+_Never substitute self-review for a failed lane. If a lane fails, report the review as incomplete._
 
 ---
 
@@ -115,7 +117,7 @@ A lane that reports an unavailable tool, provider, or model is a lane failure, n
 
 Always synthesize findings into a structured, evidence-led report:
 
-```markdown
+````markdown
 # Code Review Report
 
 **Scope:** `<target files / diff>`
@@ -123,6 +125,7 @@ Always synthesize findings into a structured, evidence-led report:
 **Review Lanes:** `<resolved agent names for the confirmed angles>`
 
 ## Summary
+
 - **CRITICAL:** 0
 - **HIGH:** 0
 - **MEDIUM:** 0
@@ -132,6 +135,7 @@ Always synthesize findings into a structured, evidence-led report:
 ## Findings
 
 ### [CRITICAL | HIGH | MEDIUM | LOW] Finding Title
+
 - **Location:** `path/to/file.ts:123`
 - **Issue:** Description of the problem.
 - **Risk:** Consequences if left unfixed.
@@ -139,12 +143,18 @@ Always synthesize findings into a structured, evidence-led report:
   ```typescript
   // Recommended correction
   ```
+````
 
-*(If no issues found: "No blocking issues identified.")*
+_(If no issues found: "No blocking issues identified.")_
 
 ## Lane Recommendations
+
 - **<lane angle>:** `APPROVE` | `REQUEST CHANGES` | `COMMENT` | `FAILED`
 
 ## Final Recommendation
+
 **<VERDICT>**: One-line summary justifying the decision and outlining next steps.
+
+```
+
 ```

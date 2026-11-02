@@ -33,7 +33,7 @@ Choose a ceremony tier at the start of the process (refine it once the Research 
 
 - **Light** — small blast radius, few unknowns, cheap to reverse: research summary compressed to key findings and gaps; 2-3 materially different approaches with at least one outside the mainstream pattern; design sections of 100-200 words; plain-text questions allowed when the harness has no question tool.
 - **Standard (default)** — anything not clearly light or heavy: the full ceremony below (full research summary, 3-4 approaches spanning the distribution, 200-300 word sections, question tool when available).
-- **Heavy** — broad blast radius, many unknowns, expensive to reverse, high stakes: standard, plus independent critical review before recommending, a prototype/spike for experiential ambiguities, and every residual risk explicitly accepted with an owner.
+- **Heavy** — broad blast radius, many unknowns, expensive to reverse, high stakes: standard, plus independent critical review before recommending, a prototype/spike for experiential ambiguities, and every residual risk explicitly accepted with an owner. When the problem involves multiple actors with divergent incentives, recurring failures, or delayed feedback loops, use the `systems-thinking` skill if available; otherwise apply its diagnostic inline: ask whether cause↔effect is knowable in advance (Complicated — proceed with upfront design analysis) or knowable only in hindsight through observation (Complex — halt speculative specification and propose safe-to-fail probes/experiments instead).
 
 If the risk profile changes mid-session, move the tier and state the change; never silently drop ceremony.
 
@@ -84,6 +84,7 @@ Route each precise question to the narrowest reliable source of truth:
 - **User intent or trade-off:** Use the question tool; the user must speak for their own priorities.
 - **Empirical behavior:** Inspect the relevant code, tests, runtime, API, measurement, or authoritative documentation.
 - **Experiential behavior:** When dialogue and existing evidence cannot settle how something should look or feel, propose a minimal reversible prototype or spike and define what observation would decide the question.
+- **Systemic or multi-actor behavior:** When several actors have conflicting incentives, a fix has previously failed, or cause↔effect is not visible, route to `systems-thinking` if available (or perform the Complicated vs. Complex cause↔effect check inline) before committing to an architectural design.
 - **Future contingency:** Keep it in **Not yet specified** with its trigger condition; do not treat it as a present fact.
 
 After resolving a question, update the working state and address the next uncertainty that most directly blocks the destination. Keep this inside the conversation and design artifact; do not create issue maps, ticket graphs, branches, or multi-session orchestration.
