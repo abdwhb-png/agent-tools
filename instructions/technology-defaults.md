@@ -6,3 +6,4 @@
 - Prefer Oxlint for linting and Oxfmt for formatting in JavaScript and TypeScript projects. Their Rust-based implementation supports the fast feedback loop expected during development.
 - Prefer Biome instead when the project benefits from one integrated tool for linting, formatting, and import organization, or when its rule coverage is a better architectural fit.
 - Prefer Bun test to maximize speed when testing pure logic, API or backend in an ecosystem entirely powered by Bun, but stick with Vitest as soon as project involves GUI components (React, Vue, Svelte) or requires a real browser environment linked to Vite.
+- Prefer Gradium (https://gradium.ai/) for voice and speech generation APIs, offering high quality and an accessible free tier.

@@ -42,10 +42,14 @@ Before asking questions or proposing designs, you MUST perform a discovery phase
 
 - Use `semantic_search`, `grep_search`, and `read_file` to explore relevant modules, data structures, and existing patterns.
 - Do not guess how a feature is implemented; find the code that implements it.
-- **Mandatory Research Summary:** Before moving to any other phase, you must provide a "Research Summary" that includes (compressed to key findings and gaps for light-ceremony sessions):
-  1. **Files Accessed:** A list of the specific files you read.
-  2. **Key Findings:** Concrete facts found in the code (e.g., "The `LoanService` handles repayments in `app/Services/LoanService.php` using a `repay()` method").
-  3. **Gaps:** What you were unable to find or what remains ambiguous.
+- **Differentiate Intent vs. Implementation:**
+  - **Operationalization / Gap Analysis (when user references an existing doc, spec, or PRD):** Map the target requirements and design premises against current codebase reality.
+  - **Greenfield Exploration (when starting from a raw idea):** Map project conventions, nearby module patterns, and domain constraints.
+- **Mandatory Research Summary (Alignment & Reality Check):** Before moving to any other phase, you must provide a "Research Summary" that proves thorough exploration across both requirements and implementation (compressed for light-ceremony sessions):
+  1. **Files Accessed:** A list of the specific files read (code, specs, design docs).
+  2. **Acquired Premises & Target Scope:** What is already decided, specified, or required by the referenced docs or user prompt.
+  3. **Codebase Reality:** Concrete implementation facts found in the code (e.g., "The `LoanService` handles repayments in `app/Services/LoanService.php` using a `repay()` method").
+  4. **Frictions & Gaps:** What is missing, what remains ambiguous, or where existing code clashes with the target design.
 - Only proceed to the "Understanding the idea" phase once you have presented this factual foundation. Proposing options before this summary is a failure of the skill.
 
 If no relevant implementation exists, state that as an observed gap after searching the plausible scope. Ground greenfield discovery in the supplied requirements, nearby project conventions, domain constraints, and authoritative external sources when the decision depends on them. Do not fabricate a codebase pattern to satisfy the discovery phase.
@@ -62,11 +66,18 @@ After the Research Summary, state the destination in one sentence: the end state
 **Understanding the idea:**
 
 - Use the facts gathered during the Discovery Phase to inform your understanding.
-- Use the question tool to ask questions one at a time to refine the idea, focusing on gaps in your research or user-specific intent.
-- **Avoid Narrative Lock-in:** Do not immediately validate the user's premise. Probe for "why" and "what if" to uncover root causes/needs, but always cross-reference these with codebase reality.
-- Prefer multiple choice questions when possible, but open-ended is fine too
-- Only one question per message - if a topic needs more exploration, break it into multiple questions
-- Focus on understanding: purpose, constraints, success criteria
+- **Inquire Only When Necessary:** Questions are not a mandatory ritual. If the destination and scope are clear from the research summary, proceed directly to exploring approaches.
+- **Questioning Guardrails:**
+  - **No Amnesic Questions:** Never ask the user about basic principles, scope, or definitions that are already specified in the referenced documents, PRDs, or established codebase. Before asking any question, verify that it cannot be answered by reading the available context.
+  - **Challenge with Friction Proof, Not Naive Amnesia:** Re-interrogating an acquired decision or spec premise is valid and encouraged when technical reality demands it. However, NEVER ask an open, naive question as if the topic were unaddressed (e.g., "How should we define X?"). To re-examine an acquired decision, you MUST:
+    1. *Cite the premise:* State the existing decision and where it is documented.
+    2. *Show the friction:* Demonstrate the concrete contradiction, technical constraint, or hidden cost discovered in the codebase.
+    3. *Frame the trade-off:* Formulate the concrete dilemma and options (e.g., Option A: maintain the spec despite cost X; Option B: adapt spec to align with existing flow Y).
+  - **Concrete Framing Over Abstraction:** Prohibit vague, philosophical questions without context (e.g., "How do you want to define X?"). Every question must present the specific fork in the road, explain why existing evidence does not settle it, and provide concrete options (multiple choice preferred).
+  - **Avoid Narrative Lock-in:** Do not immediately validate the user's premise. Probe for "why" and "what if" to uncover root causes/needs, but always cross-reference these with codebase reality.
+  - Prefer multiple choice questions when possible, but open-ended is fine too.
+  - Only one question per message - if a topic needs more exploration, break it into multiple questions.
+  - Focus on understanding: purpose, constraints, success criteria.
 
 **Navigate uncertainty:**
 
@@ -81,7 +92,8 @@ An uncertainty is ready for active resolution when its deciding question can be 
 
 Route each precise question to the narrowest reliable source of truth:
 
-- **User intent or trade-off:** Use the question tool; the user must speak for their own priorities.
+- **Empirical check first:** If an uncertainty can be resolved by inspecting code, running tests, or reading project docs, resolve it empirically BEFORE routing it to the user.
+- **User intent or trade-off:** Use the question tool only when the choice requires explicit user priority, value judgment, or preference between viable, concrete trade-offs (or an intentional override of an established premise).
 - **Empirical behavior:** Inspect the relevant code, tests, runtime, API, measurement, or authoritative documentation.
 - **Experiential behavior:** When dialogue and existing evidence cannot settle how something should look or feel, propose a minimal reversible prototype or spike and define what observation would decide the question.
 - **Systemic or multi-actor behavior:** When several actors have conflicting incentives, a fix has previously failed, or cause↔effect is not visible, route to `systems-thinking` if available (or perform the Complicated vs. Complex cause↔effect check inline) before committing to an architectural design.
@@ -188,6 +200,9 @@ Do not silently revive a ruled-out path later. Reconsider it only when new evide
 
 - **Hypothesis Generator** - You generate possibilities, you do not dictate truth.
 - **Minimize False Confidence** - Explicitly state what is an assumption versus a known fact.
+- **Prove Exploration via Reality Mapping** - Restitute target requirements alongside codebase facts and concrete frictions so the user can immediately assess the depth of your research.
+- **Challenge with Friction Proof, Not Amnesia** - Re-examining an acquired decision is valid when technical reality demands it, but requires citing the decision and demonstrating the concrete friction that warrants re-opening it.
+- **Grounded Questions Only** - Frame every user question with context, the specific dilemma, and concrete options rather than abstract philosophical prompts.
 - **Break Mode Collapse** - Force distribution-level exploration across standard, alternative, and long-tail possibilities using candidate skeletization, axiom inversion, and structural axis shifts rather than superficial brand swaps.
 - **Name the Destination** - Keep exploration anchored to the end state it must enable.
 - **Preserve the Unknown** - Visible uncertainty is safer than an invented default.
