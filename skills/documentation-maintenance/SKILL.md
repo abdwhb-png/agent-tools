@@ -1,11 +1,6 @@
 ---
 name: documentation-maintenance
-description: >
-  Audit, consolidate, and maintain repository documentation when documents
-  proliferate, authority becomes unclear, requirements drift, or generated
-  documentation becomes stale. Preserve requirements and evidence, clarify
-  ownership, remove redundant material, and verify links and generated outputs
-  using the repository's existing policy and tools.
+description: Review proposed additions to repository documentation before creating a file, section, or status entry, including at the end of coding work. Update the existing owner in place when information changes. Audit and consolidate existing documentation, resolve ownership and drift, and verify links and generated outputs while preserving requirements and evidence.
 ---
 
 # Documentation Maintenance
@@ -14,11 +9,19 @@ Make current documentation easy to find, trust, and maintain. Reduce competing s
 
 ## When to Use
 
-Use for documentation audits, consolidation, cleanup, ownership clarification, maintenance after an accepted change, or investigation of stale generated documentation.
+Use before adding persistent repository documentation or appending a status entry, even when the primary task is implementation. Also use for audits, consolidation, ownership clarification, and stale generated documentation.
 
 ## When Not to Use
 
-Use the relevant domain workflow for product design, implementation, or a single new decision record. This skill does not authorize product changes, redefine repository policy, or require a full documentation audit for a small correction.
+Use the relevant domain workflow to design or implement behavior and to draft the chosen artifact. Apply the check below to a proposed addition. Use the full workflow only when the task requires an audit, consolidation, or broader maintenance.
+
+## Decide What Belongs in Documentation
+
+Check the repository's documentation policy and the affected source before writing. Identify what a future reader needs and where they would look for it. A quick check of the likely owner and its references is enough for a routine change.
+
+- **No durable change.** Keep routine implementation details, repeated test results, and task narration in the task report or existing execution record. Record verification when it changes the known delivery status, qualifies a new environment, or exposes a limitation that affects a decision.
+- **An existing owner covers the information.** Revise the relevant passage in place. Replace superseded current guidance and link to durable evidence where needed. Preserve history in documents that explicitly own historical records.
+- **A separate record is justified.** Create it when requested, required by repository policy, or needed for a distinct durable responsibility or evidence that must remain independently retrievable. Identify its owner and audience and link it from the existing entry point where appropriate.
 
 ## Inputs and Authority
 
@@ -65,8 +68,6 @@ Update the owning references, then repair affected links, anchors, navigation, a
 Keep requirements, verified delivery, and remaining work distinct. Update the delivery record from observed evidence rather than treating an approved plan as completed work. Before retiring a plan, transfer outstanding work to its established owner.
 
 Preserve dated outcomes and raw evidence. Where policy allows, label superseded prose and link to its replacement without rewriting past results. Identify local-only artifacts accurately.
-
-Use existing documents first. Create a new document only for a distinct, durable responsibility allowed by repository policy. Do not create extra plans, reports, ADRs, or indexes merely to narrate the cleanup.
 
 ## 5. Verify and Prevent Recurrence
 
