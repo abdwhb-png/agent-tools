@@ -77,7 +77,9 @@ Run the smallest applicable documentation checks: paths, links, heading anchors,
 
 For generated documentation, inspect its generator and installed tool instructions. Regenerate through the owner. Verify actual freshness with the native checker where available, and confirm that a second unchanged generation preserves output. Do not disguise stale content by changing a date or editing generated files directly.
 
-Reuse existing guardrails. When authorized tooling changes are needed, reproduce the observed defect first and verify its correction. Keep policy in one maintained source. Size thresholds should warn, never justify dropping requirements. Documentation edits alone do not require application tests or a build.
+Reuse existing checks. If a repository has explicit documentation rules that can be checked mechanically or recurring structural errors, recommend a small project-level `docs:check` command or its equivalent. Read policy from its existing owner. Fail on objective violations such as broken local links, missing heading anchors, or paths forbidden by the repository policy. Keep size thresholds advisory.
+
+When authorized to add or change a check, reproduce the violation first, then verify that the check rejects the violation and accepts a valid example. Integrate it with the repository's existing validation command. Documentation edits alone do not require application tests or a build.
 
 Finish when applicable checks pass, the semantic review is complete, unrelated work is preserved, and remaining limitations are explicit.
 
