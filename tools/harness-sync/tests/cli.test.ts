@@ -180,6 +180,56 @@ test("invalid VS Code configuration and native fields fail without writing targe
   expect(await fs.readFile(f.agentsConfigPath, "utf8")).toBe(config);
 });
 
+test("OpenCode CLI configuration syncs global instructions, MCP, and agent files", async () => {
+  const f = await fixture();
+  const home = path.join(f.root, "opencode-home");
+  await fs.mkdir(path.join(f.root, "mcp"), { recursive: true });
+  await fs.writeFile(
+    path.join(f.root, "mcp", "opencode.json"),
+    JSON.stringify({
+      mcp: {
+        servers: {
+          context7: { type: "remote", url: "https://mcp.context7.com/mcp" },
+        },
+      },
+    }),
+  );
+
+  const preview = f.run("configure", "--opencode-home", home, "--enable-opencode");
+  expect(preview.code).toBe(0);
+  expect(preview.stdout).toContain(home);
+  expect(f.run("configure", "--opencode-home", home, "--enable-opencode", "--apply").code).toBe(0);
+  const profile = JSON.parse(await fs.readFile(f.configPath, "utf8"));
+  expect(profile.harnesses.opencode).toEqual({ enabled: true, home });
+
+  expect(f.run("sync", "--dry-run").code).toBe(0);
+  expect(await fs.exists(path.join(home, "AGENTS.md"))).toBe(false);
+  expect(f.run("sync").code).toBe(0);
+  expect(await fs.readFile(path.join(home, "AGENTS.md"), "utf8")).toContain("Invariant");
+  expect(await fs.readFile(path.join(home, "opencode.jsonc"), "utf8")).toContain(
+    "https://mcp.context7.com/mcp",
+  );
+  expect(f.run("check").code).toBe(0);
+
+  const directory = path.join(f.root, "agents", "reviewer");
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, "role.md"), "Review the requested change.\n");
+  await fs.writeFile(
+    path.join(directory, "agent.json"),
+    JSON.stringify({ description: "Review", opencode: { mode: "subagent" } }),
+  );
+  expect(
+    f.runAgent("configure", "--opencode-home", home, "--enable-opencode", "--apply").code,
+  ).toBe(0);
+  expect(f.runAgent("sync", "--dry-run").code).toBe(0);
+  expect(await fs.exists(path.join(home, "agents", "reviewer.md"))).toBe(false);
+  expect(f.runAgent("sync").code).toBe(0);
+  expect(await fs.readFile(path.join(home, "agents", "reviewer.md"), "utf8")).toContain(
+    "Review the requested change.",
+  );
+  expect(f.runAgent("check").code).toBe(0);
+});
+
 test("CLI preserves the native Pi prompt and appends its operating layer once", async () => {
   const f = await fixture();
   await fs.mkdir(path.join(f.instructions, "pi", "system"));

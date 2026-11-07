@@ -58,3 +58,13 @@ The initial destination is the existing Windows Insiders profile, configured exp
 Preserve the ten matching Insiders profiles' names, model ordering, tools and subagent references, including Scout's `codebase-scout.agent.md` filename. Canonical responsibilities remain authoritative, with VS Code-specific procedures in native supplements. Atlas Orchestrator, Metis and Quick Planner remain unmanaged. New review roles use the existing Code Reviewer model list; Quick Worker and Test Engineer use Worker settings; Browser Tester uses QA Tester settings. New profiles disable delegation. No Pi or Codex responsibilities or native settings change.
 
 Ownership IDs are `vscode-<directory-id>-agent-<role-id>`. Reject duplicate target identities and paths before writes. Retirement checks the complete `.agent.md` suffix, recorded directory and unchanged hash. Disabling or moving destinations preserves old ownership. All adoption, concurrency, backup and rollback behavior remains owned by the shared transaction. Live adoption requires review of the preview and resulting prompt changes. Runtime discovery, models and tools remain a separate acceptance check.
+
+## Extension: Per-agent enable switch (2026-11-07)
+
+`agents/<role>/agent.json` accepts an optional top-level boolean `enabled`, defaulting to `true`. A false value skips the role during source loading for every harness. The loader does not require `role.md`, a native profile or a description while the role is disabled, so disabling remains possible during an incomplete edit.
+
+Skipping the role removes it from the rendered target set. The existing agent lifecycle then retires its generated files from every enabled output directory after the usual unchanged-and-owned check, with recovery backups. Files belonging to disabled harnesses remain untouched, matching the existing destination ownership rule. Setting `enabled` back to `true` recreates the profiles on the next sync.
+
+This synchronizer-level switch is distinct from OpenCode's native `disabled` frontmatter field, which leaves the generated file in place and disables only that OpenCode profile. It is also not a replacement for moving a retired role into `legacy/agents/`: the switch keeps the role definition and native profiles available for later re-enablement.
+
+A non-boolean `enabled` value is rejected before any target is written. Tests cover skipping rendering, deleting managed files across multiple enabled homes, preserving files under disabled destinations, re-enabling, missing role/native files while disabled, and invalid values.

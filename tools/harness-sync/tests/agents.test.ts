@@ -667,3 +667,76 @@ test.skipIf(!(await fs.exists(piParser)))(
     expect(parsed.body).toBe("Inspect the requested change.\n\nUse the configured Pi inspection tools.");
   },
 );
+
+test("disables an agent for every enabled harness and re-enables it on demand", async () => {
+  const f = await fixture();
+  const statePath = path.join(f.root, "state.json");
+  const sources = await loadCanonicalSources(f.root);
+  await synchronize(f.config, emptyState(), statePath, sources);
+  const pi = path.join(f.root, "pi", "agents", "pi-reviewer.md");
+  const codex = path.join(f.root, "codex", "agents", "reviewer.toml");
+  const windows = path.join(f.root, "windows", "agents", "reviewer.toml");
+  for (const file of [pi, codex, windows]) expect(await fs.exists(file)).toBe(true);
+
+  await fs.writeFile(
+    path.join(f.directory, "agent.json"),
+    JSON.stringify({ ...f.definition, enabled: false }),
+  );
+  const disabled = await loadCanonicalSources(f.root);
+  expect(disabled.agents).toEqual([]);
+  expect(renderTargets(f.config, disabled)).toEqual([]);
+  const removed = await synchronize(
+    f.config,
+    await loadState(statePath),
+    statePath,
+    disabled,
+  );
+  expect([...removed.changed].sort()).toEqual([
+    "codex-agent-reviewer",
+    "codex-windows-agent-reviewer",
+    "pi-agent-reviewer",
+  ]);
+  expect(removed.backups.length).toBeGreaterThanOrEqual(3);
+  for (const file of [pi, codex, windows]) expect(await fs.exists(file)).toBe(false);
+  expect(
+    (await assessTargets(f.config, await loadState(statePath), disabled)).every(
+      ({ status }) => status === "current",
+    ),
+  ).toBe(true);
+
+  await fs.writeFile(
+    path.join(f.directory, "agent.json"),
+    JSON.stringify({ ...f.definition, enabled: true }),
+  );
+  const enabled = await loadCanonicalSources(f.root);
+  const restored = await synchronize(
+    f.config,
+    await loadState(statePath),
+    statePath,
+    enabled,
+  );
+  expect([...restored.changed].sort()).toEqual([
+    "codex-agent-reviewer",
+    "codex-windows-agent-reviewer",
+    "pi-agent-reviewer",
+  ]);
+  for (const file of [pi, codex, windows]) expect(await fs.exists(file)).toBe(true);
+});
+
+test("a disabled agent does not require a role prompt or native profile", async () => {
+  const f = await fixture();
+  await fs.rm(f.directory, { recursive: true, force: true });
+  const directory = path.join(f.root, "agents", "disabled-only");
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, "agent.json"), JSON.stringify({ enabled: false }));
+  expect((await loadCanonicalSources(f.root)).agents).toEqual([]);
+});
+
+test("rejects a non-boolean enabled switch before generation", async () => {
+  const f = await fixture();
+  await fs.writeFile(
+    path.join(f.directory, "agent.json"),
+    JSON.stringify({ ...f.definition, enabled: "false" }),
+  );
+  await expect(loadCanonicalSources(f.root)).rejects.toThrow("enabled must be boolean");
+});

@@ -11,8 +11,9 @@ import {
   type FileOps,
 } from "./files.js";
 import { managedCodexBlock } from "./renderers.js";
+import { managedOpenCodeBlock } from "./opencode.js";
 import { normalizeInstruction, type CanonicalSources } from "./sources.js";
-import { agentDirectories, renderTargets } from "./targets.js";
+import { agentDirectories, renderTargets, type OpenCodeConfigFile } from "./targets.js";
 import type { PolicyConfig, PolicyState, RenderedTarget, SyncDomain } from "./types.js";
 
 export { nodeFileOps, type FileOps } from "./files.js";
@@ -33,7 +34,29 @@ function hash(content: string): string {
 function ownedContent(target: RenderedTarget, existing: string | undefined): string | undefined {
   if (existing === undefined) return undefined;
   if (target.kind === "symlink") return existing;
-  return target.kind === "codex" ? managedCodexBlock(existing) : normalizeInstruction(existing);
+  if (target.kind === "codex") return managedCodexBlock(existing);
+  if (target.kind === "opencode")
+    return managedOpenCodeBlock(existing, target.path.endsWith(".jsonc"));
+  return normalizeInstruction(existing);
+}
+
+async function readOpenCodeConfig(
+  io: FileOps,
+  home: string,
+): Promise<OpenCodeConfigFile> {
+  const jsonPath = path.join(home, "opencode.json");
+  const jsoncPath = path.join(home, "opencode.jsonc");
+  const [json, jsonc] = await Promise.all([
+    readOptional(io, jsonPath),
+    readOptional(io, jsoncPath),
+  ]);
+  if (json !== undefined && jsonc !== undefined)
+    throw new Error(
+      `both opencode.json and opencode.jsonc exist in ${home}; keep one before synchronizing`,
+    );
+  if (jsonc !== undefined) return { path: jsoncPath, content: jsonc, jsonc: true };
+  if (json !== undefined) return { path: jsonPath, content: json, jsonc: false };
+  return { path: jsoncPath, jsonc: true };
 }
 
 export async function assessTargets(
@@ -56,10 +79,23 @@ export async function assessTargets(
   const codexConfigs: Record<string, string | undefined> = {};
   for (const { id, home } of codexHomes)
     codexConfigs[id] = await readOptional(io, path.join(home, "config.toml"));
+  const opencodeHomes =
+    config.harnesses.opencode?.enabled && config.resources?.instructions !== false
+      ? [
+          { id: "opencode", home: config.harnesses.opencode.home! },
+          ...(config.harnesses.opencode.additionalHomes || []).map(({ id, home }) => ({
+            id: `opencode-${id}`,
+            home,
+          })),
+        ]
+      : [];
+  const opencodeConfigs: Record<string, OpenCodeConfigFile> = {};
+  for (const { id, home } of opencodeHomes)
+    opencodeConfigs[id] = await readOpenCodeConfig(io, home);
   // Rendering the adoption form here lets read-only commands classify an
   // unmanaged Codex value as a conflict. synchronize still rejects that
   // conflict unless the caller selected it through explicit adoption.
-  const targets = renderTargets(config, sources, codexConfigs, true);
+  const targets = renderTargets(config, sources, codexConfigs, true, opencodeConfigs);
   for (const [id, prior] of Object.entries(state.targets)) {
     if (prior.agentDirectory === undefined || targets.some((target) => target.id === id)) continue;
     const scope = agentDirectories(config).find(
@@ -94,9 +130,11 @@ export async function assessTargets(
     const existing =
       target.kind === "codex"
         ? codexConfigs[target.id.slice(0, -"-config".length)]
-        : target.kind === "symlink"
-          ? await readSymlinkOptional(io, target.path, target.desired)
-          : await readOptional(io, target.path);
+        : target.kind === "opencode"
+          ? opencodeConfigs[target.id.slice(0, -"-mcp-config".length)]?.content
+          : target.kind === "symlink"
+            ? await readSymlinkOptional(io, target.path, target.desired)
+            : await readOptional(io, target.path);
     const owned = ownedContent(target, existing);
     const prior = state.targets[target.id];
     if (target.operation === "delete") {

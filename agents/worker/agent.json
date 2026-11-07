@@ -45,5 +45,8 @@
       "manage_task",
       "ask_question"
     ]
+  },
+  "opencode": {
+    "mode": "subagent"
   }
 }

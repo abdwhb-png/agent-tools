@@ -53,5 +53,8 @@
       "run_command",
       "manage_task"
     ]
+  },
+  "opencode": {
+    "mode": "subagent"
   }
 }

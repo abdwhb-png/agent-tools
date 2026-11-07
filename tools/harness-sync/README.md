@@ -4,10 +4,10 @@ Synchronize this repository's canonical instructions and specialist agents into 
 
 | Command | Manages | Supported harnesses | Default configuration |
 | --- | --- | --- | --- |
-| `instruction-sync` | Global operating rules and personal guidance | Pi, Codex, VS Code, Zed, Antigravity | `instructions.config.json` |
-| `agent-sync` | Native specialist agent definitions | Pi, Codex, VS Code, Antigravity | `agents.config.json` |
+| `instruction-sync` | Global operating rules and personal guidance | Pi, Codex, VS Code, Zed, Antigravity, OpenCode | `instructions.config.json` |
+| `agent-sync` | Native specialist agent definitions | Pi, Codex, VS Code, Antigravity, OpenCode | `agents.config.json` |
 
-Each command loads only its own sources, configuration and ownership state. Disabling one workflow or encountering an instruction conflict does not affect the other. Synchronization is manual. The tool does not synchronize skills, install tools, manage global MCP registries or restart runtimes.
+Each command loads only its own sources, configuration and ownership state. Disabling one workflow or encountering an instruction conflict does not affect the other. Synchronization is manual. The tool does not synchronize skills, install tools, manage MCP servers beyond the explicit Antigravity and OpenCode registries, or restart runtimes.
 
 ## Guide
 
@@ -108,6 +108,9 @@ Synchronization and adoption previews report operations such as `create`, `updat
 | `--antigravity-home PATH` | Both | Set the primary Antigravity home, usually `~/.gemini`. |
 | `--antigravity-additional-home ID=PATH` | Both | Add or update a named Antigravity home. Repeatable. |
 | `--enable-antigravity`, `--disable-antigravity` | Both | Include or exclude Antigravity for this workflow. |
+| `--opencode-home PATH` | Both | Set the primary OpenCode configuration home, usually `~/.config/opencode`. |
+| `--opencode-additional-home ID=PATH` | Both | Add or update a named OpenCode home. Repeatable. |
+| `--enable-opencode`, `--disable-opencode` | Both | Include or exclude OpenCode for this workflow. |
 | `--skills-source PATH` | Instructions | Set the default skills source directory for `skills.targets`, usually `~/.agents/skills`. |
 | `--skills-target ID=PATH` or `ID=SOURCE->PATH` | Instructions | Add or update a named skills symlink target, optionally overriding its source directory. Repeatable. |
 | `--enable-skills`, `--disable-skills` | Instructions | Include or exclude configured skills symlink targets. |
@@ -162,11 +165,12 @@ Configuration files are adjacent to this tool and Git-ignored. Create them throu
 | `harnesses.vscode` | Instructions require `enabled` and a nonempty `targets` array when enabled. Agents optionally accept `enabled` and named `directories`, which must be nonempty when enabled. |
 | `harnesses.zed` | Optional for instructions, with `enabled`, `home` when enabled, and optional `additionalHomes`. Invalid in agent configuration. |
 | `harnesses.antigravity` | Optional for both domains, with `enabled`, `home` when enabled, and optional `additionalHomes`. `retiredAgents` is invalid. |
+| `harnesses.opencode` | Optional for both domains, with `enabled`, `home` when enabled, and optional `additionalHomes`. `retiredAgents` is invalid. |
 | `retiredAgents` | Agent configuration only, on the primary Codex settings or individual additional homes. Exact `.toml` basenames to retire. |
 
 Unknown settings are rejected. Each additional home needs a unique lowercase ID matching `[a-z][a-z0-9-]*` and a distinct absolute path. A harness-level `enabled` switch applies to all its homes. A disabled harness retains its files and ownership records. Moving a harness also preserves the old files, and existing ownership identities can require explicit adoption at the new destination.
 
-On first configuration, Pi defaults to `~/.pi/agent`. Codex uses `CODEX_HOME` when set, otherwise `~/.codex`. Instruction configuration also enables the platform's standard VS Code target and leaves Zed disabled. Agent configuration initially includes only Pi and Codex; VS Code agents require explicit destinations and enablement. Existing configurations and legacy agent imports do not enable VS Code agents.
+On first configuration, Pi defaults to `~/.pi/agent`. Codex uses `CODEX_HOME` when set, otherwise `~/.codex`. Instruction configuration also enables the platform's standard VS Code target and leaves Zed disabled. OpenCode is opt-in and defaults to `$XDG_CONFIG_HOME/opencode`, otherwise `~/.config/opencode`, when enabled. Agent configuration initially includes only Pi and Codex; VS Code and OpenCode agents require explicit destinations and enablement. Existing configurations and legacy agent imports do not enable VS Code or OpenCode agents.
 
 ### Local agent path bindings
 
@@ -193,7 +197,7 @@ The corresponding top-level setting in your local agent configuration is:
 
 These are excerpts, not complete files. The three bindings above are the ones the current catalog can require. Start from [agents.config.example.json](agents.config.example.json), replace its placeholders, and keep the complete configuration's `schemaVersion`, `kind`, `enabled` and `harnesses` settings. Existing users can add `paths` to their current configuration. These local values are preserved by subsequent `configure` operations.
 
-One shared resolver substitutes references in Pi and Codex native string fields, including nested arrays and objects, before the resolved settings are validated and rendered. Use an entire string value such as `"${paths.piSessionRecallScript}"`. Embedded forms such as `"${paths.installDir}/server.js"` are rejected, so bind the complete file path instead. Binding names match `[A-Za-z][A-Za-z0-9_-]*`, and values must be literal absolute paths for the Node platform without nested path references or NUL characters. Neither shell commands nor environment variables are evaluated. The supported VS Code fields are literal native settings and do not use path bindings.
+One shared resolver substitutes references in Pi, Codex, Antigravity and OpenCode native string fields, including nested arrays and objects, before the resolved settings are validated and rendered. Use an entire string value such as `"${paths.piSessionRecallScript}"`. Embedded forms such as `"${paths.installDir}/server.js"` are rejected, so bind the complete file path instead. Binding names match `[A-Za-z][A-Za-z0-9_-]*`, and values must be literal absolute paths for the Node platform without nested path references or NUL characters. Neither shell commands nor environment variables are evaluated. The supported VS Code fields are literal native settings and do not use path bindings.
 
 Generated native files receive the resolved absolute paths. Shared descriptions, role prompts and Markdown supplements should remain portable. Prompt bodies are not templates. Credential environment references such as `env_vars` remain native settings.
 
@@ -274,6 +278,51 @@ A custom agent entry that names an undocumented built-in tool can hang subagent 
 
 Agent target IDs are `<homeId>-agent-<role-id>`, with the same unchanged-and-owned deletion rule as other agent destinations. Disabling or moving an Antigravity home preserves its prior files and ownership, and unmanaged files are left untouched.
 
+### OpenCode destinations
+
+OpenCode V2 reads global configuration from `~/.config/opencode`, or `$XDG_CONFIG_HOME/opencode` when set. Each configured home receives one instruction target, one file per canonical agent, and a managed MCP region:
+
+| Target | Path | Content |
+| --- | --- | --- |
+| `<homeId>-agents` | `<home>/AGENTS.md` | Operating layer plus personal guidance in one plain-Markdown global instructions file. |
+| `<homeId>-agent-<role>` | `<home>/agents/<role>.md` | One native V2 agent per canonical role, with YAML frontmatter followed by the composed prompt. |
+| `<homeId>-mcp-config` | `<home>/opencode.json(c)` | The `mcp.servers` object from `mcp/opencode.json`, owned as one marked region. |
+
+For WSL and a second OpenCode home:
+
+```bash
+node dist/instruction-sync.mjs configure --opencode-home /home/example/.config/opencode --opencode-additional-home windows=/mnt/c/Users/example/.config/opencode --enable-opencode
+node dist/agent-sync.mjs configure --opencode-home /home/example/.config/opencode --opencode-additional-home windows=/mnt/c/Users/example/.config/opencode --enable-opencode
+```
+
+Instruction synchronization owns the global `AGENTS.md`. OpenCode also loads project `AGENTS.md` files, which remain outside this tool. An existing unmanaged global file conflicts until `adopt` runs.
+
+Agent files use OpenCode V2 fields under `agents/<role>/agent.json.opencode`: `description`, `mode`, `model`, `permissions`, `steps`, `hidden`, `color` and `disabled`. `description` defaults to the shared role description and `mode` defaults to `subagent`. Omitting `model` inherits the parent session model for subagents and the selected session model for primary agents. The catalog sets `mode` and read-only edit permissions explicitly in each role's `agent.json`; edit `agents/<role>/agent.json` to change them rather than adding role-specific logic to the synchronizer. V1 fields such as `name`, `prompt`, `permission`, `tools`, `disable`, `maxSteps` and `temperature` are rejected, as is `system` because the Markdown body owns the prompt.
+
+Denying the `edit` tool does not prevent shell commands from writing files. Role prompts and user oversight remain the enforcement boundary for shell access.
+
+#### OpenCode MCP configuration
+
+`mcp/opencode.json` is the canonical OpenCode MCP registry and publishes `context7`, `deepwiki`, `exa` and `firecrawl-mcp`. It uses native V2 shapes: `mcp.servers`, `type: "remote"` with `url`, or `type: "local"` with a `command` array and `environment`. Credentials must use `{env:NAME}` references; the validator rejects literal secret-like header, environment or OAuth values.
+
+Instruction synchronization writes a marked region around the `mcp.servers` property when the configuration file is JSONC:
+
+```jsonc
+"mcp": {
+  // >>> agent-policy mcp servers >>>
+  "servers": {
+    "context7": { "type": "remote", "url": "https://mcp.context7.com/mcp" }
+  }
+  // <<< agent-policy mcp servers <<<
+}
+```
+
+Everything outside the markers, including other OpenCode settings and comments, is preserved on subsequent updates. The whole `mcp.servers` object is owned, so servers added through `opencode mcp add --global` make the target conflicted until adopted; add shared servers to `mcp/opencode.json` instead. For a plain `opencode.json`, the tool replaces the whole `mcp.servers` object and reserializes valid JSON.
+
+If both `opencode.json` and `opencode.jsonc` exist, synchronization fails; keep one. If neither exists, the tool creates `opencode.jsonc`. An existing configuration without a managed region requires explicit adoption. The first adoption of an existing JSONC file rewrites it deterministically with markers: all JSON data is preserved, but formatting and comments are normalized, and a recovery backup is created. Subsequent updates preserve everything outside the markers.
+
+OpenCode MCP configuration is managed by `instruction-sync` only. `agent-sync` does not read or write `opencode.json(c)`, and neither command manages OpenCode skills, commands, plugins, providers, `default_agent`, global permissions or other configuration settings. OpenCode watches configuration files and reloads agents, MCP servers and instructions without a restart.
+
 ### Ownership state locations
 
 State is local and separate from configuration. The default platform-specific root contains `instructions/state.json` and `agents/state.json`:
@@ -317,6 +366,7 @@ The operating layer combines `invariant.md` with that harness's system modules. 
 | VS Code | Combined output at each configured target, with invariants and preferences sections and `applyTo: "**"` | Included in the same file. | Excluded. |
 | Zed | Combined operating layer then personal guidance in `<home>/AGENTS.md` | Included in the same file. | Excluded. |
 | Antigravity | `<home>/GEMINI.md` as plain Markdown, always active | Its own `always_on` rule at `<home>/config/rules/agent-policy-preferences.md` | Excluded. |
+| OpenCode | Combined operating layer then personal guidance in `<home>/AGENTS.md` | Included in the same file. | Excluded. |
 
 Pi retains its native system prompt. The synchronizer never creates `SYSTEM.md` and retires its former managed output through the protected transition below. Source separation does not grant system or developer priority to VS Code or Zed files. Instructions express intended behavior, which should be checked separately in a fresh harness session.
 
@@ -334,7 +384,7 @@ Module content goes here.
 
 Nonempty modules that produce the same tag are rejected. Module content must not contain opening or closing tags in the reserved `<harness>_<system|agents>_<module>` namespace. Keep canonical sources as plain Markdown without generated wrappers. Shared files and the Pi append source have no generated tags.
 
-The introduction `Follow the instructions in the tagged modules below.` appears once when a harness has nonempty modules. Pi places it in `APPEND_SYSTEM.md` and Codex in `developer_instructions`, covering their separate personal guidance files. VS Code and Zed include it in their combined output.
+The introduction `Follow the instructions in the tagged modules below.` appears once when a harness has nonempty modules. Pi places it in `APPEND_SYSTEM.md` and Codex in `developer_instructions`, covering their separate personal guidance files. VS Code, Zed and OpenCode include it in their combined output.
 
 Markdown directly under `instructions/<harness>/` is rejected except the exact `pi/APPEND_SYSTEM.md` source. Move old modules into `system/` or `agents/` and rename `pi/append-system.md` to `pi/APPEND_SYSTEM.md`. A missing dedicated append source leaves the operating layer in the managed Pi append file. A `"""` delimiter in Codex's operating layer blocks rendering, while Codex personal guidance remains plain Markdown without this restriction.
 
@@ -371,15 +421,29 @@ agents/pi.md                      # optional instructions for every Pi subagent
 agents/codex.md                    # optional instructions for every Codex subagent
 agents/vscode.md                   # optional instructions for every VS Code agent
 agents/antigravity.md              # optional instructions for every Antigravity agent
+agents/opencode.md                 # optional instructions for every OpenCode agent
 agents/<role>/role.md              # required shared responsibilities
 agents/<role>/agent.json           # required metadata and native settings
 agents/<role>/pi.md                # optional Pi procedures
 agents/<role>/codex.md             # optional Codex procedures
 agents/<role>/vscode.md            # optional VS Code procedures
 agents/<role>/antigravity.md       # optional Antigravity procedures
+agents/<role>/opencode.md          # optional OpenCode procedures
 ```
 
-Every role requires a nonempty shared description, a nonempty role prompt and at least one native `pi`, `codex`, `vscode` or `antigravity` section. An absent section produces no profile for that harness. Role directory IDs must match `[a-z][a-z0-9-]*`. Pi and Codex profiles require safe, unique native names consisting of letters, digits, underscores or hyphens and starting with a letter or digit. VS Code display names can contain spaces; VS Code and Antigravity names default to the role ID; duplicate names are rejected.
+Every role requires a nonempty shared description, a nonempty role prompt and at least one native `pi`, `codex`, `vscode`, `antigravity` or `opencode` section. An absent section produces no profile for that harness. Role directory IDs must match `[a-z][a-z0-9-]*`. Pi and Codex profiles require safe, unique native names consisting of letters, digits, underscores or hyphens and starting with a letter or digit. VS Code display names can contain spaces; VS Code, Antigravity and OpenCode names default to the role ID; duplicate names are rejected.
+
+### Disable a role for every harness
+
+`agent.json` accepts an optional top-level `enabled` boolean, defaulting to `true`. Setting `"enabled": false` excludes the role from every enabled harness. A disabled role does not require `role.md` or any native profile:
+
+```json
+{
+  "enabled": false
+}
+```
+
+The next `agent-sync sync` retires that role's generated files from every enabled harness using the normal unchanged-and-owned check, recovery backups and conflict rules. Files belonging to disabled harnesses are preserved. Setting `"enabled": true` and syncing recreates the profiles. This is a synchronizer-level switch, distinct from OpenCode's native `disabled` field, which leaves the generated file in place and disables only that OpenCode profile.
 
 ### Define a role
 
@@ -426,6 +490,7 @@ The loader composes each prompt once in this order: harness-wide shared instruct
 | Codex | `<home>/agents/` | `<role-directory>.toml` | Composed `developer_instructions`. Native `codex.name` remains authoritative. |
 | VS Code | Exact named directory | `<role-directory>.agent.md`, or explicit `vscode.fileName` | Markdown body after YAML frontmatter. Native display names are independent of filenames. |
 | Antigravity | `<home>/config/agents/` | `<role-directory>.md`, or explicit `antigravity.name` | Markdown body after YAML frontmatter. |
+| OpenCode | `<home>/agents/` | `<role-directory>.md` | Markdown body after YAML frontmatter; the filename is the native agent ID. |
 
 Role directory IDs are stable ownership identities. For example, `browser-tester` produces `browser-tester.md` in Pi and `browser-tester.toml` in Codex, with Codex native name `browser_tester`. Renaming a role ID into an existing managed filename blocks synchronization rather than deleting a path still generated. Plan identity/path changes as an explicit migration.
 
@@ -458,14 +523,17 @@ The initial VS Code profiles preserve the native model lists, tools, names and s
 
 Antigravity profiles support `name`, `description`, `mainAgent`, `subagent`, `model`, `commandExecutionPolicy`, `tools`, `skills`, `plugins`, `mcpServers`, `inheritMcp` and `inheritCustomizations`. Omitting `name` uses the role ID, and `mainAgent`/`subagent` default to `true`, so each synced role is both selectable in `/agents` and delegable through `invoke_subagent`. `model` accepts the tiers `inherit`, `flash_lite`, `flash` or `pro`; `commandExecutionPolicy` accepts `off`, `auto`, `eager` or `sandbox`. `tools` must list documented built-in tool names only: an unmapped name can hang subagent execution, so unknown or duplicate entries are rejected before any write. `inheritMcp` keeps workspace and personal MCP servers authoritative instead of duplicating them. The renderer emits deterministic sorted YAML field names with quoted values.
 
+OpenCode profiles support `description`, `mode`, `model`, `permissions`, `steps`, `hidden`, `color` and `disabled`. `description` defaults to the shared role description and `mode` defaults to `subagent`; native V2 modes are `primary`, `subagent` and `all`. `model` accepts `provider/model` with an optional `#variant`, and omitting it inherits the parent or session model. `permissions` is an ordered array of `{ action, resource, effect }` rules where `effect` is `allow`, `ask` or `deny`; broad rules precede exceptions because the last matching rule wins. `steps` is a positive integer, `hidden` and `disabled` are booleans, and `color` is a six-digit hex value. V1 agent fields and the `system` field are rejected. An edit deny restricts the edit tools but does not sandbox shell commands. The renderer emits deterministic sorted YAML field names with JSON-quoted values.
+
 ### Current catalog
 
-The selected catalog has 17 canonical roles, producing 16 Pi profiles, 17 profiles in every Codex home, 17 profiles in every enabled VS Code agent directory and 17 profiles in every enabled Antigravity home.
+The catalog has 17 canonical role definitions. `pi-expert` is disabled through its top-level `enabled` switch, leaving 16 active roles. Active roles produce 15 Pi profiles, 16 profiles in every Codex home, 16 profiles in every enabled VS Code agent directory, 16 profiles in every enabled Antigravity home and 16 profiles in every enabled OpenCode home.
 
 | Availability | Roles |
 | --- | --- |
-| Pi, Codex, VS Code and Antigravity | api-reviewer, architect, browser-tester, code-reviewer, factual-researcher, librarian, oracle, performance-reviewer, pi-expert, qa-tester, quick-reviewer, quick-worker, security-reviewer, style-reviewer, test-engineer |
-| Codex, VS Code and Antigravity | scout, worker |
+| Pi, Codex, VS Code, Antigravity and OpenCode | api-reviewer, architect, browser-tester, code-reviewer, factual-researcher, librarian, oracle, performance-reviewer, qa-tester, quick-reviewer, quick-worker, security-reviewer, style-reviewer, test-engineer |
+| Codex, VS Code, Antigravity and OpenCode | scout, worker |
+| Disabled through `enabled: false` | pi-expert |
 | Retired, retained under [legacy/agents/](../../legacy/agents/) | videographer |
 | Local Pi definitions outside management | sdd-orchestrator, orchestration-assessor |
 | Local Insiders definitions outside management | atlas-orchestrator, metis, quick-plan |

@@ -41,5 +41,15 @@
       "list_dir",
       "read_url_content"
     ]
+  },
+  "opencode": {
+    "mode": "subagent",
+    "permissions": [
+      {
+        "action": "edit",
+        "resource": "*",
+        "effect": "deny"
+      }
+    ]
   }
 }

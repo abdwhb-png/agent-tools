@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   defaultConfigPath,
+  defaultOpenCodeHome,
   defaultPolicyConfig,
   defaultStatePath,
   parsePolicyConfig,
@@ -391,4 +392,79 @@ test("supports optional Antigravity homes in both domains while keeping omitted 
       "agents",
     ),
   ).toThrow("unsupported key: retiredAgents");
+});
+
+test("supports optional OpenCode homes in both domains and resolves its default XDG path", () => {
+  const opencode = {
+    enabled: true,
+    home: "/home/agent/.config/opencode",
+    additionalHomes: [{ id: "windows", home: "/mnt/c/Users/agent/.config/opencode" }],
+  };
+  for (const domain of ["instructions", "agents"] as const) {
+    const profile = {
+      schemaVersion: 2 as const,
+      kind: domain,
+      enabled: true,
+      harnesses: {
+        pi: { enabled: false },
+        codex: { enabled: false },
+        ...(domain === "instructions" ? { vscode: { enabled: false } } : {}),
+        opencode,
+      },
+    };
+    const parsed = parsePolicyConfig(JSON.stringify(profile), "linux", domain);
+    expect(parsed.harnesses.opencode).toEqual(opencode);
+    expect(profileConfig(parsed, domain)).toEqual(profile);
+  }
+
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        schemaVersion: 2,
+        kind: "instructions",
+        enabled: true,
+        harnesses: {
+          pi: { enabled: false },
+          codex: { enabled: false },
+          vscode: { enabled: false },
+          opencode: { enabled: true },
+        },
+      }),
+      "linux",
+      "instructions",
+    ),
+  ).toThrow("enabled OpenCode harness requires home");
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        schemaVersion: 2,
+        kind: "agents",
+        enabled: true,
+        harnesses: {
+          pi: { enabled: false },
+          codex: { enabled: false },
+          opencode: {
+            enabled: true,
+            home: "/home/agent/.config/opencode",
+            retiredAgents: ["old.md"],
+          },
+        },
+      }),
+      "linux",
+      "agents",
+    ),
+  ).toThrow("unsupported key: retiredAgents");
+  expect(
+    defaultOpenCodeHome({
+      home: "/home/agent",
+      platform: "linux",
+      env: { XDG_CONFIG_HOME: "/config" },
+    }),
+  ).toBe("/config/opencode");
+  expect(
+    defaultOpenCodeHome({ home: "/home/agent", platform: "linux", env: {} }),
+  ).toBe("/home/agent/.config/opencode");
+  expect(
+    defaultOpenCodeHome({ home: "C:\\Users\\agent", platform: "win32", env: {} }),
+  ).toBe("C:\\Users\\agent\\.config\\opencode");
 });

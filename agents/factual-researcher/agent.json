@@ -64,5 +64,15 @@
       "search_web",
       "read_url_content"
     ]
+  },
+  "opencode": {
+    "mode": "subagent",
+    "permissions": [
+      {
+        "action": "edit",
+        "resource": "*",
+        "effect": "deny"
+      }
+    ]
   }
 }

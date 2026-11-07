@@ -55,5 +55,15 @@
       "invoke_subagent",
       "manage_subagents"
     ]
+  },
+  "opencode": {
+    "mode": "subagent",
+    "permissions": [
+      {
+        "action": "edit",
+        "resource": "*",
+        "effect": "deny"
+      }
+    ]
   }
 }

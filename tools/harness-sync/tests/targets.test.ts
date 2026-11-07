@@ -43,7 +43,7 @@ test("merges technology defaults into every preferences target", () => {
   );
 });
 
-test.each(["pi", "codex", "zed", "vscode", "antigravity"] as const)(
+test.each(["pi", "codex", "zed", "vscode", "antigravity", "opencode"] as const)(
   "introduces agents-only %s modules once across the generated prompt",
   (harness) => {
     const config: PolicyConfig = {
@@ -54,6 +54,7 @@ test.each(["pi", "codex", "zed", "vscode", "antigravity"] as const)(
         zed: { enabled: true, home: "/zed" },
         vscode: { enabled: true, targets: ["/vscode.instructions.md"] },
         antigravity: { enabled: true, home: "/antigravity" },
+        opencode: { enabled: true, home: "/opencode" },
       },
     };
     const sources: CanonicalSources = {
@@ -67,6 +68,7 @@ test.each(["pi", "codex", "zed", "vscode", "antigravity"] as const)(
         zed: { system: [], agents: [] },
         vscode: { system: [], agents: [] },
         antigravity: { system: [], agents: [] },
+        opencode: { system: [], agents: [] },
       },
     };
     sources.harnessInstructions[harness].agents = [

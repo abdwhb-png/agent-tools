@@ -1,4 +1,4 @@
-export type HarnessName = "pi" | "codex" | "vscode" | "zed" | "antigravity";
+export type HarnessName = "pi" | "codex" | "vscode" | "zed" | "antigravity" | "opencode";
 export type SyncDomain = "instructions" | "agents";
 
 export interface HarnessConfig {
@@ -33,6 +33,7 @@ export interface PolicyConfig {
     vscode: HarnessConfig & { targets?: string[]; directories?: { id: string; path: string }[] };
     zed?: HomeHarnessConfig;
     antigravity?: HomeHarnessConfig;
+    opencode?: HomeHarnessConfig;
   };
 }
 
@@ -48,6 +49,7 @@ export interface SyncProfile {
     vscode?: PolicyConfig["harnesses"]["vscode"];
     zed?: HomeHarnessConfig;
     antigravity?: HomeHarnessConfig;
+    opencode?: HomeHarnessConfig;
   };
 }
 
@@ -62,7 +64,7 @@ export interface PolicyState {
   targets: Record<string, TargetState>;
 }
 
-export type TargetKind = "file" | "codex" | "symlink";
+export type TargetKind = "file" | "codex" | "opencode" | "symlink";
 
 export interface RenderedTarget {
   id: string;

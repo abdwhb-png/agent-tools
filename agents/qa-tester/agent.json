@@ -52,5 +52,15 @@
       "manage_task",
       "ask_question"
     ]
+  },
+  "opencode": {
+    "mode": "subagent",
+    "permissions": [
+      {
+        "action": "edit",
+        "resource": "*",
+        "effect": "deny"
+      }
+    ]
   }
 }

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { loadAgentSources, type AgentSource } from "./agents.js";
 
-export const HARNESS_NAMES = ["pi", "codex", "vscode", "zed", "antigravity"] as const;
+export const HARNESS_NAMES = ["pi", "codex", "vscode", "zed", "antigravity", "opencode"] as const;
 export type HarnessName = (typeof HARNESS_NAMES)[number];
 
 export interface InstructionModule {
@@ -20,6 +20,7 @@ export interface CanonicalSources {
   >;
   piAppendSystem: string;
   antigravityMcp?: unknown;
+  opencodeMcp?: unknown;
   agents?: AgentSource[];
 }
 
@@ -132,6 +133,21 @@ export async function loadCanonicalSources(root: string, resources: { instructio
       throw new Error("mcp/antigravity.json is not valid JSON");
     }
   }
+  let opencodeMcp: unknown;
+  const openCodeMcpSource = path.join(root, "mcp", "opencode.json");
+  let openCodeMcpText: string | undefined;
+  try {
+    openCodeMcpText = await fs.readFile(openCodeMcpSource, "utf8");
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  if (openCodeMcpText !== undefined) {
+    try {
+      opencodeMcp = JSON.parse(openCodeMcpText);
+    } catch {
+      throw new Error("mcp/opencode.json is not valid JSON");
+    }
+  }
   return {
     invariants: await readInstruction(instructionPath("invariant.md")),
     preferences: await readInstruction(instructionPath("preferences.md")),
@@ -141,6 +157,7 @@ export async function loadCanonicalSources(root: string, resources: { instructio
     harnessInstructions,
     piAppendSystem,
     antigravityMcp,
+    opencodeMcp,
     agents: resources.agents === false ? [] : await loadAgentSources(root),
   };
 }

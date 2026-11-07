@@ -65,7 +65,7 @@ test.each(["instructions", "agents"] as const)(
       };
     const result = await importLegacy(domain, f.paths, true, io);
     expect(mutations).toEqual([]);
-    expect(await fs.readdir(f.root)).toEqual(["config.json", "state.json"]);
+    expect((await fs.readdir(f.root)).sort()).toEqual(["config.json", "state.json"]);
     expect(result.profile.kind).toBe(domain);
     expect(result.profile.enabled).toBe(domain === "agents");
     expect(result.state.targets).toEqual(

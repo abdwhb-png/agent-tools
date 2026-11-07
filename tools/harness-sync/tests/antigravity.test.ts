@@ -25,7 +25,7 @@ afterEach(async () => {
 test("every catalog role renders a valid Antigravity profile through the real sources", async () => {
   const repositoryRoot = path.resolve(import.meta.dir, "..", "..", "..");
   const agents = await loadCanonicalSources(repositoryRoot, { instructions: false, agents: true });
-  expect(agents.agents?.length).toBe(17);
+  expect(agents.agents!.map(({ id }) => id)).not.toContain("pi-expert");
   expect(agents.agents!.map(({ id }) => id)).not.toContain("videographer");
 
   const inheritors = new Set([

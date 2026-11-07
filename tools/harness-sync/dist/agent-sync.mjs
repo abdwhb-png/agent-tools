@@ -11,8 +11,8 @@ import path from "node:path";
 import process from "node:process";
 var WINDOWS = "win32";
 var domainHarnesses = {
-  instructions: ["pi", "codex", "vscode", "zed", "antigravity"],
-  agents: ["pi", "codex", "vscode", "antigravity"]
+  instructions: ["pi", "codex", "vscode", "zed", "antigravity", "opencode"],
+  agents: ["pi", "codex", "vscode", "antigravity", "opencode"]
 };
 function platformPath(platform) {
   return platform === WINDOWS ? path.win32 : path.posix;
@@ -28,6 +28,10 @@ function defaultCodeProfile(environment) {
     return homePath(environment, "Library", "Application Support", "Code", "User");
   }
   return environment.env.XDG_CONFIG_HOME ? path.posix.join(environment.env.XDG_CONFIG_HOME, "Code", "User") : homePath(environment, ".config", "Code", "User");
+}
+function defaultOpenCodeHome(environment = currentEnvironment()) {
+  const pathForPlatform = platformPath(environment.platform);
+  return environment.env.XDG_CONFIG_HOME ? pathForPlatform.join(environment.env.XDG_CONFIG_HOME, "opencode") : homePath(environment, ".config", "opencode");
 }
 function currentEnvironment() {
   return { home: os.homedir(), platform: process.platform, env: process.env };
@@ -280,12 +284,15 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
   const vscode = assertHarness(profile && parsed.kind === "agents" && parsed.harnesses.vscode === undefined ? { enabled: false } : parsed.harnesses.vscode, "vscode");
   const zed = parsed.harnesses.zed === undefined ? undefined : assertHarness(parsed.harnesses.zed, "zed");
   const antigravity = parsed.harnesses.antigravity === undefined ? undefined : assertHarness(parsed.harnesses.antigravity, "antigravity");
+  const opencode = parsed.harnesses.opencode === undefined ? undefined : assertHarness(parsed.harnesses.opencode, "opencode");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
   validateHomeHarness(codex, "Codex", platform, !profile || parsed.kind === "agents");
   if (zed)
     validateHomeHarness(zed, "Zed", platform);
   if (antigravity)
     validateHomeHarness(antigravity, "Antigravity", platform, false);
+  if (opencode)
+    validateHomeHarness(opencode, "OpenCode", platform, false);
   const vscodeAgents = profile && parsed.kind === "agents";
   if (vscodeAgents)
     validateVsCodeDirectories(vscode, platform);
@@ -315,12 +322,13 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
       codex,
       vscode,
       ...zed ? { zed } : {},
-      ...antigravity ? { antigravity } : {}
+      ...antigravity ? { antigravity } : {},
+      ...opencode ? { opencode } : {}
     }
   };
 }
 function profileConfig(config, domain) {
-  const { pi, codex, vscode, zed, antigravity } = structuredClone(config.harnesses);
+  const { pi, codex, vscode, zed, antigravity, opencode } = structuredClone(config.harnesses);
   if (domain === "instructions") {
     delete codex.retiredAgents;
     for (const home of codex.additionalHomes || [])
@@ -339,7 +347,8 @@ function profileConfig(config, domain) {
       codex,
       ...includeVsCode ? { vscode: vscodeProfile } : {},
       ...domain === "instructions" && zed ? { zed } : {},
-      ...antigravity ? { antigravity } : {}
+      ...antigravity ? { antigravity } : {},
+      ...opencode ? { opencode } : {}
     }
   };
 }
@@ -810,6 +819,48 @@ function validateAntigravity(config, label) {
     });
   }
 }
+var openCodeModes = ["primary", "subagent", "all"];
+function validateOpenCode(config, label) {
+  assertKeys2(config, ["description", "mode", "model", "permissions", "steps", "hidden", "color", "disabled"], label);
+  if (config.description !== undefined) {
+    assertString(config.description, `${label}.description`);
+    if (!config.description.trim())
+      throw new Error(`${label}.description must not be empty`);
+  }
+  if (config.mode !== undefined)
+    assertOneOf(config.mode, [...openCodeModes], `${label}.mode`);
+  if (config.model !== undefined) {
+    assertString(config.model, `${label}.model`);
+    if (!/^[^/\s#]+\/[^/\s#]+(?:#[^/\s#]+)?$/.test(config.model))
+      throw new Error(`${label}.model must use provider/model with an optional #variant`);
+  }
+  if (config.permissions !== undefined) {
+    if (!Array.isArray(config.permissions))
+      throw new Error(`${label}.permissions must be an array`);
+    config.permissions.forEach((entry, index) => {
+      const entryLabel = `${label}.permissions[${index}]`;
+      const rule = assertObject(entry, `${entryLabel} must be an object`);
+      assertKeys2(rule, ["action", "resource", "effect"], entryLabel);
+      for (const key of ["action", "resource", "effect"]) {
+        assertString(rule[key], `${entryLabel}.${key}`);
+        if (!rule[key].trim())
+          throw new Error(`${entryLabel}.${key} must not be empty`);
+      }
+      assertOneOf(rule.effect, ["allow", "ask", "deny"], `${entryLabel}.effect`);
+    });
+  }
+  if (config.steps !== undefined && (!Number.isInteger(config.steps) || config.steps <= 0))
+    throw new Error(`${label}.steps must be a positive integer`);
+  for (const key of ["hidden", "disabled"]) {
+    if (config[key] !== undefined && typeof config[key] !== "boolean")
+      throw new Error(`${label}.${key} must be boolean`);
+  }
+  if (config.color !== undefined) {
+    assertString(config.color, `${label}.color`);
+    if (!/^#[0-9a-fA-F]{6}$/.test(config.color))
+      throw new Error(`${label}.color must be a six-digit hex value`);
+  }
+}
 var codexStrings = ["name", "description", "model", "model_provider", "model_reasoning_effort", "model_reasoning_summary", "model_verbosity", "sandbox_mode", "service_tier", "web_search"];
 var mcpStrings = ["command", "cwd", "url", "auth", "bearer_token_env_var", "http_headers_helper", "default_tools_approval_mode", "oauth_resource", "experimental_environment"];
 var mcpLists = ["args", "enabled_tools", "disabled_tools", "scopes"];
@@ -965,7 +1016,8 @@ async function loadAgentSources(root) {
     pi: await optionalMarkdown(path4.join(directory, "pi.md")),
     codex: await optionalMarkdown(path4.join(directory, "codex.md")),
     vscode: await optionalMarkdown(path4.join(directory, "vscode.md")),
-    antigravity: await optionalMarkdown(path4.join(directory, "antigravity.md"))
+    antigravity: await optionalMarkdown(path4.join(directory, "antigravity.md")),
+    opencode: await optionalMarkdown(path4.join(directory, "opencode.md"))
   };
   const agents = [];
   for (const entry of entries.filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
@@ -981,17 +1033,21 @@ async function loadAgentSources(root) {
       throw new Error(`${definitionPath} is not valid JSON`);
     }
     const raw = assertObject(parsed, source);
-    assertKeys2(raw, ["description", "pi", "codex", "vscode", "antigravity"], source);
+    assertKeys2(raw, ["enabled", "description", "pi", "codex", "vscode", "antigravity", "opencode"], source);
+    if (raw.enabled !== undefined && typeof raw.enabled !== "boolean")
+      throw new Error(`${source}.enabled must be boolean`);
+    if (raw.enabled === false)
+      continue;
     assertString(raw.description, `${source}.description`);
     if (!raw.description.trim())
       throw new Error(`${source}.description must not be empty`);
     const role = normalizeInstruction(await fs2.readFile(path4.join(source, "role.md"), "utf8"));
     if (!role.trim())
       throw new Error(`${source}/role.md must not be empty`);
-    if (raw.pi === undefined && raw.codex === undefined && raw.vscode === undefined && raw.antigravity === undefined)
-      throw new Error(`${source} requires a native pi, codex, vscode or antigravity profile`);
-    const instructions = { pi: "", codex: "", vscode: "", antigravity: "" };
-    for (const harness of ["pi", "codex", "vscode", "antigravity"]) {
+    if (raw.pi === undefined && raw.codex === undefined && raw.vscode === undefined && raw.antigravity === undefined && raw.opencode === undefined)
+      throw new Error(`${source} requires a native pi, codex, vscode, antigravity or opencode profile`);
+    const instructions = { pi: "", codex: "", vscode: "", antigravity: "", opencode: "" };
+    for (const harness of ["pi", "codex", "vscode", "antigravity", "opencode"]) {
       if (raw[harness] === undefined)
         continue;
       const native = assertObject(raw[harness], `${source}.${harness}`);
@@ -1006,8 +1062,10 @@ async function loadAgentSources(root) {
         validateCodex(native, `${source}.codex`);
       else if (harness === "vscode")
         validateVsCode(native, `${source}.vscode`);
-      else
+      else if (harness === "antigravity")
         validateAntigravity(native, `${source}.antigravity`);
+      else
+        validateOpenCode(native, `${source}.opencode`);
       instructions[harness] = composeInstructions([
         sharedInstructions[harness],
         role,
@@ -1022,16 +1080,18 @@ async function loadAgentSources(root) {
       codex: raw.codex,
       vscode: raw.vscode,
       antigravity: raw.antigravity,
+      opencode: raw.opencode,
       piInstructions: instructions.pi,
       codexInstructions: instructions.codex,
       vscodeInstructions: instructions.vscode,
-      antigravityInstructions: instructions.antigravity
+      antigravityInstructions: instructions.antigravity,
+      opencodeInstructions: instructions.opencode
     });
   }
-  for (const harness of ["pi", "codex", "vscode", "antigravity"]) {
+  for (const harness of ["pi", "codex", "vscode", "antigravity", "opencode"]) {
     const names = new Set;
     for (const agent of agents) {
-      const name = agent[harness]?.name ?? ((harness === "vscode" || harness === "antigravity") && agent[harness] ? agent.id : undefined);
+      const name = agent[harness]?.name ?? ((harness === "vscode" || harness === "antigravity" || harness === "opencode") && agent[harness] ? agent.id : undefined);
       if (name !== undefined && names.has(name))
         throw new Error(`duplicate ${harness} agent name: ${name}`);
       if (name !== undefined)
@@ -1083,14 +1143,16 @@ function resolvePathBindings(value, paths, label) {
 }
 function resolvedAgentConfig(agent, harness, paths) {
   const label = `agents/${agent.id}/agent.json.${harness}`;
-  const defaults = harness === "antigravity" ? { name: agent.id, description: agent.description, mainAgent: true, subagent: true } : { description: agent.description };
+  const defaults = harness === "antigravity" ? { name: agent.id, description: agent.description, mainAgent: true, subagent: true } : harness === "opencode" ? { description: agent.description, mode: "subagent" } : { description: agent.description };
   const config = resolvePathBindings({ ...defaults, ...agent[harness] }, paths, label);
   if (harness === "pi")
     validatePi(config, label);
   else if (harness === "codex")
     validateCodex(config, label);
-  else
+  else if (harness === "antigravity")
     validateAntigravity(config, label);
+  else
+    validateOpenCode(config, label);
   return config;
 }
 function renderPiAgent(agent, paths = {}) {
@@ -1155,9 +1217,21 @@ ${lines.join(`
 
 ${agent.antigravityInstructions}`;
 }
+function renderOpenCodeAgent(agent, paths = {}) {
+  assertString(agent.opencodeInstructions, `agents/${agent.id}.opencodeInstructions`);
+  const config = resolvedAgentConfig(agent, "opencode", paths);
+  validateNativeValue(config, `agents/${agent.id}/agent.json.opencode`);
+  const lines = Object.keys(config).sort().map((key) => `${key}: ${JSON.stringify(config[key])}`);
+  return `---
+${lines.join(`
+`)}
+---
+
+${agent.opencodeInstructions}`;
+}
 
 // src/sources.ts
-var HARNESS_NAMES = ["pi", "codex", "vscode", "zed", "antigravity"];
+var HARNESS_NAMES = ["pi", "codex", "vscode", "zed", "antigravity", "opencode"];
 function normalizeInstruction(source) {
   const normalized = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, `
 `);
@@ -1241,6 +1315,22 @@ async function loadCanonicalSources(root, resources = { agents: true }) {
       throw new Error("mcp/antigravity.json is not valid JSON");
     }
   }
+  let opencodeMcp;
+  const openCodeMcpSource = path5.join(root, "mcp", "opencode.json");
+  let openCodeMcpText;
+  try {
+    openCodeMcpText = await fs3.readFile(openCodeMcpSource, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT")
+      throw error;
+  }
+  if (openCodeMcpText !== undefined) {
+    try {
+      opencodeMcp = JSON.parse(openCodeMcpText);
+    } catch {
+      throw new Error("mcp/opencode.json is not valid JSON");
+    }
+  }
   return {
     invariants: await readInstruction(instructionPath("invariant.md")),
     preferences: await readInstruction(instructionPath("preferences.md")),
@@ -1248,6 +1338,7 @@ async function loadCanonicalSources(root, resources = { agents: true }) {
     harnessInstructions,
     piAppendSystem,
     antigravityMcp,
+    opencodeMcp,
     agents: resources.agents === false ? [] : await loadAgentSources(root)
   };
 }
@@ -1438,6 +1529,389 @@ function renderCodexConfig(existing, instructions, adoptUnmanaged = false) {
 ${block}`, owned: block };
 }
 
+// src/opencode.ts
+var OPENCODE_MCP_BEGIN = "// >>> agent-policy mcp servers >>>";
+var OPENCODE_MCP_END = "// <<< agent-policy mcp servers <<<";
+var OPENCODE_SCHEMA = "https://opencode.ai/config.json";
+var OPENCODE_SERVERS_SENTINEL = "__AGENT_POLICY_OPENCODE_MCP_SERVERS__";
+function isObject2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function assertObject2(value, label) {
+  if (!isObject2(value))
+    throw new Error(`${label} must be an object`);
+  return value;
+}
+function assertKeys3(value, allowed, label) {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key))
+      throw new Error(`${label}.${key} is unsupported by harness-sync`);
+  }
+}
+function assertString2(value, label) {
+  if (typeof value !== "string")
+    throw new Error(`${label} must be a string`);
+  if (!value.isWellFormed())
+    throw new Error(`${label} contains invalid Unicode`);
+}
+function assertStrings2(value, label) {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string"))
+    throw new Error(`${label} must be an array of strings`);
+}
+function normalizeText(value) {
+  const normalized = value.replace(/^\uFEFF/, "").replace(/\r\n?/g, `
+`);
+  return normalized === "" ? "" : normalized.replace(/\n*$/, `
+`);
+}
+function stripComments(value) {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  for (let index = 0;index < value.length; index += 1) {
+    const character = value[index];
+    const next = value[index + 1];
+    if (lineComment) {
+      if (character === `
+`) {
+        lineComment = false;
+        output += character;
+      } else
+        output += " ";
+      continue;
+    }
+    if (blockComment) {
+      if (character === "*" && next === "/") {
+        blockComment = false;
+        output += "  ";
+        index += 1;
+      } else
+        output += character === `
+` ? `
+` : " ";
+      continue;
+    }
+    if (inString) {
+      output += character;
+      if (escaped)
+        escaped = false;
+      else if (character === "\\")
+        escaped = true;
+      else if (character === '"')
+        inString = false;
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      output += character;
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      lineComment = true;
+      output += "  ";
+      index += 1;
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      blockComment = true;
+      output += "  ";
+      index += 1;
+      continue;
+    }
+    output += character;
+  }
+  return output;
+}
+function removeTrailingCommas(value) {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+  for (let index = 0;index < value.length; index += 1) {
+    const character = value[index];
+    if (inString) {
+      output += character;
+      if (escaped)
+        escaped = false;
+      else if (character === "\\")
+        escaped = true;
+      else if (character === '"')
+        inString = false;
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      output += character;
+      continue;
+    }
+    if (character === ",") {
+      let lookahead = index + 1;
+      while (lookahead < value.length && /\s/.test(value[lookahead]))
+        lookahead += 1;
+      if (value[lookahead] === "}" || value[lookahead] === "]")
+        continue;
+    }
+    output += character;
+  }
+  return output;
+}
+function parseJsonc(value, label = "OpenCode configuration") {
+  try {
+    return JSON.parse(removeTrailingCommas(stripComments(value.replace(/^\uFEFF/, ""))));
+  } catch {
+    throw new Error(`${label} is not valid JSON or JSONC`);
+  }
+}
+var openCodeProtocols = ["legacy", "auto", "2026-07-28"];
+var openCodeServerTypes = ["local", "remote"];
+var timeoutKeys = ["startup", "catalog", "execution"];
+var oauthKeys = [
+  "client_id",
+  "client_secret",
+  "scope",
+  "callback_port",
+  "redirect_uri",
+  "auth_server_metadata_url"
+];
+var secretName = /(api[-_]?key|token|secret|password|authorization)/i;
+var envReference = /\{env:[A-Za-z_][A-Za-z0-9_]*\}/;
+function assertNoLiteralSecrets(value, label) {
+  const entries = assertObject2(value, label);
+  for (const [name, entry] of Object.entries(entries)) {
+    assertString2(entry, `${label}.${name}`);
+    if (secretName.test(name) && !envReference.test(entry))
+      throw new Error(`${label}.${name} must use a {env:NAME} reference instead of a literal secret`);
+  }
+}
+function validateTimeout(value, label) {
+  const timeout = assertObject2(value, label);
+  assertKeys3(timeout, timeoutKeys, label);
+  for (const [key, entry] of Object.entries(timeout)) {
+    if (!Number.isInteger(entry) || entry <= 0)
+      throw new Error(`${label}.${key} must be a positive integer`);
+  }
+}
+function validateCommonServerFields(server, label) {
+  for (const key of ["disabled", "codemode", "pool"]) {
+    if (server[key] !== undefined && typeof server[key] !== "boolean")
+      throw new Error(`${label}.${key} must be boolean`);
+  }
+  if (server.timeout !== undefined)
+    validateTimeout(server.timeout, `${label}.timeout`);
+  if (server.protocol !== undefined) {
+    if (typeof server.protocol !== "string" || !openCodeProtocols.includes(server.protocol))
+      throw new Error(`${label}.protocol must be one of ${openCodeProtocols.join(", ")}`);
+  }
+}
+function validateOpenCodeServer(value, label) {
+  const server = assertObject2(value, label);
+  if (server.type === undefined)
+    throw new Error(`${label}.type is required`);
+  if (typeof server.type !== "string" || !openCodeServerTypes.includes(server.type))
+    throw new Error(`${label}.type must be local or remote`);
+  const common = ["type", "disabled", "codemode", "timeout", "protocol", "pool"];
+  if (server.type === "local") {
+    assertKeys3(server, [...common, "command", "cwd", "environment"], label);
+    assertStrings2(server.command, `${label}.command`);
+    if (!server.command.length || server.command.some((entry) => !entry.trim()))
+      throw new Error(`${label}.command must contain at least one nonempty argument`);
+    if (server.cwd !== undefined)
+      assertString2(server.cwd, `${label}.cwd`);
+    if (server.environment !== undefined)
+      assertNoLiteralSecrets(server.environment, `${label}.environment`);
+  } else {
+    assertKeys3(server, [...common, "url", "headers", "oauth"], label);
+    assertString2(server.url, `${label}.url`);
+    try {
+      const url = new URL(server.url);
+      if (url.protocol !== "http:" && url.protocol !== "https:")
+        throw new Error("unsupported protocol");
+    } catch {
+      throw new Error(`${label}.url must be an absolute HTTP(S) URL`);
+    }
+    if (server.headers !== undefined)
+      assertNoLiteralSecrets(server.headers, `${label}.headers`);
+    if (server.oauth !== undefined && server.oauth !== false) {
+      const oauth = assertObject2(server.oauth, `${label}.oauth`);
+      assertKeys3(oauth, oauthKeys, `${label}.oauth`);
+      for (const key of oauthKeys) {
+        if (oauth[key] === undefined)
+          continue;
+        const entryLabel = `${label}.oauth.${key}`;
+        if (key === "callback_port") {
+          if (!Number.isInteger(oauth[key]) || oauth[key] < 1 || oauth[key] > 65535)
+            throw new Error(`${entryLabel} must be a port between 1 and 65535`);
+        } else {
+          assertString2(oauth[key], entryLabel);
+        }
+      }
+      if (oauth.client_secret !== undefined && !envReference.test(oauth.client_secret))
+        throw new Error(`${label}.oauth.client_secret must use a {env:NAME} reference`);
+    }
+  }
+  validateCommonServerFields(server, label);
+}
+function parseOpenCodeMcp(value, label = "mcp/opencode.json") {
+  const root = assertObject2(value, label);
+  assertKeys3(root, ["mcp"], label);
+  const mcp = assertObject2(root.mcp, `${label}.mcp`);
+  assertKeys3(mcp, ["servers"], `${label}.mcp`);
+  const servers = assertObject2(mcp.servers, `${label}.mcp.servers`);
+  const sorted = {};
+  for (const name of Object.keys(servers).sort()) {
+    const server = servers[name];
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name))
+      throw new Error(`${label}.mcp.servers.${name} must use a safe server name`);
+    validateOpenCodeServer(server, `${label}.mcp.servers.${name}`);
+    sorted[name] = server;
+  }
+  return sorted;
+}
+function markerIndices(lines) {
+  const begins = lines.flatMap((line, index) => line.trim() === OPENCODE_MCP_BEGIN ? [index] : []);
+  const ends = lines.flatMap((line, index) => line.trim() === OPENCODE_MCP_END ? [index] : []);
+  if (!begins.length && !ends.length)
+    return;
+  if (begins.length !== 1 || ends.length !== 1 || ends[0] < begins[0])
+    throw new Error("OpenCode managed MCP markers are malformed");
+  return { begin: begins[0], end: ends[0] };
+}
+function renderBlock(servers, indent, comma = "") {
+  const serialized = JSON.stringify(servers, null, 2);
+  const entries = serialized.split(`
+`).slice(1, -1).map((line) => `${indent}${line}`);
+  return [
+    `${indent}${OPENCODE_MCP_BEGIN}`,
+    `${indent}"servers": {`,
+    ...entries,
+    `${indent}}${comma}`,
+    `${indent}${OPENCODE_MCP_END}`
+  ].join(`
+`);
+}
+function managedOpenCodeBlock(existing, jsonc) {
+  if (jsonc) {
+    const normalized = normalizeText(existing).replace(/\n$/, "");
+    const markers = markerIndices(normalized.split(`
+`));
+    if (markers === undefined)
+      return;
+    const lines = normalized.split(`
+`);
+    return `${lines.slice(markers.begin, markers.end + 1).join(`
+`)}
+`;
+  }
+  const root = assertObject2(parseJsonc(existing), "OpenCode configuration");
+  const mcp = root.mcp;
+  if (mcp === undefined)
+    return;
+  if (!isObject2(mcp))
+    throw new Error("OpenCode mcp must be an object");
+  if (mcp.servers === undefined)
+    return;
+  if (!isObject2(mcp.servers))
+    throw new Error("OpenCode mcp.servers must be an object");
+  return `${JSON.stringify(mcp.servers, null, 2)}
+`;
+}
+function createMarkedConfig(servers) {
+  const block = renderBlock(servers, "    ");
+  return {
+    desired: `{
+  "$schema": "${OPENCODE_SCHEMA}",
+  "mcp": {
+${block}
+  }
+}
+`,
+    owned: `${block}
+`
+  };
+}
+function replaceMarkedBlock(existing, servers) {
+  const normalized = normalizeText(existing).replace(/\n$/, "");
+  const lines = normalized.split(`
+`);
+  const markers = markerIndices(lines);
+  const indent = /^\s*/.exec(lines[markers.begin])[0];
+  const closing = [...lines.slice(markers.begin, markers.end)].reverse().find((line) => line.trim() && !line.trim().startsWith("//"));
+  const comma = closing && /,\s*$/.test(closing) ? "," : "";
+  const block = renderBlock(servers, indent, comma);
+  const desired = [
+    ...lines.slice(0, markers.begin),
+    ...block.split(`
+`),
+    ...lines.slice(markers.end + 1)
+  ].join(`
+`);
+  return { desired: `${desired}
+`, owned: `${block}
+` };
+}
+function adoptMarkedConfig(existing, servers) {
+  const root = assertObject2(parseJsonc(existing), "OpenCode configuration");
+  const copy = JSON.parse(JSON.stringify(root));
+  if (copy.mcp !== undefined && !isObject2(copy.mcp))
+    throw new Error("OpenCode mcp must be an object");
+  copy.mcp = { ...isObject2(copy.mcp) ? copy.mcp : {}, servers: OPENCODE_SERVERS_SENTINEL };
+  const lines = `${JSON.stringify(copy, null, 2)}
+`.replace(/\n$/, "").split(`
+`);
+  const index = lines.findIndex((line) => line.includes(`"servers": "${OPENCODE_SERVERS_SENTINEL}"`));
+  if (index === -1)
+    throw new Error("OpenCode mcp.servers could not be prepared for adoption");
+  const match = /^(\s*)"servers": "__AGENT_POLICY_OPENCODE_MCP_SERVERS__"(,?)$/.exec(lines[index]);
+  if (!match)
+    throw new Error("OpenCode mcp.servers could not be prepared for adoption");
+  const indent = match[1];
+  const comma = match[2];
+  const block = renderBlock(servers, indent, comma);
+  lines.splice(index, 1, ...block.split(`
+`));
+  return { desired: `${lines.join(`
+`)}
+`, owned: `${block}
+` };
+}
+function renderJsonConfig(existing, servers, adoptUnmanaged) {
+  const root = existing === undefined ? { $schema: OPENCODE_SCHEMA } : assertObject2(parseJsonc(existing), "OpenCode configuration");
+  const mcp = root.mcp;
+  if (mcp !== undefined && !isObject2(mcp))
+    throw new Error("OpenCode mcp must be an object");
+  if (mcp?.servers === undefined && existing !== undefined && !adoptUnmanaged)
+    throw new Error("OpenCode mcp.servers is unmanaged; run adopt explicitly before sync");
+  const next = {
+    ...root,
+    mcp: { ...isObject2(mcp) ? mcp : {}, servers }
+  };
+  return {
+    desired: `${JSON.stringify(next, null, 2)}
+`,
+    owned: `${JSON.stringify(servers, null, 2)}
+`
+  };
+}
+function renderOpenCodeConfig(existing, jsonc, servers, adoptUnmanaged = false) {
+  let rendered;
+  if (existing === undefined) {
+    rendered = jsonc ? createMarkedConfig(servers) : renderJsonConfig(undefined, servers, true);
+  } else if (!jsonc) {
+    rendered = renderJsonConfig(existing, servers, adoptUnmanaged);
+  } else {
+    const managed = managedOpenCodeBlock(existing, true);
+    if (managed !== undefined)
+      rendered = replaceMarkedBlock(existing, servers);
+    else if (adoptUnmanaged)
+      rendered = adoptMarkedConfig(existing, servers);
+    else
+      throw new Error("OpenCode mcp.servers is unmanaged; run adopt explicitly before sync");
+  }
+  parseJsonc(rendered.desired, "Rendered OpenCode configuration");
+  return rendered;
+}
+
 // src/targets.ts
 import path6 from "node:path";
 function namedHomes(name, config) {
@@ -1457,10 +1931,15 @@ function agentDirectories(config) {
       id,
       directory: path6.join(home, "config", "agents"),
       extension: ".md"
+    })) : [],
+    ...config.harnesses.opencode?.enabled ? namedHomes("opencode", config.harnesses.opencode).map(({ id, home }) => ({
+      id,
+      directory: path6.join(home, "agents"),
+      extension: ".md"
     })) : []
   ];
 }
-function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = false) {
+function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = false, opencodeConfigs = {}) {
   const targets = [];
   if (config.resources?.instructions !== false) {
     const layers = {};
@@ -1553,6 +2032,35 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
         });
       }
     }
+    if (config.harnesses.opencode?.enabled) {
+      const instructions = composeInstructions([
+        layers.opencode.system,
+        layers.opencode.agents
+      ]);
+      const servers = sources.opencodeMcp === undefined ? undefined : parseOpenCodeMcp(sources.opencodeMcp);
+      for (const { id, home } of namedHomes("opencode", config.harnesses.opencode)) {
+        targets.push({
+          id: `${id}-agents`,
+          kind: "file",
+          path: path6.join(home, "AGENTS.md"),
+          desired: instructions,
+          owned: instructions
+        });
+        if (servers !== undefined) {
+          const file = opencodeConfigs[id] ?? {
+            path: path6.join(home, "opencode.jsonc"),
+            jsonc: true
+          };
+          const target = renderOpenCodeConfig(file.content, file.jsonc, servers, adoptUnmanaged);
+          targets.push({
+            id: `${id}-mcp-config`,
+            kind: "opencode",
+            path: file.path,
+            ...target
+          });
+        }
+      }
+    }
     if (config.skills?.enabled) {
       for (const entry of config.skills.targets || []) {
         const source = entry.source ?? config.skills.source;
@@ -1599,6 +2107,20 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
           });
         }
       }
+      if (config.harnesses.opencode?.enabled && agent.opencode) {
+        const desired = renderOpenCodeAgent(agent, config.paths);
+        for (const { id, home } of namedHomes("opencode", config.harnesses.opencode)) {
+          const directory = path6.join(home, "agents");
+          targets.push({
+            id: `${id}-agent-${agent.id}`,
+            kind: "file",
+            path: path6.join(directory, `${agent.id}.md`),
+            desired,
+            owned: desired,
+            agentDirectory: directory
+          });
+        }
+      }
     }
     if (config.harnesses.codex.enabled) {
       const homes = [{ id: "codex", home: config.harnesses.codex.home, retiredAgents: config.harnesses.codex.retiredAgents }, ...(config.harnesses.codex.additionalHomes || []).map((home) => ({ ...home, id: `codex-${home.id}` }))];
@@ -1630,7 +2152,26 @@ function ownedContent(target, existing) {
     return;
   if (target.kind === "symlink")
     return existing;
-  return target.kind === "codex" ? managedCodexBlock(existing) : normalizeInstruction(existing);
+  if (target.kind === "codex")
+    return managedCodexBlock(existing);
+  if (target.kind === "opencode")
+    return managedOpenCodeBlock(existing, target.path.endsWith(".jsonc"));
+  return normalizeInstruction(existing);
+}
+async function readOpenCodeConfig(io, home) {
+  const jsonPath = path7.join(home, "opencode.json");
+  const jsoncPath = path7.join(home, "opencode.jsonc");
+  const [json, jsonc] = await Promise.all([
+    readOptional(io, jsonPath),
+    readOptional(io, jsoncPath)
+  ]);
+  if (json !== undefined && jsonc !== undefined)
+    throw new Error(`both opencode.json and opencode.jsonc exist in ${home}; keep one before synchronizing`);
+  if (jsonc !== undefined)
+    return { path: jsoncPath, content: jsonc, jsonc: true };
+  if (json !== undefined)
+    return { path: jsonPath, content: json, jsonc: false };
+  return { path: jsoncPath, jsonc: true };
 }
 async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnmanaged = false) {
   const codexHomes = config.harnesses.codex.enabled && config.resources?.instructions !== false ? [
@@ -1643,7 +2184,17 @@ async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnma
   const codexConfigs = {};
   for (const { id, home } of codexHomes)
     codexConfigs[id] = await readOptional(io, path7.join(home, "config.toml"));
-  const targets = renderTargets(config, sources, codexConfigs, true);
+  const opencodeHomes = config.harnesses.opencode?.enabled && config.resources?.instructions !== false ? [
+    { id: "opencode", home: config.harnesses.opencode.home },
+    ...(config.harnesses.opencode.additionalHomes || []).map(({ id, home }) => ({
+      id: `opencode-${id}`,
+      home
+    }))
+  ] : [];
+  const opencodeConfigs = {};
+  for (const { id, home } of opencodeHomes)
+    opencodeConfigs[id] = await readOpenCodeConfig(io, home);
+  const targets = renderTargets(config, sources, codexConfigs, true, opencodeConfigs);
   for (const [id, prior] of Object.entries(state.targets)) {
     if (prior.agentDirectory === undefined || targets.some((target) => target.id === id))
       continue;
@@ -1670,7 +2221,7 @@ async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnma
   }
   const assessments = [];
   for (const target of targets) {
-    const existing = target.kind === "codex" ? codexConfigs[target.id.slice(0, -"-config".length)] : target.kind === "symlink" ? await readSymlinkOptional(io, target.path, target.desired) : await readOptional(io, target.path);
+    const existing = target.kind === "codex" ? codexConfigs[target.id.slice(0, -"-config".length)] : target.kind === "opencode" ? opencodeConfigs[target.id.slice(0, -"-mcp-config".length)]?.content : target.kind === "symlink" ? await readSymlinkOptional(io, target.path, target.desired) : await readOptional(io, target.path);
     const owned = ownedContent(target, existing);
     const prior = state.targets[target.id];
     if (target.operation === "delete") {
@@ -1881,6 +2432,8 @@ function validateArguments(domain, command, args) {
     "--codex-additional-home",
     "--antigravity-home",
     "--antigravity-additional-home",
+    "--opencode-home",
+    "--opencode-additional-home",
     ...domain === "instructions" ? ["--skills-source", "--skills-target", "--zed-home", "--zed-additional-home", "--vscode-target"] : ["--vscode-agent-dir"]
   ];
   const allowedValues = [
@@ -1906,6 +2459,7 @@ function validateArguments(domain, command, args) {
     "--target",
     "--codex-additional-home",
     "--antigravity-additional-home",
+    "--opencode-additional-home",
     "--skills-target",
     "--zed-additional-home",
     "--vscode-target",
@@ -1970,8 +2524,10 @@ configure options:
   --pi-agent-dir PATH --codex-home PATH
   --codex-additional-home ID=PATH (repeatable)
   --antigravity-home PATH --antigravity-additional-home ID=PATH (repeatable)
+  --opencode-home PATH --opencode-additional-home ID=PATH (repeatable)
   --enable-pi --disable-pi --enable-codex --disable-codex
-  --enable-vscode --disable-vscode --enable-antigravity --disable-antigravity${nativeOptions}
+  --enable-vscode --disable-vscode --enable-antigravity --disable-antigravity
+  --enable-opencode --disable-opencode${nativeOptions}
 
 adopt options:
   --dry-run           Preview adoption without writing anything
@@ -1995,7 +2551,7 @@ function setAdditionalHomes(config, entries, option) {
       config.additionalHomes.push({ id, home });
   }
 }
-function configuredPolicy(base, domain, args) {
+function configuredPolicy(base, domain, args, environment) {
   const result = structuredClone(base);
   const pi = value(args, "--pi-agent-dir");
   const codex = value(args, "--codex-home");
@@ -2012,6 +2568,16 @@ function configuredPolicy(base, domain, args) {
     result.harnesses.antigravity.home = antigravity;
   if (antigravityAdditional.length)
     setAdditionalHomes(result.harnesses.antigravity, antigravityAdditional, "--antigravity-additional-home");
+  const opencode = value(args, "--opencode-home");
+  const opencodeAdditional = values(args, "--opencode-additional-home");
+  if (opencode || opencodeAdditional.length || args.flags.has("--enable-opencode") || args.flags.has("--disable-opencode")) {
+    result.harnesses.opencode ||= { enabled: false };
+    result.harnesses.opencode.home ||= defaultOpenCodeHome(environment);
+  }
+  if (opencode)
+    result.harnesses.opencode.home = opencode;
+  if (opencodeAdditional.length)
+    setAdditionalHomes(result.harnesses.opencode, opencodeAdditional, "--opencode-additional-home");
   if (domain === "instructions") {
     const skillsSource = value(args, "--skills-source");
     const skillsTargets = values(args, "--skills-target");
@@ -2169,7 +2735,7 @@ Ownership records: ${Object.keys(result.state.targets).length}`);
   const rawConfig = await readOptional(io, configPath);
   if (command === "configure") {
     const base = rawConfig ? parsePolicyConfig(rawConfig, environment.platform, domain) : defaultPolicyConfig(environment, domain);
-    const rendered = `${JSON.stringify(profileConfig(configuredPolicy(base, domain, args), domain), null, 2)}
+    const rendered = `${JSON.stringify(profileConfig(configuredPolicy(base, domain, args, environment), domain), null, 2)}
 `;
     const changes = rawConfig === rendered ? [] : [{ id: "configuration", path: configPath, existing: rawConfig, desired: rendered }];
     console.log(`Configuration: ${configPath}

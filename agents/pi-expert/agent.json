@@ -1,4 +1,5 @@
 {
+  "enabled": false,
   "description": "Authoritative expert on the `pi` agent harness, its architecture, extensions, and skills.",
   "pi": {
     "name": "pi-expert",
@@ -63,6 +64,16 @@
         "name": "pi-session-recall",
         "command": "node",
         "args": ["${paths.piSessionRecallScript}", "--project-dir", "${paths.piProjectDir}"]
+      }
+    ]
+  },
+  "opencode": {
+    "mode": "subagent",
+    "permissions": [
+      {
+        "action": "edit",
+        "resource": "*",
+        "effect": "deny"
       }
     ]
   }

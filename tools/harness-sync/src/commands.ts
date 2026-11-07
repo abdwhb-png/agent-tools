@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import {
   currentEnvironment,
   defaultConfigPath,
+  defaultOpenCodeHome,
   defaultPolicyConfig,
   defaultStatePath,
   domainHarnesses,
@@ -63,6 +64,8 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
     "--codex-additional-home",
     "--antigravity-home",
     "--antigravity-additional-home",
+    "--opencode-home",
+    "--opencode-additional-home",
     ...(domain === "instructions"
       ? ["--skills-source", "--skills-target", "--zed-home", "--zed-additional-home", "--vscode-target"]
       : ["--vscode-agent-dir"]),
@@ -92,6 +95,7 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
     "--target",
     "--codex-additional-home",
     "--antigravity-additional-home",
+    "--opencode-additional-home",
     "--skills-target",
     "--zed-additional-home",
     "--vscode-target",
@@ -160,8 +164,10 @@ configure options:
   --pi-agent-dir PATH --codex-home PATH
   --codex-additional-home ID=PATH (repeatable)
   --antigravity-home PATH --antigravity-additional-home ID=PATH (repeatable)
+  --opencode-home PATH --opencode-additional-home ID=PATH (repeatable)
   --enable-pi --disable-pi --enable-codex --disable-codex
-  --enable-vscode --disable-vscode --enable-antigravity --disable-antigravity${nativeOptions}
+  --enable-vscode --disable-vscode --enable-antigravity --disable-antigravity
+  --enable-opencode --disable-opencode${nativeOptions}
 
 adopt options:
   --dry-run           Preview adoption without writing anything
@@ -184,7 +190,12 @@ function setAdditionalHomes(config: HomeHarnessConfig, entries: string[], option
   }
 }
 
-function configuredPolicy(base: PolicyConfig, domain: SyncDomain, args: Arguments): PolicyConfig {
+function configuredPolicy(
+  base: PolicyConfig,
+  domain: SyncDomain,
+  args: Arguments,
+  environment: ReturnType<typeof currentEnvironment>,
+): PolicyConfig {
   const result = structuredClone(base);
   const pi = value(args, "--pi-agent-dir");
   const codex = value(args, "--codex-home");
@@ -210,6 +221,24 @@ function configuredPolicy(base: PolicyConfig, domain: SyncDomain, args: Argument
       result.harnesses.antigravity!,
       antigravityAdditional,
       "--antigravity-additional-home",
+    );
+  const opencode = value(args, "--opencode-home");
+  const opencodeAdditional = values(args, "--opencode-additional-home");
+  if (
+    opencode ||
+    opencodeAdditional.length ||
+    args.flags.has("--enable-opencode") ||
+    args.flags.has("--disable-opencode")
+  ) {
+    result.harnesses.opencode ||= { enabled: false };
+    result.harnesses.opencode.home ||= defaultOpenCodeHome(environment);
+  }
+  if (opencode) result.harnesses.opencode!.home = opencode;
+  if (opencodeAdditional.length)
+    setAdditionalHomes(
+      result.harnesses.opencode!,
+      opencodeAdditional,
+      "--opencode-additional-home",
     );
   if (domain === "instructions") {
     const skillsSource = value(args, "--skills-source");
@@ -420,7 +449,7 @@ async function main(
     const base = rawConfig
       ? parsePolicyConfig(rawConfig, environment.platform, domain)
       : defaultPolicyConfig(environment, domain);
-    const rendered = `${JSON.stringify(profileConfig(configuredPolicy(base, domain, args), domain), null, 2)}\n`;
+    const rendered = `${JSON.stringify(profileConfig(configuredPolicy(base, domain, args, environment), domain), null, 2)}\n`;
     const changes: FileChange[] =
       rawConfig === rendered
         ? []

@@ -11,8 +11,8 @@ export interface RuntimeEnvironment {
 
 const WINDOWS = "win32";
 export const domainHarnesses = {
-  instructions: ["pi", "codex", "vscode", "zed", "antigravity"],
-  agents: ["pi", "codex", "vscode", "antigravity"],
+  instructions: ["pi", "codex", "vscode", "zed", "antigravity", "opencode"],
+  agents: ["pi", "codex", "vscode", "antigravity", "opencode"],
 } as const;
 
 function platformPath(platform: string): any {
@@ -35,6 +35,13 @@ function defaultCodeProfile(environment: RuntimeEnvironment): string {
   return environment.env.XDG_CONFIG_HOME
     ? path.posix.join(environment.env.XDG_CONFIG_HOME, "Code", "User")
     : homePath(environment, ".config", "Code", "User");
+}
+
+export function defaultOpenCodeHome(environment = currentEnvironment()): string {
+  const pathForPlatform = platformPath(environment.platform);
+  return environment.env.XDG_CONFIG_HOME
+    ? pathForPlatform.join(environment.env.XDG_CONFIG_HOME, "opencode")
+    : homePath(environment, ".config", "opencode");
 }
 
 export function currentEnvironment(): RuntimeEnvironment {
@@ -120,7 +127,7 @@ function assertHarness(value: unknown, name: HarnessName): Record<string, unknow
   return value;
 }
 
-type HarnessName = "pi" | "codex" | "vscode" | "zed" | "antigravity";
+type HarnessName = "pi" | "codex" | "vscode" | "zed" | "antigravity" | "opencode";
 
 function assertAbsolute(value: string, label: string, platform: string): void {
   if (!platformPath(platform).isAbsolute(value))
@@ -129,7 +136,7 @@ function assertAbsolute(value: string, label: string, platform: string): void {
 
 function validateHomeHarness(
   config: Record<string, unknown>,
-  name: "Codex" | "Zed" | "Antigravity",
+  name: "Codex" | "Zed" | "Antigravity" | "OpenCode",
   platform: string,
   allowRetirements = name === "Codex",
 ): void {
@@ -350,10 +357,15 @@ export function parsePolicyConfig(
     parsed.harnesses.antigravity === undefined
       ? undefined
       : assertHarness(parsed.harnesses.antigravity, "antigravity");
+  const opencode =
+    parsed.harnesses.opencode === undefined
+      ? undefined
+      : assertHarness(parsed.harnesses.opencode, "opencode");
   assertKeys(pi, ["enabled", "agentDir"], "harnesses.pi");
   validateHomeHarness(codex, "Codex", platform, !profile || parsed.kind === "agents");
   if (zed) validateHomeHarness(zed, "Zed", platform);
   if (antigravity) validateHomeHarness(antigravity, "Antigravity", platform, false);
+  if (opencode) validateHomeHarness(opencode, "OpenCode", platform, false);
   const vscodeAgents = profile && parsed.kind === "agents";
   if (vscodeAgents) validateVsCodeDirectories(vscode, platform);
   else assertKeys(vscode, ["enabled", "targets"], "harnesses.vscode");
@@ -388,12 +400,13 @@ export function parsePolicyConfig(
       vscode,
       ...(zed ? { zed } : {}),
       ...(antigravity ? { antigravity } : {}),
+      ...(opencode ? { opencode } : {}),
     },
   } as unknown as PolicyConfig;
 }
 
 export function profileConfig(config: PolicyConfig, domain: SyncDomain): SyncProfile {
-  const { pi, codex, vscode, zed, antigravity } = structuredClone(config.harnesses);
+  const { pi, codex, vscode, zed, antigravity, opencode } = structuredClone(config.harnesses);
   if (domain === "instructions") {
     delete codex.retiredAgents;
     for (const home of codex.additionalHomes || []) delete home.retiredAgents;
@@ -421,6 +434,7 @@ export function profileConfig(config: PolicyConfig, domain: SyncDomain): SyncPro
       ...(includeVsCode ? { vscode: vscodeProfile } : {}),
       ...(domain === "instructions" && zed ? { zed } : {}),
       ...(antigravity ? { antigravity } : {}),
+      ...(opencode ? { opencode } : {}),
     },
   };
 }

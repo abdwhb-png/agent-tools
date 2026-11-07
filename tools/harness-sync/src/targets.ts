@@ -2,6 +2,7 @@ import path from "node:path";
 import {
   renderAntigravityAgent,
   renderCodexAgent,
+  renderOpenCodeAgent,
   renderPiAgent,
   renderVsCodeAgent,
 } from "./agents.js";
@@ -15,11 +16,21 @@ import {
   renderVsCode,
 } from "./renderers.js";
 import {
+  parseOpenCodeMcp,
+  renderOpenCodeConfig,
+} from "./opencode.js";
+import {
   composeInstructions,
   HARNESS_NAMES,
   type HarnessName,
   type CanonicalSources,
 } from "./sources.js";
+
+export interface OpenCodeConfigFile {
+  path: string;
+  content?: string;
+  jsonc: boolean;
+}
 
 function namedHomes(name: string, config: HomeHarnessConfig): { id: string; home: string }[] {
   return [
@@ -41,10 +52,17 @@ export function agentDirectories(config: PolicyConfig): { id: string; directory:
           extension: ".md",
         }))
       : []),
+    ...(config.harnesses.opencode?.enabled
+      ? namedHomes("opencode", config.harnesses.opencode).map(({ id, home }) => ({
+          id,
+          directory: path.join(home, "agents"),
+          extension: ".md",
+        }))
+      : []),
   ];
 }
 
-export function renderTargets(config: PolicyConfig, sources: CanonicalSources, codexConfigs: Record<string, string | undefined> = {}, adoptUnmanaged = false): RenderedTarget[] {
+export function renderTargets(config: PolicyConfig, sources: CanonicalSources, codexConfigs: Record<string, string | undefined> = {}, adoptUnmanaged = false, opencodeConfigs: Record<string, OpenCodeConfigFile> = {}): RenderedTarget[] {
   const targets: RenderedTarget[] = [];
   if (config.resources?.instructions !== false) {
     const layers = {} as Record<HarnessName, { system: string; agents: string }>;
@@ -161,6 +179,44 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
         );
       }
     }
+    if (config.harnesses.opencode?.enabled) {
+      const instructions = composeInstructions([
+        layers.opencode.system,
+        layers.opencode.agents,
+      ]);
+      const servers =
+        sources.opencodeMcp === undefined
+          ? undefined
+          : parseOpenCodeMcp(sources.opencodeMcp);
+      for (const { id, home } of namedHomes("opencode", config.harnesses.opencode)) {
+        targets.push({
+          id: `${id}-agents`,
+          kind: "file",
+          path: path.join(home, "AGENTS.md"),
+          desired: instructions,
+          owned: instructions,
+        });
+        if (servers !== undefined) {
+          const file =
+            opencodeConfigs[id] ?? {
+              path: path.join(home, "opencode.jsonc"),
+              jsonc: true,
+            };
+          const target = renderOpenCodeConfig(
+            file.content,
+            file.jsonc,
+            servers,
+            adoptUnmanaged,
+          );
+          targets.push({
+            id: `${id}-mcp-config`,
+            kind: "opencode",
+            path: file.path,
+            ...target,
+          });
+        }
+      }
+    }
     if (config.skills?.enabled) {
       for (const entry of config.skills.targets || []) {
         const source = entry.source ?? config.skills.source!;
@@ -201,6 +257,20 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
             id: `${id}-agent-${agent.id}`,
             kind: "file",
             path: path.join(directory, fileName),
+            desired,
+            owned: desired,
+            agentDirectory: directory,
+          });
+        }
+      }
+      if (config.harnesses.opencode?.enabled && agent.opencode) {
+        const desired = renderOpenCodeAgent(agent, config.paths);
+        for (const { id, home } of namedHomes("opencode", config.harnesses.opencode)) {
+          const directory = path.join(home, "agents");
+          targets.push({
+            id: `${id}-agent-${agent.id}`,
+            kind: "file",
+            path: path.join(directory, `${agent.id}.md`),
             desired,
             owned: desired,
             agentDirectory: directory,

@@ -62,5 +62,15 @@
       "read_url_content",
       "run_command"
     ]
+  },
+  "opencode": {
+    "mode": "subagent",
+    "permissions": [
+      {
+        "action": "edit",
+        "resource": "*",
+        "effect": "deny"
+      }
+    ]
   }
 }

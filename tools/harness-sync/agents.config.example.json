@@ -22,6 +22,11 @@
       "enabled": false,
       "home": "/home/example/.gemini",
       "additionalHomes": [{ "id": "windows", "home": "/mnt/c/Users/example/.gemini" }]
+    },
+    "opencode": {
+      "enabled": false,
+      "home": "/home/example/.config/opencode",
+      "additionalHomes": [{ "id": "windows", "home": "/mnt/c/Users/example/.config/opencode" }]
     }
   }
 }
