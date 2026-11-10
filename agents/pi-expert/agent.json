@@ -7,7 +7,6 @@
     "defaultContext": "fresh",
     "inheritProjectContext": "false",
     "inheritSkills": "false",
-    "turnBudget": "{ \"maxTurns\": 20, \"graceTurns\": 6 }",
     "skills": "pi-extensions, factual-research",
     "tools": "@inspect, @lens-inspect, @docs, @web, @pi-session-recall, safe_bash, contact_supervisor"
   },
@@ -16,17 +15,11 @@
     "model": "gpt-6-sol",
     "model_reasoning_effort": "low",
     "sandbox_mode": "read-only",
-    "nickname_candidates": [
-      "Pi Expert"
-    ],
+    "nickname_candidates": ["Pi Expert"],
     "mcp_servers": {
       "pi-session-recall": {
         "command": "node",
-        "args": [
-          "${paths.piSessionRecallScript}",
-          "--project-dir",
-          "${paths.piProjectDir}"
-        ],
+        "args": ["${paths.piSessionRecallScript}", "--project-dir", "${paths.piProjectDir}"],
         "default_tools_approval_mode": "approve"
       }
     }
@@ -69,11 +62,7 @@
       {
         "name": "pi-session-recall",
         "command": "node",
-        "args": [
-          "${paths.piSessionRecallScript}",
-          "--project-dir",
-          "${paths.piProjectDir}"
-        ]
+        "args": ["${paths.piSessionRecallScript}", "--project-dir", "${paths.piProjectDir}"]
       }
     ]
   }

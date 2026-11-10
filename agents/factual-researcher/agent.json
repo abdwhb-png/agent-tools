@@ -8,8 +8,7 @@
     "inheritProjectContext": "false",
     "inheritSkills": "false",
     "skills": "factual-research, firecrawl, firecrawl-crawl, firecrawl-map, firecrawl-parse, firecrawl-scrape, firecrawl-search",
-    "tools": "@inspect, safe_bash, @docs, mcp:firecrawl, @web, contact_supervisor",
-    "turnBudget": "{ \"maxTurns\": 20, \"graceTurns\": 8 }"
+    "tools": "@inspect, safe_bash, @docs, mcp:firecrawl, @web, contact_supervisor"
   },
   "codex": {
     "name": "factual-researcher",
@@ -36,13 +35,8 @@
       },
       "firecrawl-mcp": {
         "command": "npx",
-        "args": [
-          "-y",
-          "firecrawl-mcp"
-        ],
-        "env_vars": [
-          "FIRECRAWL_API_KEY"
-        ]
+        "args": ["-y", "firecrawl-mcp"],
+        "env_vars": ["FIRECRAWL_API_KEY"]
       }
     }
   },
@@ -53,15 +47,7 @@
       "Mimo 2.5 Free (Zen) (customendpoint)",
       "DeepSeek: DeepSeek V4 Flash 0731 (openrouter)"
     ],
-    "tools": [
-      "context7/*",
-      "exa/*",
-      "firecrawl/*",
-      "web",
-      "search",
-      "read",
-      "todo"
-    ]
+    "tools": ["context7/*", "exa/*", "firecrawl/*", "web", "search", "read", "todo"]
   },
   "antigravity": {
     "name": "factual-researcher",

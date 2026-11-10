@@ -9,7 +9,6 @@
     "inheritProjectContext": "true",
     "inheritSkills": "false",
     "defaultContext": "fresh",
-    "turnBudget": "{ \"maxTurns\": 20, \"graceTurns\": 5 }",
     "acceptanceRole": "writer"
   },
   "codex": {
