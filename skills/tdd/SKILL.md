@@ -21,19 +21,24 @@ Do not use this skill solely to explain a testing concept, select a test framewo
 
 ## Select the Test Surface
 
-A test should cross the owning module's existing interface and observe behavior a caller relies on. This preserves locality: a change to implementation details should not break a correct test.
+A test should cross an owning boundary and observe behavior a caller relies on. This preserves locality and catches real wiring bugs without breaking on harmless internal refactors.
 
-Start at the narrowest existing module interface that can express the requested behavior. Do not add a public method, test-only production code, or an adapter only to make testing convenient.
+Use a two-tier rule to choose the surface without writing pass-through unit slop or shallow integration tests:
+
+1. **Start at the integration boundary for workflows and multi-step features:** Exercise the entry point where a caller triggers the behavior and real internal collaborators interact (for example, handler -> service -> parser/store). Assert the complete observable outcome—returned values, persisted state transitions, and externally visible side effects—not merely that the call succeeded.
+2. **Drop down to a narrow module interface for combinatorial or pure logic:** When a module owns branching calculations, parsers, state machines, boundary math, or validation rules whose permutations would make full integration tests slow or repetitive, test those branches directly at that module's interface.
+
+Do not write isolated pass-through unit tests for intermediate functions whose behavior is already exercised by an integration test, and do not add a public method, test-only production code, or an adapter only to make testing convenient.
 
 When the appropriate interface or seam is materially ambiguous, consult `codebase-design` before changing the design. Use its vocabulary: a module's interface is the test surface and a seam is where that interface lives. Ask the user only when the plausible seams imply different observable contracts, user workflows, or scope.
 
-Read [references/tests.md](references/tests.md) when choosing a test surface or judging whether an assertion is behavior-focused.
+Read [references/tests.md](references/tests.md) when choosing between an integration seam and a narrow unit interface or judging whether an assertion is behavior-focused. Read [references/live-verification-and-benchmarks.md](references/live-verification-and-benchmarks.md) when the change targets performance, resource usage (CPU, memory, queries, spawned processes, latency), caching, live external protocols, or visual/UI behavior where synthetic unit assertions cannot prove the real outcome.
 
 ## RED: Specify One Behavior
 
 Write one minimal test that describes one behavior at the selected interface. Give it a name that states the observable outcome and the condition that produces it.
 
-Before writing the body, name the realistic production change that should make it fail. If the answer is only "the source text changed" or "the implementation was refactored", redesign the test around a caller-visible outcome.
+Before writing the body, name the realistic production regression that should make it fail. If the answer is only "the source text changed", "an internal helper signature changed", or "the implementation was refactored", redesign the test around a caller-visible outcome.
 
 Derive expected values for the behavior under test independently with known literals, worked examples, or a trusted specification. Do not reuse that behavior's implementation or helpers to calculate the expectation.
 
@@ -49,15 +54,17 @@ Run the same focused test and confirm it passes. Then run the relevant nearby te
 
 After the relevant tests are green, improve duplication, names, or internal structure when it makes the design clearer. Preserve the selected interface and behavior unless the task explicitly changes the contract.
 
+Prune redundant tests before finishing the cycle. Every kept test must catch a distinct, realistic regression—such as the primary workflow outcome, an error or rollback branch, a boundary condition, or a stateful invariant. Consolidate or delete scaffolding micro-tests and duplicate input permutations whose failure modes are already caught by a higher-level integration or regression test, but never leave a real edge case or failure branch untested.
+
 Rerun the focused test and relevant suite after each refactor. Start the next behavior only after they remain green.
 
 For a pure refactor with no requested behavior change, do not invent a RED failure. First establish passing characterization tests at the selected interface, confirm they would detect realistic mutations of the preserved behavior, then perform the refactor while those tests stay green.
 
 ## Test Quality Gates
 
-A useful test catches a specific bug rather than restating an implementation decision. It exercises real module behavior through the selected interface, uses independently derived expectations, and survives internal refactors that preserve the contract.
+A useful test catches a specific regression rather than restating an implementation decision. It exercises real behavior through the selected interface, uses independently derived expectations, and survives internal refactors that preserve the contract.
 
-Prefer real collaborators when they are fast and deterministic. Mock only the external, slow, nondeterministic, destructive, or otherwise impractical dependency below the behavior under test. Keep every side effect the test relies on real.
+Prefer real collaborators when they are fast and deterministic. Do not mock internal collaborators just to avoid setting up realistic test state or to assert that one internal function called another. Mock only the external, slow, nondeterministic, destructive, or otherwise impractical dependency below the behavior under test. Keep every side effect the test relies on real.
 
 Assert a collaborator's arguments, call count, or ordering only when those interactions are part of the module's observable contract. Do not assert merely that a mock exists or that an internal collaborator was called.
 
@@ -72,7 +79,7 @@ Do not make tests a second source of truth for labels, status text, widget copy,
 
 The independent-expectation rule applies to the behavior a test owns. Reusing a separately owned presentation source in a wiring test avoids duplication; using the formatter to calculate its own unit-test expectation is circular.
 
-Read [references/mocking.md](references/mocking.md) before adding a mock, fake, spy, or test-only helper. Read [references/writing-good-tests.md](references/writing-good-tests.md) for test-quality gates, mutation checks, and warning signs.
+Read [references/mocking.md](references/mocking.md) before adding a mock, fake, spy, or test-only helper. Read [references/writing-good-tests.md](references/writing-good-tests.md) for test-quality gates, regression budgeting, mutation checks, and warning signs.
 
 ## Existing Code and Bugs
 
@@ -87,9 +94,11 @@ Before declaring a feature, bug fix, or behavior change complete:
 - The focused RED test failed for the intended missing or incorrect behavior.
 - The focused test passes after the production change.
 - The relevant test suite passes.
+- Every realistic failure mode (workflow outcome, edge cases, invalid input, error/rollback branches) is covered without redundant pass-through unit tests or duplicate permutations.
 - Tests cover meaningful observable behavior, not private structure, mock existence, or source text.
 - Expected values are independent of the behavior under test; wiring tests may reuse a separately tested production presentation source.
 - Mocks and test helpers are justified and preserve the behavior under test.
+- Performance, resource, live-protocol, or visual outcomes are backed by the real-data or runtime verification in [references/live-verification-and-benchmarks.md](references/live-verification-and-benchmarks.md) when applicable.
 - Run the repository's available typecheck, lint, and broader test commands when the change warrants them.
 
 For a pure refactor, replace the RED requirement with passing characterization tests that cover the preserved behavior and detect realistic mutations.

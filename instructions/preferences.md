@@ -24,15 +24,19 @@ Duplicating the same behavior creates independent maintenance paths: fixes reach
 ## Test-driven development
 
 - For every production behavior change, bug fix, domain rule, or workflow transition, follow RED → GREEN → REFACTOR and use the `tdd` skill when it is available.
-- Write one minimal test through the public boundary, run it, and confirm that it fails for the intended missing or incorrect behavior before changing production code.
+- Choose the test surface with a two-tier rule: start at the integration boundary where real internal collaborators interact for workflows and multi-step features (asserting the complete caller-visible outcome, state transitions, and side effects), and drop down to a narrow module interface only for combinatorial or pure logic (parsers, state machines, boundary math, branching validation).
+- Write one minimal test at the selected boundary, run it, and confirm that it fails for the intended missing or incorrect behavior before changing production code.
 - Implement only what the failing test requires. Import the real production module, mock only external or nondeterministic boundaries, and never weaken a correct assertion to obtain green.
+- Keep one test per distinct regression: cover the primary workflow outcome, edge cases, invalid inputs, and failure/rollback branches, then prune redundant pass-through micro-tests and duplicate input permutations during REFACTOR once a higher-level integration test covers the same failure mode.
+- For performance, resource usage, caching, live external protocols, or visual UI changes, pair a focused behavioral regression test with reproducible before-and-after real-data measurements or live runtime verification instead of manufacturing synthetic spy-count or fake-timer unit tests.
 - Documentation-only changes do not require a failing test. For configuration, tooling, generated code, or a change that cannot feasibly begin with an automated failing test, use the smallest executable before-and-after validation or obtain explicit approval for the exception.
 - **TDD Anti-Patterns (prohibited)**:
   1. **Copy-pasting source functions into test files** — Tests must import the real module. Copies do not catch import errors, missing dependencies, or divergence.
   2. **Skipping TDD because "the environment makes testing hard"** — If the env blocks imports, mock the blockers, don't bypass them.
-  3. **Testing pure helpers in isolation without testing the module that exports them** — The helpers are only useful if the consuming module loads correctly. Always have at least one test that imports the full module.
-  4. **Detaching methods from class instances** (`const f = obj.method; f()`) — In TypeScript, class methods lose `this` when detached. Always call methods directly (`obj.method()`) or use arrow-function class fields. Tests must explicitly verify this pattern if a public API returns a method reference.
-  5. **Masking edge cases or silent error suppression** — Tests must assert on explicit boundaries and error states. Code must never silently swallow failures or hide broken contracts under generic fallbacks.
+  3. **Pass-through unit test slop or unintegrated helper tests** — Do not mock internal collaborators just to assert that one internal function called another, do not write isolated unit tests for pass-through functions already covered by an integration test, and never test pure helpers without at least one test that imports and exercises the consuming module.
+  4. **Shallow happy-path-only integration tests** — Do not treat a smoke check (`status === 200` or "did not throw") as sufficient integration coverage; assert the full persisted/returned effect and explicitly test boundaries and failure states.
+  5. **Detaching methods from class instances** (`const f = obj.method; f()`) — In TypeScript, class methods lose `this` when detached. Always call methods directly (`obj.method()`) or use arrow-function class fields. Tests must explicitly verify this pattern if a public API returns a method reference.
+  6. **Masking edge cases or silent error suppression** — Tests must assert on explicit boundaries and error states. Code must never silently swallow failures or hide broken contracts under generic fallbacks.
 
 ## Validation cadence
 
