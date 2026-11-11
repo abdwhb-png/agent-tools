@@ -157,6 +157,66 @@ function validateVsCodeDirectories(config, platform) {
     entry.path = normalized;
   }
 }
+function validateSkills(value, platform) {
+  if (!isObject(value) || typeof value.enabled !== "boolean")
+    throw new Error("skills must contain boolean enabled");
+  assertKeys(value, ["enabled", "source", "targets"], "skills");
+  let defaultSource;
+  if (value.source !== undefined) {
+    if (typeof value.source !== "string")
+      throw new Error(`skills.source must be an absolute path for ${platform}`);
+    if (!value.source.isWellFormed() || value.source.includes("\x00"))
+      throw new Error("skills.source contains invalid path characters");
+    assertAbsolute(value.source, "skills.source", platform);
+    defaultSource = platformPath(platform).resolve(value.source);
+    value.source = defaultSource;
+  }
+  if (value.enabled && (!Array.isArray(value.targets) || value.targets.length === 0))
+    throw new Error("enabled skills require a non-empty targets array");
+  if (value.targets !== undefined) {
+    if (!Array.isArray(value.targets))
+      throw new Error("skills.targets must be an array");
+    const ids = new Set;
+    const paths = new Set;
+    for (const entry of value.targets) {
+      if (!isObject(entry))
+        throw new Error("each skills target must be an object");
+      assertKeys(entry, ["id", "path", "source"], "skills.targets entry");
+      if (typeof entry.id !== "string" || !/^[a-z][a-z0-9-]*$/.test(entry.id) || typeof entry.path !== "string")
+        throw new Error("each skills target requires a lowercase id and absolute path");
+      if (!entry.path.isWellFormed() || entry.path.includes("\x00"))
+        throw new Error(`skills target ${entry.id} contains invalid path characters`);
+      assertAbsolute(entry.path, `skills.targets.${entry.id}.path`, platform);
+      const normalizedPath = platformPath(platform).resolve(entry.path);
+      const pathIdentity = platform === WINDOWS ? normalizedPath.toLowerCase() : normalizedPath;
+      if (ids.has(entry.id))
+        throw new Error(`duplicate skills target id: ${entry.id}`);
+      if (paths.has(pathIdentity))
+        throw new Error(`duplicate skills target path: ${entry.path}`);
+      let targetSource = defaultSource;
+      if (entry.source !== undefined) {
+        if (typeof entry.source !== "string")
+          throw new Error(`skills.targets.${entry.id}.source must be an absolute path for ${platform}`);
+        if (!entry.source.isWellFormed() || entry.source.includes("\x00"))
+          throw new Error(`skills target ${entry.id} source contains invalid path characters`);
+        assertAbsolute(entry.source, `skills.targets.${entry.id}.source`, platform);
+        targetSource = platformPath(platform).resolve(entry.source);
+        entry.source = targetSource;
+      }
+      if (value.enabled && targetSource === undefined)
+        throw new Error(`enabled skills target ${entry.id} requires source or skills.source`);
+      if (targetSource !== undefined) {
+        const sourceIdentity = platform === WINDOWS ? targetSource.toLowerCase() : targetSource;
+        if (sourceIdentity === pathIdentity)
+          throw new Error(`skills target ${entry.id} path cannot equal its source`);
+      }
+      ids.add(entry.id);
+      paths.add(pathIdentity);
+      entry.path = normalizedPath;
+    }
+  }
+  return value;
+}
 function parsePolicyConfig(raw, platform = process.platform, domain) {
   let parsed;
   try {
@@ -168,7 +228,14 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
     throw new Error("configuration must be an object");
   const profile = parsed.schemaVersion === 2;
   if (profile) {
-    assertKeys(parsed, ["schemaVersion", "kind", "enabled", "harnesses", ...parsed.kind === "agents" ? ["paths"] : []], "configuration");
+    assertKeys(parsed, [
+      "schemaVersion",
+      "kind",
+      "enabled",
+      "harnesses",
+      ...parsed.kind === "agents" ? ["paths"] : [],
+      ...parsed.kind === "instructions" ? ["skills"] : []
+    ], "configuration");
     if (parsed.kind !== "instructions" && parsed.kind !== "agents")
       throw new Error("configuration kind must be instructions or agents");
     if (domain && parsed.kind !== domain)
@@ -191,10 +258,11 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
   } else {
     if (domain)
       throw new Error("legacy configuration requires configure --import-legacy");
-    assertKeys(parsed, ["schemaVersion", "harnesses", "resources"], "configuration");
+    assertKeys(parsed, ["schemaVersion", "harnesses", "resources", "skills"], "configuration");
     if (parsed.schemaVersion !== 1)
       throw new Error("configuration must have schemaVersion 1 or 2");
   }
+  const skills = parsed.skills === undefined ? undefined : validateSkills(parsed.skills, platform);
   if (!isObject(parsed.harnesses))
     throw new Error("configuration must contain harnesses");
   if (parsed.resources !== undefined) {
@@ -237,6 +305,7 @@ function parsePolicyConfig(raw, platform = process.platform, domain) {
   return {
     schemaVersion: 1,
     ...parsed.paths !== undefined ? { paths: parsed.paths } : {},
+    ...skills ? { skills } : {},
     resources: {
       instructions: parsed.kind === "instructions" && parsed.enabled === true,
       agents: parsed.kind === "agents" && parsed.enabled === true
@@ -264,6 +333,7 @@ function profileConfig(config, domain) {
     kind: domain,
     enabled: domain === "instructions" ? config.resources?.instructions !== false : config.resources?.agents === true,
     ...domain === "agents" && config.paths !== undefined ? { paths: structuredClone(config.paths) } : {},
+    ...domain === "instructions" && config.skills !== undefined ? { skills: structuredClone(config.skills) } : {},
     harnesses: {
       pi,
       codex,
@@ -321,6 +391,46 @@ async function readOptional(io, filePath) {
     throw error;
   }
 }
+async function readSymlinkOptional(io, linkPath, desiredTarget) {
+  const lstat = io.lstat ?? fs.lstat;
+  const readlink = io.readlink ?? fs.readlink;
+  const readdir = io.readdir ?? fs.readdir;
+  let stat;
+  try {
+    stat = await lstat(linkPath);
+  } catch (error) {
+    if (error?.code === "ENOENT")
+      return;
+    throw error;
+  }
+  if (stat.isSymbolicLink()) {
+    const raw = await readlink(linkPath);
+    const direct = path2.resolve(path2.dirname(linkPath), raw);
+    if (desiredTarget !== undefined) {
+      const expected = path2.resolve(desiredTarget);
+      let current = direct;
+      for (let depth = 0;depth < 8; depth += 1) {
+        if (current === expected)
+          return desiredTarget;
+        try {
+          const nextStat = await lstat(current);
+          if (!nextStat.isSymbolicLink())
+            break;
+          const nextRaw = await readlink(current);
+          current = path2.resolve(path2.dirname(current), nextRaw);
+        } catch {
+          break;
+        }
+      }
+    }
+    return direct;
+  }
+  if (stat.isDirectory()) {
+    const entries = await readdir(linkPath);
+    return entries.length === 0 ? undefined : "\x00non-empty-directory";
+  }
+  return "\x00regular-file";
+}
 var temporaryId = 0;
 var transactionId = 0;
 async function atomicWrite(io, destination, content) {
@@ -340,6 +450,36 @@ async function atomicWrite(io, destination, content) {
     throw error;
   }
 }
+async function writeSymlink(io, destination, target) {
+  if (target.startsWith("\x00"))
+    throw new Error(`cannot replace non-symlink target at ${destination}`);
+  const directory = path2.dirname(destination);
+  await io.mkdir(directory, { recursive: true, mode: 448 });
+  const lstat = io.lstat ?? fs.lstat;
+  const readdir = io.readdir ?? fs.readdir;
+  const rmdir = io.rmdir ?? fs.rmdir;
+  const symlink = io.symlink ?? fs.symlink;
+  try {
+    const stat = await lstat(destination);
+    if (stat.isSymbolicLink()) {
+      await io.unlink(destination);
+    } else if (stat.isDirectory()) {
+      const entries = await readdir(destination);
+      if (entries.length > 0)
+        throw new Error(`cannot replace non-empty directory with symlink: ${destination}`);
+      await rmdir(destination);
+    } else {
+      await io.unlink(destination);
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT")
+      throw error;
+  }
+  await symlink(target, destination, "dir");
+}
+async function readSnapshot(io, item) {
+  return item.kind === "symlink" ? readSymlinkOptional(io, item.path, item.desired ?? item.existing) : readOptional(io, item.path);
+}
 async function commitChanges(changes, backupParent, io = nodeFileOps, preserve = []) {
   const paths = new Set;
   for (const item of changes) {
@@ -348,7 +488,7 @@ async function commitChanges(changes, backupParent, io = nodeFileOps, preserve =
     paths.add(item.path);
   }
   for (const item of [...changes, ...preserve]) {
-    if (await readOptional(io, item.path) !== item.existing)
+    if (await readSnapshot(io, item) !== item.existing)
       throw new Error(`${item.id} changed after preflight`);
   }
   if (!changes.length)
@@ -358,7 +498,7 @@ async function commitChanges(changes, backupParent, io = nodeFileOps, preserve =
   const backups = [];
   const backedUp = new Set;
   for (const item of [...preserve, ...changes]) {
-    if (item.existing === undefined || backedUp.has(item.path))
+    if (item.existing === undefined || item.existing.startsWith("\x00") || backedUp.has(item.path))
       continue;
     const backupPath = path2.join(backupRoot, `${item.id.replace(/[^a-z0-9-]/gi, "_")}.bak`);
     await io.mkdir(path2.dirname(backupPath), { recursive: true, mode: 448 });
@@ -369,10 +509,12 @@ async function commitChanges(changes, backupParent, io = nodeFileOps, preserve =
   const changed = [];
   try {
     for (const item of changes) {
-      if (await readOptional(io, item.path) !== item.existing)
+      if (await readSnapshot(io, item) !== item.existing)
         throw new Error(`${item.id} changed after preflight`);
       if (item.desired === undefined)
         await io.unlink(item.path);
+      else if (item.kind === "symlink")
+        await writeSymlink(io, item.path, item.desired);
       else
         await atomicWrite(io, item.path, item.desired);
       changed.push(item);
@@ -383,6 +525,8 @@ async function commitChanges(changes, backupParent, io = nodeFileOps, preserve =
       try {
         if (item.existing === undefined)
           await io.unlink(item.path);
+        else if (item.kind === "symlink")
+          await writeSymlink(io, item.path, item.existing);
         else
           await atomicWrite(io, item.path, item.existing);
       } catch (rollbackError) {
@@ -1409,6 +1553,18 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
         });
       }
     }
+    if (config.skills?.enabled) {
+      for (const entry of config.skills.targets || []) {
+        const source = entry.source ?? config.skills.source;
+        targets.push({
+          id: `skills-${entry.id}`,
+          kind: "symlink",
+          path: entry.path,
+          desired: source,
+          owned: source
+        });
+      }
+    }
   }
   if (config.resources?.agents === true) {
     for (const agent of sources.agents || []) {
@@ -1472,6 +1628,8 @@ function hash(content) {
 function ownedContent(target, existing) {
   if (existing === undefined)
     return;
+  if (target.kind === "symlink")
+    return existing;
   return target.kind === "codex" ? managedCodexBlock(existing) : normalizeInstruction(existing);
 }
 async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnmanaged = false) {
@@ -1512,7 +1670,7 @@ async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnma
   }
   const assessments = [];
   for (const target of targets) {
-    const existing = target.kind === "codex" ? codexConfigs[target.id.slice(0, -"-config".length)] : await readOptional(io, target.path);
+    const existing = target.kind === "codex" ? codexConfigs[target.id.slice(0, -"-config".length)] : target.kind === "symlink" ? await readSymlinkOptional(io, target.path, target.desired) : await readOptional(io, target.path);
     const owned = ownedContent(target, existing);
     const prior = state.targets[target.id];
     if (target.operation === "delete") {
@@ -1588,6 +1746,8 @@ async function synchronize(config, state, statePath, sources, options = {}, io =
   const assessments = await assessTargets(config, state, sources, io, options.adopt === true);
   const selected = options.adoptAll ? new Set(assessments.map((item) => item.target.id)) : options.adoptTargets;
   const blocked = assessments.filter((item) => {
+    if (item.target.kind === "symlink" && item.existing?.startsWith("\x00"))
+      return true;
     if (options.adopt && !selected?.has(item.target.id))
       return false;
     if (options.adopt && selected?.has(item.target.id) && item.status !== "missing")
@@ -1603,6 +1763,8 @@ async function synchronize(config, state, statePath, sources, options = {}, io =
       issues.push(`unknown target(s): ${unknown.join(", ")}`);
   }
   const writes = assessments.filter((item) => {
+    if (blocked.includes(item))
+      return false;
     if (item.target.operation === "delete")
       return item.existing !== undefined && !options.adopt;
     if (options.adopt)
@@ -1611,6 +1773,8 @@ async function synchronize(config, state, statePath, sources, options = {}, io =
   });
   const nextState = { schemaVersion: 1, targets: { ...state.targets } };
   for (const item of assessments) {
+    if (blocked.includes(item))
+      continue;
     if (item.target.operation === "delete") {
       if (!options.adopt)
         delete nextState.targets[item.target.id];
@@ -1655,7 +1819,8 @@ async function synchronize(config, state, statePath, sources, options = {}, io =
     id: item.target.id,
     path: item.target.path,
     existing: item.existing,
-    desired: item.target.operation === "delete" ? undefined : item.target.desired
+    desired: item.target.operation === "delete" ? undefined : item.target.desired,
+    ...item.target.kind === "symlink" ? { kind: "symlink" } : {}
   }));
   if (stateChanged)
     changes.push({
@@ -1716,7 +1881,7 @@ function validateArguments(domain, command, args) {
     "--codex-additional-home",
     "--antigravity-home",
     "--antigravity-additional-home",
-    ...domain === "instructions" ? ["--zed-home", "--zed-additional-home", "--vscode-target"] : ["--vscode-agent-dir"]
+    ...domain === "instructions" ? ["--skills-source", "--skills-target", "--zed-home", "--zed-additional-home", "--vscode-target"] : ["--vscode-agent-dir"]
   ];
   const allowedValues = [
     "--config",
@@ -1732,6 +1897,7 @@ function validateArguments(domain, command, args) {
       "--import-legacy",
       "--enable",
       "--disable",
+      ...domain === "instructions" ? ["--enable-skills", "--disable-skills"] : [],
       ...harnesses.flatMap((name) => [`--enable-${name}`, `--disable-${name}`])
     ] : [],
     ...command === "adopt" ? ["--all"] : []
@@ -1740,6 +1906,7 @@ function validateArguments(domain, command, args) {
     "--target",
     "--codex-additional-home",
     "--antigravity-additional-home",
+    "--skills-target",
     "--zed-additional-home",
     "--vscode-target",
     "--vscode-agent-dir"
@@ -1758,7 +1925,11 @@ function validateArguments(domain, command, args) {
   }
   if (args.flags.has("--apply") && args.flags.has("--dry-run"))
     throw new Error("--apply and --dry-run cannot be combined");
-  for (const name of ["", ...harnesses.map((name) => `-${name}`)]) {
+  for (const name of [
+    "",
+    ...domain === "instructions" ? ["-skills"] : [],
+    ...harnesses.map((name) => `-${name}`)
+  ]) {
     if (args.flags.has(`--enable${name}`) && args.flags.has(`--disable${name}`))
       throw new Error(`--enable${name} and --disable${name} cannot be combined`);
   }
@@ -1772,6 +1943,8 @@ function validateArguments(domain, command, args) {
 function usage(domain) {
   const name = commandNames[domain];
   const nativeOptions = domain === "instructions" ? `
+  --skills-source PATH --skills-target ID=PATH|ID=SOURCE->PATH (repeatable)
+  --enable-skills --disable-skills
   --zed-home PATH --zed-additional-home ID=PATH (repeatable)
   --vscode-target PATH (repeatable)
   --enable-zed --disable-zed` : `
@@ -1840,6 +2013,41 @@ function configuredPolicy(base, domain, args) {
   if (antigravityAdditional.length)
     setAdditionalHomes(result.harnesses.antigravity, antigravityAdditional, "--antigravity-additional-home");
   if (domain === "instructions") {
+    const skillsSource = value(args, "--skills-source");
+    const skillsTargets = values(args, "--skills-target");
+    if (skillsSource || skillsTargets.length || args.flags.has("--enable-skills") || args.flags.has("--disable-skills"))
+      result.skills ||= { enabled: false };
+    if (skillsSource)
+      result.skills.source = skillsSource;
+    for (const entry of skillsTargets) {
+      const separator = entry.indexOf("=");
+      if (separator < 1)
+        throw new Error("--skills-target requires ID=PATH or ID=SOURCE->PATH");
+      const id = entry.slice(0, separator);
+      const rest = entry.slice(separator + 1);
+      const arrow = rest.indexOf("->");
+      const source = arrow >= 0 ? rest.slice(0, arrow) : undefined;
+      const targetPath = arrow >= 0 ? rest.slice(arrow + 2) : rest;
+      result.skills.targets ||= [];
+      const existing = result.skills.targets.find((item) => item.id === id);
+      if (existing) {
+        existing.path = targetPath;
+        if (source !== undefined)
+          existing.source = source;
+        else
+          delete existing.source;
+      } else {
+        result.skills.targets.push({
+          id,
+          path: targetPath,
+          ...source !== undefined ? { source } : {}
+        });
+      }
+    }
+    if (args.flags.has("--enable-skills"))
+      result.skills.enabled = true;
+    if (args.flags.has("--disable-skills"))
+      result.skills.enabled = false;
     const zed = value(args, "--zed-home");
     const additional = values(args, "--zed-additional-home");
     if (zed || additional.length || args.flags.has("--enable-zed") || args.flags.has("--disable-zed"))

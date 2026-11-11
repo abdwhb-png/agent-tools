@@ -64,7 +64,7 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
     "--antigravity-home",
     "--antigravity-additional-home",
     ...(domain === "instructions"
-      ? ["--zed-home", "--zed-additional-home", "--vscode-target"]
+      ? ["--skills-source", "--skills-target", "--zed-home", "--zed-additional-home", "--vscode-target"]
       : ["--vscode-agent-dir"]),
   ];
   const allowedValues = [
@@ -82,6 +82,7 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
           "--import-legacy",
           "--enable",
           "--disable",
+          ...(domain === "instructions" ? ["--enable-skills", "--disable-skills"] : []),
           ...harnesses.flatMap((name) => [`--enable-${name}`, `--disable-${name}`]),
         ]
       : []),
@@ -91,6 +92,7 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
     "--target",
     "--codex-additional-home",
     "--antigravity-additional-home",
+    "--skills-target",
     "--zed-additional-home",
     "--vscode-target",
     "--vscode-agent-dir",
@@ -106,7 +108,11 @@ function validateArguments(domain: SyncDomain, command: string, args: Arguments)
   }
   if (args.flags.has("--apply") && args.flags.has("--dry-run"))
     throw new Error("--apply and --dry-run cannot be combined");
-  for (const name of ["", ...harnesses.map((name) => `-${name}`)]) {
+  for (const name of [
+    "",
+    ...(domain === "instructions" ? ["-skills"] : []),
+    ...harnesses.map((name) => `-${name}`),
+  ]) {
     if (args.flags.has(`--enable${name}`) && args.flags.has(`--disable${name}`))
       throw new Error(`--enable${name} and --disable${name} cannot be combined`);
   }
@@ -131,7 +137,7 @@ function usage(domain: SyncDomain): string {
   const name = commandNames[domain];
   const nativeOptions =
     domain === "instructions"
-      ? "\n  --zed-home PATH --zed-additional-home ID=PATH (repeatable)\n  --vscode-target PATH (repeatable)\n  --enable-zed --disable-zed"
+      ? "\n  --skills-source PATH --skills-target ID=PATH|ID=SOURCE->PATH (repeatable)\n  --enable-skills --disable-skills\n  --zed-home PATH --zed-additional-home ID=PATH (repeatable)\n  --vscode-target PATH (repeatable)\n  --enable-zed --disable-zed"
       : "\n  --vscode-agent-dir ID=PATH (repeatable; exact agent directory)";
   return `Usage: ${name} <configure|doctor|check|sync|adopt> [options]
 
@@ -206,6 +212,40 @@ function configuredPolicy(base: PolicyConfig, domain: SyncDomain, args: Argument
       "--antigravity-additional-home",
     );
   if (domain === "instructions") {
+    const skillsSource = value(args, "--skills-source");
+    const skillsTargets = values(args, "--skills-target");
+    if (
+      skillsSource ||
+      skillsTargets.length ||
+      args.flags.has("--enable-skills") ||
+      args.flags.has("--disable-skills")
+    )
+      result.skills ||= { enabled: false };
+    if (skillsSource) result.skills!.source = skillsSource;
+    for (const entry of skillsTargets) {
+      const separator = entry.indexOf("=");
+      if (separator < 1) throw new Error("--skills-target requires ID=PATH or ID=SOURCE->PATH");
+      const id = entry.slice(0, separator);
+      const rest = entry.slice(separator + 1);
+      const arrow = rest.indexOf("->");
+      const source = arrow >= 0 ? rest.slice(0, arrow) : undefined;
+      const targetPath = arrow >= 0 ? rest.slice(arrow + 2) : rest;
+      result.skills!.targets ||= [];
+      const existing = result.skills!.targets.find((item) => item.id === id);
+      if (existing) {
+        existing.path = targetPath;
+        if (source !== undefined) existing.source = source;
+        else delete existing.source;
+      } else {
+        result.skills!.targets.push({
+          id,
+          path: targetPath,
+          ...(source !== undefined ? { source } : {}),
+        });
+      }
+    }
+    if (args.flags.has("--enable-skills")) result.skills!.enabled = true;
+    if (args.flags.has("--disable-skills")) result.skills!.enabled = false;
     const zed = value(args, "--zed-home");
     const additional = values(args, "--zed-additional-home");
     if (

@@ -255,6 +255,103 @@ test("supports optional Antigravity homes in both domains while keeping omitted 
     expect(profileConfig(parsed, domain)).toEqual(profile);
   }
 
+  const skills = {
+    enabled: true,
+    source: "/home/agent/.agents/skills",
+    targets: [
+      { id: "antigravity", path: "/home/agent/.gemini/config/skills" },
+      {
+        id: "antigravity-t3",
+        path: "/home/agent/.t3/antigravity/config/skills",
+        source: "/home/agent/.agents/custom-skills",
+      },
+    ],
+  };
+  const withSkills = {
+    ...baseInstructions,
+    skills,
+    harnesses: {
+      ...baseInstructions.harnesses,
+      antigravity,
+    },
+  };
+  const parsedWithSkills = parsePolicyConfig(JSON.stringify(withSkills), "linux", "instructions");
+  expect(parsedWithSkills.skills).toEqual(skills);
+  expect(profileConfig(parsedWithSkills, "instructions").skills).toEqual(skills);
+  expect(profileConfig(parsedWithSkills, "agents").skills).toBeUndefined();
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        ...withSkills,
+        skills: { ...skills, source: "relative/skills" },
+      }),
+      "linux",
+      "instructions",
+    ),
+  ).toThrow("skills.source must be an absolute path for linux");
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        ...withSkills,
+        skills: {
+          enabled: true,
+          targets: [{ id: "antigravity", path: "/home/agent/.gemini/config/skills" }],
+        },
+      }),
+      "linux",
+      "instructions",
+    ),
+  ).toThrow("enabled skills target antigravity requires source or skills.source");
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        ...withSkills,
+        skills: {
+          ...skills,
+          targets: [
+            { id: "antigravity", path: "/home/agent/.gemini/config/skills" },
+            { id: "antigravity", path: "/home/agent/.other/skills" },
+          ],
+        },
+      }),
+      "linux",
+      "instructions",
+    ),
+  ).toThrow("duplicate skills target id: antigravity");
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        ...withSkills,
+        skills: {
+          ...skills,
+          targets: [
+            { id: "first", path: "/home/agent/.gemini/config/skills" },
+            { id: "second", path: "/home/agent/.gemini/config/../config/skills" },
+          ],
+        },
+      }),
+      "linux",
+      "instructions",
+    ),
+  ).toThrow("duplicate skills target path");
+  expect(() =>
+    parsePolicyConfig(
+      JSON.stringify({
+        schemaVersion: 2,
+        kind: "agents",
+        enabled: true,
+        skills,
+        harnesses: {
+          pi: { enabled: false },
+          codex: { enabled: false },
+          antigravity,
+        },
+      }),
+      "linux",
+      "agents",
+    ),
+  ).toThrow("unsupported key: skills");
+
   expect(() =>
     parsePolicyConfig(
       JSON.stringify({

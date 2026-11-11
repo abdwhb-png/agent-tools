@@ -389,3 +389,95 @@ test("synchronizes Antigravity agents, isolates domain state, retires removed un
     ),
   ).toBe(true);
 });
+
+test("synchronizes skills symlinks with default and per-target sources, replaces empty placeholder directories, and accepts T3 Code chained symlinks", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "harness-sync-agy-skills-"));
+  roots.push(root);
+  const instructions = path.join(root, "instructions");
+  await fs.mkdir(instructions, { recursive: true });
+  await fs.writeFile(path.join(instructions, "invariant.md"), "Invariant\n");
+  await fs.writeFile(path.join(instructions, "preferences.md"), "Preferences\n");
+  await fs.writeFile(path.join(instructions, "technology-defaults.md"), "Tech\n");
+
+  const skillsDir = path.join(root, "agents-skills");
+  const customSkillsDir = path.join(root, "custom-skills");
+  await fs.mkdir(path.join(skillsDir, "brainstorming"), { recursive: true });
+  await fs.writeFile(path.join(skillsDir, "brainstorming", "SKILL.md"), "# Brainstorming\n");
+  await fs.mkdir(customSkillsDir, { recursive: true });
+
+  const primaryHome = path.join(root, "gemini");
+  const t3Home = path.join(root, "t3-antigravity");
+  const primarySkills = path.join(primaryHome, "config", "skills");
+  const t3Skills = path.join(t3Home, "config", "skills");
+  const customSkillsTarget = path.join(root, "custom-target", "skills");
+  // Simulate agy_acp_server creating an empty config/skills directory in T3 profile before first sync.
+  await fs.mkdir(t3Skills, { recursive: true });
+
+  const config = parsePolicyConfig(
+    JSON.stringify({
+      schemaVersion: 2,
+      kind: "instructions",
+      enabled: true,
+      skills: {
+        enabled: true,
+        source: skillsDir,
+        targets: [
+          { id: "antigravity", path: primarySkills },
+          { id: "antigravity-t3", path: t3Skills },
+          { id: "custom", path: customSkillsTarget, source: customSkillsDir },
+        ],
+      },
+      harnesses: {
+        pi: { enabled: false },
+        codex: { enabled: false },
+        vscode: { enabled: false },
+        antigravity: {
+          enabled: true,
+          home: primaryHome,
+          additionalHomes: [{ id: "t3", home: t3Home }],
+        },
+      },
+    }),
+    "linux",
+    "instructions",
+  );
+  const statePath = path.join(root, "instructions-state.json");
+  const sources = await loadCanonicalSources(root, config.resources);
+
+  const synced = await synchronize(config, emptyState(), statePath, sources);
+  expect(synced.changed).toContain("skills-antigravity");
+  expect(synced.changed).toContain("skills-antigravity-t3");
+  expect(synced.changed).toContain("skills-custom");
+
+  expect((await fs.lstat(primarySkills)).isSymbolicLink()).toBe(true);
+  expect((await fs.lstat(t3Skills)).isSymbolicLink()).toBe(true);
+  expect((await fs.lstat(customSkillsTarget)).isSymbolicLink()).toBe(true);
+  expect(await fs.readlink(primarySkills)).toBe(skillsDir);
+  expect(await fs.readlink(t3Skills)).toBe(skillsDir);
+  expect(await fs.readlink(customSkillsTarget)).toBe(customSkillsDir);
+
+  // Simulate T3 Code's linkAntigravityUserSkills rewriting <t3Home>/config/skills -> <primaryHome>/config/skills.
+  await fs.unlink(t3Skills);
+  await fs.symlink(primarySkills, t3Skills, "dir");
+
+  const state = await loadState(statePath, undefined, "instructions");
+  const assessments = await assessTargets(config, state, sources);
+  expect(assessments.every(({ status }) => status === "current")).toBe(true);
+
+  // A non-empty real directory at config/skills blocks sync and adopt without deleting files.
+  await fs.unlink(t3Skills);
+  await fs.mkdir(t3Skills, { recursive: true });
+  await fs.writeFile(path.join(t3Skills, "local-skill.md"), "keep\n");
+  const conflicted = await assessTargets(config, state, sources);
+  expect(conflicted.find(({ target }) => target.id === "skills-antigravity-t3")?.status).toBe(
+    "conflict",
+  );
+  await expect(
+    synchronize(config, state, statePath, sources, {
+      adopt: true,
+      adoptTargets: new Set(["skills-antigravity-t3"]),
+    }),
+  ).rejects.toThrow("sync preflight failed: skills-antigravity-t3");
+  expect(await fs.readFile(path.join(t3Skills, "local-skill.md"), "utf8")).toBe("keep\n");
+});
+

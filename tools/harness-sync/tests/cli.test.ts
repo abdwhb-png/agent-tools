@@ -1201,9 +1201,13 @@ test("both CLIs configure Antigravity homes, validate flags, and reject misplace
   expect(instHelp.stdout).toContain("--antigravity-home PATH");
   expect(instHelp.stdout).toContain("--antigravity-additional-home ID=PATH");
   expect(instHelp.stdout).toContain("--enable-antigravity --disable-antigravity");
+  expect(instHelp.stdout).toContain("--skills-source PATH");
+  expect(instHelp.stdout).toContain("--skills-target ID=PATH|ID=SOURCE->PATH");
+  expect(instHelp.stdout).toContain("--enable-skills --disable-skills");
   expect(agentHelp.stdout).toContain("--antigravity-home PATH");
   expect(agentHelp.stdout).toContain("--antigravity-additional-home ID=PATH");
   expect(agentHelp.stdout).toContain("--enable-antigravity --disable-antigravity");
+  expect(agentHelp.stdout).not.toContain("--skills-source");
 
   const args = [
     "--antigravity-home",
@@ -1226,6 +1230,34 @@ test("both CLIs configure Antigravity homes, validate flags, and reject misplace
   };
   expect(JSON.parse(await fs.readFile(f.configPath, "utf8")).harnesses.antigravity).toEqual(expected);
   expect(JSON.parse(await fs.readFile(f.agentsConfigPath, "utf8")).harnesses.antigravity).toEqual(expected);
+
+  const skillsSource = path.join(f.root, "agents-skills");
+  const customSource = path.join(f.root, "custom-skills");
+  const primarySkills = path.join(primary, "config", "skills");
+  const windowsSkills = path.join(windows, "config", "skills");
+  expect(
+    f.run(
+      "configure",
+      "--skills-source",
+      skillsSource,
+      "--skills-target",
+      `antigravity=${primarySkills}`,
+      "--skills-target",
+      `windows=${customSource}->${windowsSkills}`,
+      "--enable-skills",
+      "--apply",
+    ).code,
+  ).toBe(0);
+  expect(JSON.parse(await fs.readFile(f.configPath, "utf8")).skills).toEqual({
+    enabled: true,
+    source: skillsSource,
+    targets: [
+      { id: "antigravity", path: primarySkills },
+      { id: "windows", path: windowsSkills, source: customSource },
+    ],
+  });
+  expect(f.run("configure", "--enable-skills", "--disable-skills").code).toBe(2);
+  expect(f.runAgent("configure", "--skills-source", skillsSource).code).toBe(2);
 
   expect(f.run("configure", "--enable-antigravity", "--disable-antigravity").code).toBe(2);
   expect(f.run("configure", "--import-legacy", "--antigravity-home", primary).code).toBe(2);

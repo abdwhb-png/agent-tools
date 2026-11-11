@@ -108,6 +108,9 @@ Synchronization and adoption previews report operations such as `create`, `updat
 | `--antigravity-home PATH` | Both | Set the primary Antigravity home, usually `~/.gemini`. |
 | `--antigravity-additional-home ID=PATH` | Both | Add or update a named Antigravity home. Repeatable. |
 | `--enable-antigravity`, `--disable-antigravity` | Both | Include or exclude Antigravity for this workflow. |
+| `--skills-source PATH` | Instructions | Set the default skills source directory for `skills.targets`, usually `~/.agents/skills`. |
+| `--skills-target ID=PATH` or `ID=SOURCE->PATH` | Instructions | Add or update a named skills symlink target, optionally overriding its source directory. Repeatable. |
+| `--enable-skills`, `--disable-skills` | Instructions | Include or exclude configured skills symlink targets. |
 | `--import-legacy` | Both | Import this domain's settings and ownership. Preview by default. |
 | `--legacy-config PATH`, `--legacy-state PATH` | Both | Override import sources. Require `--import-legacy`. |
 
@@ -153,6 +156,7 @@ Configuration files are adjacent to this tool and Git-ignored. Create them throu
 | `kind` | Must match the command: `instructions` or `agents`. |
 | `enabled` | Boolean controlling the whole workflow. |
 | `paths` | Optional map of named, absolute installation paths. Agent configuration only. |
+| `skills` | Optional for instructions, with `enabled`, optional default `source`, and named `targets` (`{ id, path, source? }`). Each target requires either a top-level `skills.source` or its own `source` override. Invalid in agent configuration. |
 | `harnesses.pi` | Required object with `enabled` and, when enabled, `agentDir`. |
 | `harnesses.codex` | Required object with `enabled` and, when enabled, `home`. Optional `additionalHomes`. |
 | `harnesses.vscode` | Instructions require `enabled` and a nonempty `targets` array when enabled. Agents optionally accept `enabled` and named `directories`, which must be nonempty when enabled. |
@@ -232,7 +236,7 @@ Destination discovery depends on the selected VS Code runtime. Local sessions re
 
 Agent target IDs are `vscode-<directory-id>-agent-<role-id>`. Directory names and role IDs that produce an ambiguous target identity are rejected before writes. Disabling or moving a directory preserves its prior files and ownership. Unknown local agents remain unmanaged.
 
-Zed receives personal `AGENTS.md` in each configured home. Typical homes are `%APPDATA%\Zed` on Windows and `~/.config/zed` on Linux. For WSL and a second Linux home:
+Zed receives personal `AGENTS.md` in each configured home. Typical homes are `%APPDATA%\\Zed` on Windows and `~/.config/zed` on Linux. For WSL and a second Linux home:
 
 ```bash
 node dist/instruction-sync.mjs configure --zed-home /mnt/c/Users/example/AppData/Roaming/Zed --zed-additional-home linux=/home/example/.config/zed --enable-zed
@@ -242,13 +246,14 @@ These examples preview settings. Repeat the intended command with `--apply` to s
 
 ### Antigravity destinations
 
-Antigravity reads personal customizations from a home directory, usually `~/.gemini`, and shares that layout between the Antigravity App, the Antigravity CLI (`agy`) and the Antigravity IDE. Each configured home receives three instruction targets and one file per canonical agent:
+Antigravity reads personal customizations from a home directory, usually `~/.gemini`, and shares that layout between the Antigravity App, the Antigravity CLI (`agy`) and the Antigravity IDE. Each configured home receives three instruction targets, the global MCP registry, and one file per canonical agent:
 
 | Target | Path | Content |
 | --- | --- | --- |
 | `<homeId>-gemini` | `<home>/GEMINI.md` | Operating layer: `invariant.md` plus `instructions/antigravity/system/*.md`. Plain Markdown, always active. |
 | `<homeId>-preferences` | `<home>/config/rules/agent-policy-preferences.md` | `preferences.md` plus `instructions/antigravity/agents/*.md`, with `trigger: always_on`. |
 | `<homeId>-technology-defaults` | `<home>/config/rules/agent-policy-technology-defaults.md` | `technology-defaults.md`, with `trigger: model_decision`. |
+| `skills-<id>` | `<skills.targets[].path>` | Directory symlink to `skills.targets[].source ?? skills.source` when `skills.enabled` is true (for example `<home>/config/skills` -> `~/.agents/skills`). Replaces an empty placeholder directory and accepts chained symlinks through `~/.gemini/config/skills`. |
 | `<homeId>-agent-<role>` | `<home>/config/agents/<name>.md` | One custom agent per canonical role, with `mainAgent`, `subagent` and per-role `inheritMcp`. |
 | `<homeId>-mcp-config` | `<home>/config/mcp_config.json` | The canonical global MCP registry from `mcp/antigravity.json`. Whole-file ownership, so a server added through the UI conflicts until `adopt` runs. |
 

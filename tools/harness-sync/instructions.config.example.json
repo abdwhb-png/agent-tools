@@ -2,6 +2,16 @@
   "schemaVersion": 2,
   "kind": "instructions",
   "enabled": true,
+  "skills": {
+    "enabled": false,
+    "source": "/home/example/.agents/skills",
+    "targets": [
+      {
+        "id": "antigravity",
+        "path": "/home/example/.gemini/config/skills"
+      }
+    ]
+  },
   "harnesses": {
     "pi": { "enabled": true, "agentDir": "/absolute/path/to/.pi/agent" },
     "codex": {

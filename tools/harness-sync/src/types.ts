@@ -11,10 +11,22 @@ export interface HomeHarnessConfig extends HarnessConfig {
   additionalHomes?: { id: string; home: string; retiredAgents?: string[] }[];
 }
 
+export interface SkillsTargetConfig {
+  id: string;
+  path: string;
+  source?: string;
+}
+
+export interface SkillsConfig extends HarnessConfig {
+  source?: string;
+  targets?: SkillsTargetConfig[];
+}
+
 export interface PolicyConfig {
   schemaVersion: 1;
   resources?: { instructions?: boolean; agents?: boolean };
   paths?: Record<string, string>;
+  skills?: SkillsConfig;
   harnesses: {
     pi: HarnessConfig & { agentDir?: string };
     codex: HomeHarnessConfig;
@@ -29,6 +41,7 @@ export interface SyncProfile {
   kind: SyncDomain;
   enabled: boolean;
   paths?: Record<string, string>;
+  skills?: SkillsConfig;
   harnesses: {
     pi: PolicyConfig["harnesses"]["pi"];
     codex: HomeHarnessConfig;
@@ -49,7 +62,7 @@ export interface PolicyState {
   targets: Record<string, TargetState>;
 }
 
-export type TargetKind = "file" | "codex";
+export type TargetKind = "file" | "codex" | "symlink";
 
 export interface RenderedTarget {
   id: string;

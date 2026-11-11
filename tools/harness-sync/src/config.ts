@@ -212,6 +212,69 @@ function validateVsCodeDirectories(config: Record<string, unknown>, platform: st
   }
 }
 
+function validateSkills(value: unknown, platform: string): PolicyConfig["skills"] {
+  if (!isObject(value) || typeof value.enabled !== "boolean")
+    throw new Error("skills must contain boolean enabled");
+  assertKeys(value, ["enabled", "source", "targets"], "skills");
+  let defaultSource: string | undefined;
+  if (value.source !== undefined) {
+    if (typeof value.source !== "string")
+      throw new Error(`skills.source must be an absolute path for ${platform}`);
+    if (!value.source.isWellFormed() || value.source.includes("\0"))
+      throw new Error("skills.source contains invalid path characters");
+    assertAbsolute(value.source, "skills.source", platform);
+    defaultSource = platformPath(platform).resolve(value.source);
+    value.source = defaultSource;
+  }
+  if (value.enabled && (!Array.isArray(value.targets) || value.targets.length === 0))
+    throw new Error("enabled skills require a non-empty targets array");
+  if (value.targets !== undefined) {
+    if (!Array.isArray(value.targets)) throw new Error("skills.targets must be an array");
+    const ids = new Set<string>();
+    const paths = new Set<string>();
+    for (const entry of value.targets) {
+      if (!isObject(entry)) throw new Error("each skills target must be an object");
+      assertKeys(entry, ["id", "path", "source"], "skills.targets entry");
+      if (
+        typeof entry.id !== "string" ||
+        !/^[a-z][a-z0-9-]*$/.test(entry.id) ||
+        typeof entry.path !== "string"
+      )
+        throw new Error("each skills target requires a lowercase id and absolute path");
+      if (!entry.path.isWellFormed() || entry.path.includes("\0"))
+        throw new Error(`skills target ${entry.id} contains invalid path characters`);
+      assertAbsolute(entry.path, `skills.targets.${entry.id}.path`, platform);
+      const normalizedPath = platformPath(platform).resolve(entry.path);
+      const pathIdentity = platform === WINDOWS ? normalizedPath.toLowerCase() : normalizedPath;
+      if (ids.has(entry.id)) throw new Error(`duplicate skills target id: ${entry.id}`);
+      if (paths.has(pathIdentity)) throw new Error(`duplicate skills target path: ${entry.path}`);
+      let targetSource = defaultSource;
+      if (entry.source !== undefined) {
+        if (typeof entry.source !== "string")
+          throw new Error(
+            `skills.targets.${entry.id}.source must be an absolute path for ${platform}`,
+          );
+        if (!entry.source.isWellFormed() || entry.source.includes("\0"))
+          throw new Error(`skills target ${entry.id} source contains invalid path characters`);
+        assertAbsolute(entry.source, `skills.targets.${entry.id}.source`, platform);
+        targetSource = platformPath(platform).resolve(entry.source);
+        entry.source = targetSource;
+      }
+      if (value.enabled && targetSource === undefined)
+        throw new Error(`enabled skills target ${entry.id} requires source or skills.source`);
+      if (targetSource !== undefined) {
+        const sourceIdentity = platform === WINDOWS ? targetSource.toLowerCase() : targetSource;
+        if (sourceIdentity === pathIdentity)
+          throw new Error(`skills target ${entry.id} path cannot equal its source`);
+      }
+      ids.add(entry.id);
+      paths.add(pathIdentity);
+      entry.path = normalizedPath;
+    }
+  }
+  return value as unknown as PolicyConfig["skills"];
+}
+
 export function parsePolicyConfig(
   raw: string,
   platform = process.platform,
@@ -228,7 +291,14 @@ export function parsePolicyConfig(
   if (profile) {
     assertKeys(
       parsed,
-      ["schemaVersion", "kind", "enabled", "harnesses", ...(parsed.kind === "agents" ? ["paths"] : [])],
+      [
+        "schemaVersion",
+        "kind",
+        "enabled",
+        "harnesses",
+        ...(parsed.kind === "agents" ? ["paths"] : []),
+        ...(parsed.kind === "instructions" ? ["skills"] : []),
+      ],
       "configuration",
     );
     if (parsed.kind !== "instructions" && parsed.kind !== "agents")
@@ -250,9 +320,11 @@ export function parsePolicyConfig(
     }
   } else {
     if (domain) throw new Error("legacy configuration requires configure --import-legacy");
-    assertKeys(parsed, ["schemaVersion", "harnesses", "resources"], "configuration");
+    assertKeys(parsed, ["schemaVersion", "harnesses", "resources", "skills"], "configuration");
     if (parsed.schemaVersion !== 1) throw new Error("configuration must have schemaVersion 1 or 2");
   }
+  const skills =
+    parsed.skills === undefined ? undefined : validateSkills(parsed.skills, platform);
   if (!isObject(parsed.harnesses)) throw new Error("configuration must contain harnesses");
   if (parsed.resources !== undefined) {
     if (!isObject(parsed.resources)) throw new Error("resources must be an object");
@@ -305,6 +377,7 @@ export function parsePolicyConfig(
   return {
     schemaVersion: 1,
     ...(parsed.paths !== undefined ? { paths: parsed.paths as Record<string, string> } : {}),
+    ...(skills ? { skills } : {}),
     resources: {
       instructions: parsed.kind === "instructions" && parsed.enabled === true,
       agents: parsed.kind === "agents" && parsed.enabled === true,
@@ -338,6 +411,9 @@ export function profileConfig(config: PolicyConfig, domain: SyncDomain): SyncPro
         : config.resources?.agents === true,
     ...(domain === "agents" && config.paths !== undefined
       ? { paths: structuredClone(config.paths) }
+      : {}),
+    ...(domain === "instructions" && config.skills !== undefined
+      ? { skills: structuredClone(config.skills) }
       : {}),
     harnesses: {
       pi,

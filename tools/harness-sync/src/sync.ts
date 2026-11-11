@@ -6,6 +6,7 @@ import {
   commitChanges,
   nodeFileOps,
   readOptional,
+  readSymlinkOptional,
   type FileChange,
   type FileOps,
 } from "./files.js";
@@ -31,6 +32,7 @@ function hash(content: string): string {
 
 function ownedContent(target: RenderedTarget, existing: string | undefined): string | undefined {
   if (existing === undefined) return undefined;
+  if (target.kind === "symlink") return existing;
   return target.kind === "codex" ? managedCodexBlock(existing) : normalizeInstruction(existing);
 }
 
@@ -92,7 +94,9 @@ export async function assessTargets(
     const existing =
       target.kind === "codex"
         ? codexConfigs[target.id.slice(0, -"-config".length)]
-        : await readOptional(io, target.path);
+        : target.kind === "symlink"
+          ? await readSymlinkOptional(io, target.path, target.desired)
+          : await readOptional(io, target.path);
     const owned = ownedContent(target, existing);
     const prior = state.targets[target.id];
     if (target.operation === "delete") {
@@ -225,6 +229,7 @@ export async function synchronize(
     ? new Set(assessments.map((item) => item.target.id))
     : options.adoptTargets;
   const blocked = assessments.filter((item) => {
+    if (item.target.kind === "symlink" && item.existing?.startsWith("\0")) return true;
     if (options.adopt && !selected?.has(item.target.id)) return false;
     if (options.adopt && selected?.has(item.target.id) && item.status !== "missing") return false;
     return item.status === "conflict";
@@ -239,6 +244,7 @@ export async function synchronize(
     if (unknown.length > 0) issues.push(`unknown target(s): ${unknown.join(", ")}`);
   }
   const writes = assessments.filter((item) => {
+    if (blocked.includes(item)) return false;
     if (item.target.operation === "delete") return item.existing !== undefined && !options.adopt;
     if (options.adopt)
       return (
@@ -250,6 +256,7 @@ export async function synchronize(
   });
   const nextState: PolicyState = { schemaVersion: 1, targets: { ...state.targets } };
   for (const item of assessments) {
+    if (blocked.includes(item)) continue;
     if (item.target.operation === "delete") {
       if (!options.adopt) delete nextState.targets[item.target.id];
       else if (selected?.has(item.target.id) && item.existing !== undefined)
@@ -296,6 +303,7 @@ export async function synchronize(
     path: item.target.path,
     existing: item.existing,
     desired: item.target.operation === "delete" ? undefined : item.target.desired,
+    ...(item.target.kind === "symlink" ? { kind: "symlink" as const } : {}),
   }));
   if (stateChanged)
     changes.push({

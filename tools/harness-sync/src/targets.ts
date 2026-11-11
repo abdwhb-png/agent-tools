@@ -161,6 +161,18 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
         );
       }
     }
+    if (config.skills?.enabled) {
+      for (const entry of config.skills.targets || []) {
+        const source = entry.source ?? config.skills.source!;
+        targets.push({
+          id: `skills-${entry.id}`,
+          kind: "symlink",
+          path: entry.path,
+          desired: source,
+          owned: source,
+        });
+      }
+    }
   }
   if (config.resources?.agents === true) {
     for (const agent of sources.agents || []) {
