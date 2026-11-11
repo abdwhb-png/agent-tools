@@ -74,4 +74,5 @@ export interface RenderedTarget {
   owned: string;
   agentDirectory?: string;
   operation?: "delete";
+  unmanaged?: boolean;
 }

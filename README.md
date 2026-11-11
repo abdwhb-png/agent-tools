@@ -9,7 +9,7 @@ Reusable instructions, specialist agents, skills and supporting tools for AI cod
 | [`instructions/`](instructions/) | Shared operating rules, preferences, technology defaults and harness-specific global guidance. |
 | [`agents/`](agents/) | Shared specialist roles, explicit native settings, and optional native procedures. |
 | [`skills/`](skills/) | Reusable workflows with a `SKILL.md` entrypoint and their supporting files. |
-| [`mcp/`](mcp/) | Canonical global MCP registries for Antigravity and OpenCode. |
+| [`mcp/`](mcp/) | Canonical global MCP registries for Antigravity, Codex and OpenCode. |
 | [`tools/harness-sync/`](tools/harness-sync/README.md) | Independent `instruction-sync` and `agent-sync` commands with previews, ownership tracking and recovery backups. |
 | [`tools/codex-desktop-proxy/`](tools/codex-desktop-proxy/README.md) | Windows/WSL Desktop proxy preserving configured developer instructions and project paths, with installation and rollback. |
 | [`docs/decisions/`](docs/decisions/) | Architecture decisions and their rationale. |

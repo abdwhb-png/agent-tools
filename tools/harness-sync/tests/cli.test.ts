@@ -230,6 +230,27 @@ test("OpenCode CLI configuration syncs global instructions, MCP, and agent files
   expect(f.runAgent("check").code).toBe(0);
 });
 
+test("Codex CLI sync writes the managed global MCP region", async () => {
+  const f = await fixture();
+  await fs.mkdir(path.join(f.root, "mcp"), { recursive: true });
+  await fs.writeFile(
+    path.join(f.root, "mcp", "codex.json"),
+    JSON.stringify({
+      mcp_servers: {
+        context7: { url: "https://mcp.context7.com/mcp" },
+      },
+    }),
+  );
+  expect(f.run("sync", "--dry-run").code).toBe(0);
+  expect(await fs.exists(f.codexConfig)).toBe(false);
+  expect(f.run("sync").code).toBe(0);
+  const config = await fs.readFile(f.codexConfig, "utf8");
+  expect(config).toContain("# >>> agent-policy mcp_servers >>>");
+  expect(config).toContain("[mcp_servers.context7]");
+  expect(config).toContain('url = "https://mcp.context7.com/mcp"');
+  expect(f.run("check").code).toBe(0);
+});
+
 test("CLI preserves the native Pi prompt and appends its operating layer once", async () => {
   const f = await fixture();
   await fs.mkdir(path.join(f.instructions, "pi", "system"));

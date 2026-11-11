@@ -870,7 +870,7 @@ function assertOneOf(value, allowed, label) {
   if (typeof value !== "string" || !allowed.includes(value))
     throw new Error(`${label} must be one of ${allowed.join(", ")}`);
 }
-function validateMcp(value, label) {
+function validateCodexMcp(value, label) {
   for (const [name, raw] of Object.entries(assertObject(value, label))) {
     const serverLabel = `${label}.${name}`;
     const server = assertObject(raw, serverLabel);
@@ -991,7 +991,7 @@ function validateCodex(config, label) {
       throw new Error(`${label}.${key} must be a positive integer`);
   }
   if (config.mcp_servers !== undefined)
-    validateMcp(config.mcp_servers, `${label}.mcp_servers`);
+    validateCodexMcp(config.mcp_servers, `${label}.mcp_servers`);
 }
 async function optionalMarkdown(file) {
   try {
@@ -1331,6 +1331,22 @@ async function loadCanonicalSources(root, resources = { agents: true }) {
       throw new Error("mcp/opencode.json is not valid JSON");
     }
   }
+  let codexMcp;
+  const codexMcpSource = path5.join(root, "mcp", "codex.json");
+  let codexMcpText;
+  try {
+    codexMcpText = await fs3.readFile(codexMcpSource, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT")
+      throw error;
+  }
+  if (codexMcpText !== undefined) {
+    try {
+      codexMcp = JSON.parse(codexMcpText);
+    } catch {
+      throw new Error("mcp/codex.json is not valid JSON");
+    }
+  }
   return {
     invariants: await readInstruction(instructionPath("invariant.md")),
     preferences: await readInstruction(instructionPath("preferences.md")),
@@ -1338,6 +1354,7 @@ async function loadCanonicalSources(root, resources = { agents: true }) {
     harnessInstructions,
     piAppendSystem,
     antigravityMcp,
+    codexMcp,
     opencodeMcp,
     agents: resources.agents === false ? [] : await loadAgentSources(root)
   };
@@ -1396,28 +1413,28 @@ ${normalizeInstruction(preferences).trimEnd()}`
 }
 var ANTIGRAVITY_RULE_BYTE_LIMIT = 24000;
 var antigravityTriggers = ["always_on", "model_decision", "glob", "manual"];
+function assertNoSecretKeys(entry, entryLabel) {
+  const secretKeys = new Set(["apikey", "token", "secret", "password"]);
+  if (entry === null || typeof entry !== "object")
+    return;
+  for (const [key, nested] of Object.entries(entry)) {
+    if (secretKeys.has(key.toLowerCase()))
+      throw new Error(`${entryLabel} contains a secret-like key: ${key}`);
+    assertNoSecretKeys(nested, `${entryLabel}.${key}`);
+  }
+}
 function renderMcpConfig(value, label) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
     throw new Error(`${label} must be an object`);
   const servers = value.mcpServers;
   if (servers === null || typeof servers !== "object" || Array.isArray(servers))
     throw new Error(`${label}.mcpServers must be an object`);
-  const secretKeys = new Set(["apikey", "token", "secret", "password"]);
-  const assertNoSecrets = (entry, entryLabel) => {
-    if (entry === null || typeof entry !== "object")
-      return;
-    for (const [key, nested] of Object.entries(entry)) {
-      if (secretKeys.has(key.toLowerCase()))
-        throw new Error(`${entryLabel} contains a secret-like key: ${key}`);
-      assertNoSecrets(nested, `${entryLabel}.${key}`);
-    }
-  };
   const sortedServers = {};
   for (const name of Object.keys(servers).sort()) {
     const server = servers[name];
     if (server === null || typeof server !== "object" || Array.isArray(server))
       throw new Error(`${label}.mcpServers.${name} must be a server object`);
-    assertNoSecrets(server, `${label}.mcpServers.${name}`);
+    assertNoSecretKeys(server, `${label}.mcpServers.${name}`);
     const sorted = {};
     for (const key of Object.keys(server).sort()) {
       sorted[key] = server[key];
@@ -1461,6 +1478,8 @@ ${normalized}`;
 }
 var CODEX_BEGIN = "# >>> agent-policy developer_instructions >>>";
 var CODEX_END = "# <<< agent-policy developer_instructions <<<";
+var CODEX_MCP_BEGIN = "# >>> agent-policy mcp_servers >>>";
+var CODEX_MCP_END = "# <<< agent-policy mcp_servers <<<";
 var CODEX_ASSIGNMENT = /^developer_instructions\s*=\s*"""\n[\s\S]*?^"""\n?/gm;
 function codexAssignmentBounds(config) {
   let found;
@@ -1500,33 +1519,248 @@ function managedCodexBlock(config) {
 ${assignment}${CODEX_END}
 `;
 }
-function renderCodexConfig(existing, instructions, adoptUnmanaged = false) {
-  const block = renderCodexBlock(instructions);
+function codexMcpMarkers(lines) {
+  const begins = lines.flatMap((line, index) => line.trim() === CODEX_MCP_BEGIN ? [index] : []);
+  const ends = lines.flatMap((line, index) => line.trim() === CODEX_MCP_END ? [index] : []);
+  if (!begins.length && !ends.length)
+    return;
+  if (begins.length !== 1 || ends.length !== 1 || ends[0] < begins[0])
+    throw new Error("Codex mcp_servers managed-region delimiters are malformed");
+  return { begin: begins[0], end: ends[0] };
+}
+function parseCodexMcp(value, label = "mcp/codex.json") {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label} must be an object`);
+  const root = value;
+  for (const key of Object.keys(root))
+    if (key !== "mcp_servers")
+      throw new Error(`${label}.${key} is unsupported by harness-sync`);
+  const servers = root.mcp_servers;
+  if (servers === null || typeof servers !== "object" || Array.isArray(servers))
+    throw new Error(`${label}.mcp_servers must be an object`);
+  return servers;
+}
+function renderCodexMcpBlock(mcpServers) {
+  validateCodexMcp(mcpServers, "Codex mcp_servers");
+  const servers = mcpServers;
+  const tables = [];
+  for (const name of Object.keys(servers).sort()) {
+    const server = servers[name];
+    if (!server || typeof server !== "object" || Array.isArray(server))
+      throw new Error(`Codex mcp_servers.${name} must be a server object`);
+    if (server.command === undefined && server.url === undefined)
+      throw new Error(`Codex mcp_servers.${name} requires command or url`);
+    assertNoSecretKeys(server, `Codex mcp_servers.${name}`);
+    const fields = Object.keys(server).sort().map((key) => `${tomlKey(key)} = ${tomlValue(server[key])}`);
+    tables.push(`[mcp_servers.${tomlKey(name)}]
+${fields.join(`
+`)}`);
+  }
+  return `${CODEX_MCP_BEGIN}
+${tables.join(`
+
+`)}${tables.length ? `
+` : ""}${CODEX_MCP_END}
+`;
+}
+function managedCodexMcpBlock(config) {
+  const normalized = normalizeInstruction(config);
+  if (!normalized.includes(CODEX_MCP_BEGIN) && !normalized.includes(CODEX_MCP_END))
+    return;
+  const lines = normalized.replace(/\n$/, "").split(`
+`);
+  const markers = codexMcpMarkers(lines);
+  return `${lines.slice(markers.begin, markers.end + 1).join(`
+`)}
+`;
+}
+function composeCodexOwned(instructions, mcpServers) {
+  return mcpServers === undefined ? instructions : `${instructions}\x00${mcpServers}`;
+}
+function managedCodexContent(config) {
+  const instructions = managedCodexBlock(config);
+  const mcpServers = managedCodexMcpBlock(config);
+  if (instructions === undefined && mcpServers === undefined)
+    return;
+  return composeCodexOwned(instructions ?? "", mcpServers);
+}
+function parseTomlKeyPath(value) {
+  const keys = [];
+  let index = 0;
+  while (index < value.length) {
+    while (value[index] === " " || value[index] === "\t")
+      index += 1;
+    if (index >= value.length)
+      break;
+    let key = "";
+    if (value[index] === '"') {
+      index += 1;
+      let escaped = false;
+      while (index < value.length) {
+        const character = value[index++];
+        if (escaped) {
+          key += character;
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === '"') {
+          break;
+        } else
+          key += character;
+      }
+    } else if (value[index] === "'") {
+      index += 1;
+      while (index < value.length) {
+        const character = value[index++];
+        if (character === "'")
+          break;
+        key += character;
+      }
+    } else {
+      const start = index;
+      while (index < value.length && value[index] !== "." && value[index] !== " " && value[index] !== "\t")
+        index += 1;
+      key = value.slice(start, index);
+    }
+    if (!key)
+      return;
+    keys.push(key);
+    while (value[index] === " " || value[index] === "\t")
+      index += 1;
+    if (index >= value.length)
+      break;
+    if (value[index] !== ".")
+      return;
+    index += 1;
+  }
+  return keys.length ? keys : undefined;
+}
+function codexMcpTableSpans(lines) {
+  const spans = [];
+  let current;
+  let multiline;
+  for (let index = 0;index < lines.length; index += 1) {
+    const line = lines[index];
+    if (multiline !== undefined) {
+      if (line.includes(multiline))
+        multiline = undefined;
+      continue;
+    }
+    if (line.trim() === CODEX_MCP_END) {
+      if (current !== undefined) {
+        current.end = index - 1;
+        spans.push(current);
+        current = undefined;
+      }
+      continue;
+    }
+    const doubleDelimiter = line.indexOf('"""');
+    const singleDelimiter = line.indexOf("'''");
+    if (doubleDelimiter !== -1 || singleDelimiter !== -1) {
+      const delimiter = doubleDelimiter !== -1 ? '"""' : "'''";
+      if ((line.split(delimiter).length - 1) % 2 === 1)
+        multiline = delimiter;
+      continue;
+    }
+    const header = /^\s*\[\[?(.+?)\]\]?\s*(?:#.*)?$/.exec(line);
+    if (!header)
+      continue;
+    if (current !== undefined) {
+      current.end = index - 1;
+      spans.push(current);
+      current = undefined;
+    }
+    const keys = parseTomlKeyPath(header[1].trim());
+    if (keys?.[0] === "mcp_servers")
+      current = { name: keys[1] ?? "", start: index, end: index };
+  }
+  if (current !== undefined) {
+    current.end = lines.length - 1;
+    spans.push(current);
+  }
+  return spans;
+}
+function removeCodexSpans(config, spans) {
+  const normalized = normalizeInstruction(config).replace(/\n$/, "");
+  const lines = normalized.split(`
+`);
+  const remove = new Set;
+  for (const span of spans)
+    for (let index = span.start;index <= span.end; index += 1)
+      remove.add(index);
+  return `${lines.filter((_, index) => !remove.has(index)).join(`
+`)}
+`;
+}
+function appendCodexMcpBlock(config, block) {
+  const normalized = normalizeInstruction(config).trimEnd();
+  return normalized === "" ? block : `${normalized}
+
+${block}`;
+}
+function replaceCodexMcpBlock(config, block) {
+  const normalized = normalizeInstruction(config).replace(/\n$/, "");
+  const lines = normalized.split(`
+`);
+  const markers = codexMcpMarkers(lines);
+  const blockLines = block.replace(/\n$/, "").split(`
+`);
+  return `${[
+    ...lines.slice(0, markers.begin),
+    ...blockLines,
+    ...lines.slice(markers.end + 1)
+  ].join(`
+`)}
+`;
+}
+function renderCodexDeveloperRegion(existing, block, adoptUnmanaged) {
   if (existing === undefined)
-    return { desired: block, owned: block };
+    return block;
   const normalized = normalizeInstruction(existing);
   if (normalized.includes(CODEX_BEGIN) || normalized.includes(CODEX_END)) {
     const stripped = stripCodexMarkers(normalized);
     const bounds = codexAssignmentBounds(stripped);
     if (bounds === undefined)
       throw new Error("Codex managed-region delimiters are malformed");
-    return {
-      desired: `${stripped.slice(0, bounds.start)}${block}${stripped.slice(bounds.end)}`,
-      owned: block
-    };
+    return `${stripped.slice(0, bounds.start)}${block}${stripped.slice(bounds.end)}`;
   }
   const bounds = codexAssignmentBounds(normalized);
   if (bounds !== undefined) {
     if (!adoptUnmanaged)
       throw new Error("Codex developer_instructions is unmanaged; run adopt explicitly before sync");
-    return {
-      desired: `${normalized.slice(0, bounds.start)}${block}${normalized.slice(bounds.end)}`,
-      owned: block
-    };
+    return `${normalized.slice(0, bounds.start)}${block}${normalized.slice(bounds.end)}`;
   }
-  return { desired: `${normalized.trimEnd()}
+  return `${normalized.trimEnd()}
 
-${block}`, owned: block };
+${block}`;
+}
+function renderCodexConfig(existing, instructions, adoptUnmanaged = false, mcpServers) {
+  const block = renderCodexBlock(instructions);
+  let desired = renderCodexDeveloperRegion(existing, block, adoptUnmanaged);
+  if (mcpServers === undefined) {
+    const managedMcp = managedCodexMcpBlock(desired);
+    return { desired, owned: composeCodexOwned(block, managedMcp) };
+  }
+  const mcpBlock = renderCodexMcpBlock(mcpServers);
+  const canonicalNames = new Set(Object.keys(mcpServers));
+  const lines = normalizeInstruction(desired).replace(/\n$/, "").split(`
+`);
+  const markers = codexMcpMarkers(lines);
+  const spans = codexMcpTableSpans(lines);
+  const collisions = spans.filter((span) => (canonicalNames.has(span.name) || span.name === "") && (markers === undefined || span.start < markers.begin || span.end > markers.end));
+  const unmanaged = collisions.length > 0;
+  if (unmanaged && !adoptUnmanaged)
+    throw new Error("Codex mcp_servers contains unmanaged canonical-name tables; run adopt explicitly before sync");
+  if (unmanaged)
+    desired = removeCodexSpans(desired, collisions);
+  const hasMarkers = codexMcpMarkers(normalizeInstruction(desired).replace(/\n$/, "").split(`
+`));
+  desired = hasMarkers ? replaceCodexMcpBlock(desired, mcpBlock) : appendCodexMcpBlock(desired, mcpBlock);
+  return {
+    desired,
+    owned: composeCodexOwned(block, mcpBlock),
+    ...unmanaged ? { unmanaged: true } : {}
+  };
 }
 
 // src/opencode.ts
@@ -1967,8 +2201,9 @@ function renderTargets(config, sources, codexConfigs = {}, adoptUnmanaged = fals
       targets.push({ id: "pi-system", kind: "file", path: path6.join(agentDir, "SYSTEM.md"), desired: "", owned: "", operation: "delete" }, { id: "pi-agents", kind: "file", path: path6.join(agentDir, "AGENTS.md"), desired: layers.pi.agents, owned: layers.pi.agents }, { id: "pi-append-system", kind: "file", path: path6.join(agentDir, "APPEND_SYSTEM.md"), desired: piInstructions, owned: piInstructions });
     }
     if (config.harnesses.codex.enabled) {
+      const codexMcp = sources.codexMcp === undefined ? undefined : parseCodexMcp(sources.codexMcp);
       for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
-        const target = renderCodexConfig(codexConfigs[id], layers.codex.system, adoptUnmanaged);
+        const target = renderCodexConfig(codexConfigs[id], layers.codex.system, adoptUnmanaged, codexMcp);
         targets.push({ id: `${id}-config`, kind: "codex", path: path6.join(home, "config.toml"), ...target });
         targets.push({ id: `${id}-agents`, kind: "file", path: path6.join(home, "AGENTS.md"), desired: layers.codex.agents, owned: layers.codex.agents });
       }
@@ -2153,7 +2388,7 @@ function ownedContent(target, existing) {
   if (target.kind === "symlink")
     return existing;
   if (target.kind === "codex")
-    return managedCodexBlock(existing);
+    return managedCodexContent(existing);
   if (target.kind === "opencode")
     return managedOpenCodeBlock(existing, target.path.endsWith(".jsonc"));
   return normalizeInstruction(existing);
@@ -2232,6 +2467,15 @@ async function assessTargets(config, state, sources, io = nodeFileOps, adoptUnma
         existing,
         status,
         detail: status === "current" ? `retired ${target.agentDirectory ? "agent" : "instruction"} is absent` : status === "obsolete" ? `managed ${target.agentDirectory ? "agent" : "instruction"} is scheduled for removal` : "retired target is unmanaged, changed independently or owned at another path; preserve it or adopt explicitly"
+      });
+      continue;
+    }
+    if (target.unmanaged) {
+      assessments.push({
+        target,
+        existing,
+        status: "conflict",
+        detail: "Codex mcp_servers contains unmanaged canonical-name tables; run adopt explicitly before sync"
       });
       continue;
     }

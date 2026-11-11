@@ -7,7 +7,7 @@ Synchronize this repository's canonical instructions and specialist agents into 
 | `instruction-sync` | Global operating rules and personal guidance | Pi, Codex, VS Code, Zed, Antigravity, OpenCode | `instructions.config.json` |
 | `agent-sync` | Native specialist agent definitions | Pi, Codex, VS Code, Antigravity, OpenCode | `agents.config.json` |
 
-Each command loads only its own sources, configuration and ownership state. Disabling one workflow or encountering an instruction conflict does not affect the other. Synchronization is manual. The tool does not synchronize skills, install tools, manage MCP servers beyond the explicit Antigravity and OpenCode registries, or restart runtimes.
+Each command loads only its own sources, configuration and ownership state. Disabling one workflow or encountering an instruction conflict does not affect the other. Synchronization is manual. The tool does not synchronize skills, install tools, manage MCP servers beyond the explicit Antigravity, Codex and OpenCode registries, or restart runtimes.
 
 ## Guide
 
@@ -362,7 +362,7 @@ The operating layer combines `invariant.md` with that harness's system modules. 
 | Harness | Operating layer | Personal guidance | Append source |
 | --- | --- | --- | --- |
 | Pi | First in `<agentDir>/APPEND_SYSTEM.md` | `<agentDir>/AGENTS.md` | After the operating layer in the same append file. |
-| Codex | Managed `developer_instructions` region in `<home>/config.toml` | `<home>/AGENTS.md` | Excluded. |
+| Codex | Managed `developer_instructions` region in `<home>/config.toml` | `<home>/AGENTS.md` | Excluded. Managed `mcp_servers` region in the same file comes from `mcp/codex.json`. |
 | VS Code | Combined output at each configured target, with invariants and preferences sections and `applyTo: "**"` | Included in the same file. | Excluded. |
 | Zed | Combined operating layer then personal guidance in `<home>/AGENTS.md` | Included in the same file. | Excluded. |
 | Antigravity | `<home>/GEMINI.md` as plain Markdown, always active | Its own `always_on` rule at `<home>/config/rules/agent-policy-preferences.md` | Excluded. |
@@ -401,6 +401,29 @@ Generated operating instructions.
 ```
 
 Other settings are preserved. The synchronizer owns the `developer_instructions` assignment itself, not the span between markers: marker positions are derived on every render, so keys that Codex writes next to the value are never absorbed, moved, or deleted. A file that lost one marker is rebuilt and reported as a stale update, while an edit inside the assignment still reports a conflict. An existing unmanaged `developer_instructions` assignment requires explicit adoption. The supported adoption form is a multiline TOML basic string with its opening and closing delimiters on separate lines. Unsupported or ambiguous assignments, such as two assignments under one marker pair, fail validation. The global `AGENTS.md` and other standalone instruction outputs are owned as whole files.
+
+### Codex global MCP region
+
+Instruction synchronization also owns a marked subset of `mcp_servers` in the same `config.toml` from the canonical [mcp/codex.json](../../mcp/codex.json) registry:
+
+```toml
+# >>> agent-policy mcp_servers >>>
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.firecrawl-mcp]
+auth = "oauth"
+url = "https://mcp.firecrawl.dev/v2/mcp-oauth"
+# <<< agent-policy mcp_servers <<<
+```
+
+Only tables inside the markers are owned. Unrelated global MCP tables outside the region remain local and untouched, including servers configured directly by the user. A canonical server name colliding with an outside table blocks synchronization; explicit `adopt` removes only the colliding table with a recovery backup and leaves other outside tables intact. Add shared servers to `mcp/codex.json` instead of duplicating them locally.
+
+Firecrawl uses its OAuth MCP endpoint rather than an API-key environment variable. Complete the browser sign-in once with `codex mcp login firecrawl-mcp`; no Firecrawl credential enters the repository.
+
+The `codex-config` target owns both the `developer_instructions` and MCP regions. Its ownership hash covers both managed blocks; changing or breaking either region reports one conflict and blocks both updates for that Codex home. Existing state that covers only `developer_instructions` remains compatible and becomes a normal `stale` update when the MCP registry is first added.
+
+Codex custom agent files can contain `mcp_servers`, and the validator still accepts them, but current Codex documentation states that a custom agent file does not override the parent session’s MCP configuration. The global registry is therefore authoritative. Existing per-agent MCP entries are retained for compatibility.
 
 ### Transition existing Pi instructions
 
@@ -514,6 +537,8 @@ Codex supports the following top-level fields:
 The renderer owns `developer_instructions`, so supply prompt content through Markdown rather than this JSON key. `tools` accepts boolean `web_search` and `view_image` controls, not an arbitrary tool-name allowlist. `web_search` accepts `disabled`, `cached` or `live`. `sandbox_mode` accepts `read-only`, `workspace-write` or `danger-full-access`. Approval policy accepts `never`, `on-request`, `on-failure`, or a `granular` object with boolean `sandbox_approval`, `rules`, `mcp_elicitations`, `request_permissions` and `skill_approval` controls. Skills use `skills.config` entries with a `path` and boolean `enabled`. `sandbox_workspace_write` supports `writable_roots`, `network_access`, `exclude_tmpdir_env_var` and `exclude_slash_tmp`.
 
 Each native MCP server can define either a process (`command`, `args`, `cwd`) or URL transport (`url`), with optional enablement, required status, timeouts, authentication and environment/header settings. Supported tool selection is `enabled_tools` / `disabled_tools`. Per-tool settings use `tools.<name>.approval_mode` and `output_token_limit`, with approval modes `auto`, `prompt`, `writes` or `approve`. Credential references include `env_vars`, `bearer_token_env_var` and `env_http_headers`. See the explicit validator for the complete nested field list. Parsing a profile does not establish model availability, tool availability, MCP startup or authentication.
+
+Current Codex documentation states that a custom agent file does not override the parent session’s MCP configuration. Shared global servers therefore belong in `mcp/codex.json`; the per-agent `mcp_servers` field remains accepted for compatibility.
 
 VS Code profiles support `name`, `description`, `argument-hint`, `tools`, `agents`, `model`, `user-invocable` and `disable-model-invocation`. Tools are arrays of nonempty native tool names or MCP selectors such as `docs/*`. Models are a nonempty string or nonempty ordered array of model names. Omitting `model` uses the runtime's selected model. Agents accept `*` or a list of nonempty display names; `[]` disables subagent use. When allowing subagents with an explicit tools list, include the `agent` tool. Visibility controls require actual booleans. Unsupported native fields fail before writes rather than being silently omitted. See [VS Code's native field documentation](https://code.visualstudio.com/docs/agent-customization/custom-agents#header-optional).
 

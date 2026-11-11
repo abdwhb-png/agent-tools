@@ -1,0 +1,17 @@
+{
+  "mcp_servers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "deepwiki": {
+      "url": "https://mcp.deepwiki.com/mcp"
+    },
+    "exa": {
+      "url": "https://mcp.exa.ai/mcp"
+    },
+    "firecrawl-mcp": {
+      "url": "https://mcp.firecrawl.dev/v2/mcp-oauth",
+      "auth": "oauth"
+    }
+  }
+}

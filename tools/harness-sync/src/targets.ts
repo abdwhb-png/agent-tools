@@ -13,6 +13,7 @@ import {
   renderCodexConfig,
   renderInstructionModules,
   renderMcpConfig,
+  parseCodexMcp,
   renderVsCode,
 } from "./renderers.js";
 import {
@@ -96,8 +97,10 @@ export function renderTargets(config: PolicyConfig, sources: CanonicalSources, c
       );
     }
     if (config.harnesses.codex.enabled) {
+      const codexMcp =
+        sources.codexMcp === undefined ? undefined : parseCodexMcp(sources.codexMcp);
       for (const { id, home } of namedHomes("codex", config.harnesses.codex)) {
-        const target = renderCodexConfig(codexConfigs[id], layers.codex.system, adoptUnmanaged);
+        const target = renderCodexConfig(codexConfigs[id], layers.codex.system, adoptUnmanaged, codexMcp);
         targets.push({ id: `${id}-config`, kind: "codex", path: path.join(home, "config.toml"), ...target });
         targets.push({ id: `${id}-agents`, kind: "file", path: path.join(home, "AGENTS.md"), desired: layers.codex.agents, owned: layers.codex.agents });
       }

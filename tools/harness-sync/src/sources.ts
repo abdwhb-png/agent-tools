@@ -20,6 +20,7 @@ export interface CanonicalSources {
   >;
   piAppendSystem: string;
   antigravityMcp?: unknown;
+  codexMcp?: unknown;
   opencodeMcp?: unknown;
   agents?: AgentSource[];
 }
@@ -148,6 +149,21 @@ export async function loadCanonicalSources(root: string, resources: { instructio
       throw new Error("mcp/opencode.json is not valid JSON");
     }
   }
+  let codexMcp: unknown;
+  const codexMcpSource = path.join(root, "mcp", "codex.json");
+  let codexMcpText: string | undefined;
+  try {
+    codexMcpText = await fs.readFile(codexMcpSource, "utf8");
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  if (codexMcpText !== undefined) {
+    try {
+      codexMcp = JSON.parse(codexMcpText);
+    } catch {
+      throw new Error("mcp/codex.json is not valid JSON");
+    }
+  }
   return {
     invariants: await readInstruction(instructionPath("invariant.md")),
     preferences: await readInstruction(instructionPath("preferences.md")),
@@ -157,6 +173,7 @@ export async function loadCanonicalSources(root: string, resources: { instructio
     harnessInstructions,
     piAppendSystem,
     antigravityMcp,
+    codexMcp,
     opencodeMcp,
     agents: resources.agents === false ? [] : await loadAgentSources(root),
   };

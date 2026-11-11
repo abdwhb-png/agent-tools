@@ -10,7 +10,7 @@ import {
   type FileChange,
   type FileOps,
 } from "./files.js";
-import { managedCodexBlock } from "./renderers.js";
+import { managedCodexContent } from "./renderers.js";
 import { managedOpenCodeBlock } from "./opencode.js";
 import { normalizeInstruction, type CanonicalSources } from "./sources.js";
 import { agentDirectories, renderTargets, type OpenCodeConfigFile } from "./targets.js";
@@ -34,7 +34,7 @@ function hash(content: string): string {
 function ownedContent(target: RenderedTarget, existing: string | undefined): string | undefined {
   if (existing === undefined) return undefined;
   if (target.kind === "symlink") return existing;
-  if (target.kind === "codex") return managedCodexBlock(existing);
+  if (target.kind === "codex") return managedCodexContent(existing);
   if (target.kind === "opencode")
     return managedOpenCodeBlock(existing, target.path.endsWith(".jsonc"));
   return normalizeInstruction(existing);
@@ -161,6 +161,16 @@ export async function assessTargets(
             : status === "obsolete"
               ? `managed ${target.agentDirectory ? "agent" : "instruction"} is scheduled for removal`
               : "retired target is unmanaged, changed independently or owned at another path; preserve it or adopt explicitly",
+      });
+      continue;
+    }
+    if (target.unmanaged) {
+      assessments.push({
+        target,
+        existing,
+        status: "conflict",
+        detail:
+          "Codex mcp_servers contains unmanaged canonical-name tables; run adopt explicitly before sync",
       });
       continue;
     }

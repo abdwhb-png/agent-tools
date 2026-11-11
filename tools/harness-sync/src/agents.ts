@@ -305,7 +305,7 @@ function assertOneOf(value: unknown, allowed: string[], label: string): void {
   if (typeof value !== "string" || !allowed.includes(value)) throw new Error(`${label} must be one of ${allowed.join(", ")}`);
 }
 
-function validateMcp(value: unknown, label: string): void {
+export function validateCodexMcp(value: unknown, label: string): void {
   for (const [name, raw] of Object.entries(assertObject(value, label))) {
     const serverLabel = `${label}.${name}`;
     const server = assertObject(raw, serverLabel);
@@ -396,7 +396,7 @@ function validateCodex(config: Record<string, unknown>, label: string): void {
   for (const key of ["model_context_window", "model_max_output_tokens"]) {
     if (config[key] !== undefined && (!Number.isInteger(config[key]) || (config[key] as number) <= 0)) throw new Error(`${label}.${key} must be a positive integer`);
   }
-  if (config.mcp_servers !== undefined) validateMcp(config.mcp_servers, `${label}.mcp_servers`);
+  if (config.mcp_servers !== undefined) validateCodexMcp(config.mcp_servers, `${label}.mcp_servers`);
 }
 
 async function optionalMarkdown(file: string): Promise<string> {
@@ -543,10 +543,10 @@ export function renderPiAgent(agent: AgentSource, paths: Record<string, string> 
   return `---\n${lines.join("\n")}\n---\n\n${agent.piInstructions}`;
 }
 
-function tomlString(value: string): string { return JSON.stringify(value).replace(/\u007f/g, "\\u007f"); }
-function tomlKey(key: string): string { return /^[A-Za-z0-9_-]+$/.test(key) ? key : tomlString(key); }
+export function tomlString(value: string): string { return JSON.stringify(value).replace(/\u007f/g, "\\u007f"); }
+export function tomlKey(key: string): string { return /^[A-Za-z0-9_-]+$/.test(key) ? key : tomlString(key); }
 
-function tomlValue(value: NativeValue): string {
+export function tomlValue(value: NativeValue): string {
   if (Array.isArray(value)) return `[${value.map(tomlValue).join(", ")}]`;
   if (typeof value === "object") return `{ ${Object.keys(value).sort().map((key) => `${tomlKey(key)} = ${tomlValue(value[key])}`).join(", ")} }`;
   return typeof value === "string" ? tomlString(value) : JSON.stringify(value);
