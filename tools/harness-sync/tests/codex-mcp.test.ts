@@ -155,6 +155,66 @@ test("rejects malformed managed MCP markers", () => {
   );
 });
 
+test("keeps an unmanaged table before the managed MCP region out of the managed span", () => {
+  const initial = renderCodexConfig(undefined, "Instructions\n", false, servers).desired;
+  const existing = initial.replace(
+    CODEX_MCP_BEGIN,
+    `[mcp_servers.local]\nurl = "https://local.example/mcp"\n\n${CODEX_MCP_BEGIN}`,
+  );
+  const rendered = renderCodexConfig(existing, "Instructions\n", false, servers);
+  expect(rendered.unmanaged).toBeUndefined();
+  const parsed = parseToml(rendered.desired);
+  expect(parsed.mcp_servers.local).toEqual({ url: "https://local.example/mcp" });
+  expect(parsed.mcp_servers.context7).toEqual(servers.context7);
+});
+
+test("places developer_instructions before the first table when the file has none", () => {
+  const existing = 'model = "x"\n\n[profiles.fast]\nmodel = "y"\n';
+  const rendered = renderCodexConfig(existing, "Instructions\n", false, servers);
+  const parsed = parseToml(rendered.desired);
+  expect(parsed.developer_instructions).toContain("Instructions");
+  expect(parsed.profiles.fast).toEqual({ model: "y" });
+  expect(rendered.desired.indexOf(CODEX_BEGIN)).toBeLessThan(
+    rendered.desired.indexOf("[profiles.fast]"),
+  );
+});
+
+test("ignores a multiline delimiter that only appears inside a comment", () => {
+  const existing = `# note about """ quoting\n[mcp_servers.context7]\nurl = "https://old.example/mcp"\n`;
+  expect(() => renderCodexConfig(existing, "Instructions\n", false, servers)).toThrow(
+    "unmanaged canonical-name",
+  );
+  const adopted = renderCodexConfig(existing, "Instructions\n", true, servers);
+  expect(parseToml(adopted.desired).mcp_servers.context7).toEqual(servers.context7);
+});
+
+test("reports no managed content without developer_instructions", () => {
+  expect(managedCodexContent('model = "x"\n')).toBeUndefined();
+});
+
+test("rejects literal secrets under broader key names but allows env references", () => {
+  for (const key of ["authorization", "X-Api-Key", "client_secret", "access_token"])
+    expect(() =>
+      renderCodexMcpBlock({
+        bad: { url: "https://example.com/mcp", http_headers: { [key]: "literal" } },
+      }),
+    ).toThrow("secret-like key");
+  expect(() =>
+    renderCodexMcpBlock({
+      ok: {
+        url: "https://example.com/mcp",
+        bearer_token_env_var: "EXAMPLE_TOKEN",
+        http_headers: { Authorization: "${EXAMPLE_TOKEN}" },
+      },
+    }),
+  ).not.toThrow();
+});
+
+test("rejects unsafe or empty Codex MCP server names", () => {
+  for (const name of ["", "a b", "x]\n[evil", ".hidden"])
+    expect(() => renderCodexMcpBlock({ [name]: { url: "https://example.com/mcp" } })).toThrow();
+});
+
 test("loads the repository Codex MCP registry", async () => {
   const repositoryRoot = path.resolve(import.meta.dir, "..", "..", "..");
   const sources = await loadCanonicalSources(repositoryRoot, {

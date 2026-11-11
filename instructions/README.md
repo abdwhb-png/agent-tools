@@ -26,8 +26,9 @@ Optional per-harness directories extend either layer without polluting other har
 
 | Harness | Operating Layer (`invariant.md` + `<harness>/system/*.md`) | Personal Guidance (`preferences.md` + `technology-defaults.md` + `<harness>/agents/*.md`) | Notes |
 | --- | --- | --- | --- |
-| **Codex** | Managed `developer_instructions` block in `<home>/config.toml` (`developer` API role) | `<home>/AGENTS.md` (`user` context role, loaded before repo `AGENTS.md`) | `developer_instructions` cannot be overridden by repo `AGENTS.md` and does not consume Codex's `project_doc_max_bytes` budget. |
+| **Codex** | Managed `developer_instructions` block in `<home>/config.toml` (`developer` API role) | `<home>/AGENTS.md` (`user` context role, loaded before repo `AGENTS.md`) | `developer_instructions` cannot be overridden by repo `AGENTS.md` and does not consume Codex's `project_doc_max_bytes` budget. `mcp_servers` from `mcp/codex.json` are managed in a second marked region of `config.toml`. |
 | **Pi** | `<agentDir>/APPEND_SYSTEM.md` (followed by `pi/APPEND_SYSTEM.md`) | `<agentDir>/AGENTS.md` | Preserves Pi's native system prompt while appending operating invariants. |
+| **OpenCode** | `<home>/AGENTS.md` (operating layer followed by personal guidance) | Same file | MCP servers from `mcp/opencode.json` are written to a marked `mcp.servers` region in `opencode.jsonc` (or `mcp.servers` in plain `opencode.json`). |
 | **Antigravity** | `<home>/GEMINI.md` (plain Markdown, always active) | `<home>/config/rules/agent-policy-preferences.md` (`trigger: always_on`) & `<home>/config/rules/agent-policy-technology-defaults.md` (`trigger: model_decision`) | Each Antigravity rule file is checked against the 24,000-byte preflight cap. |
 | **VS Code** | Combined into configured `*.instructions.md` targets (`invariants` section) | Combined into configured `*.instructions.md` targets (`preferences` section) | Emitted with `applyTo: "**"`. |
 | **Zed** | First section of `<home>/AGENTS.md` | Second section of `<home>/AGENTS.md` | Combined in order: operating layer then personal guidance. |

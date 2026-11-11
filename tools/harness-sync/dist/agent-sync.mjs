@@ -872,6 +872,8 @@ function assertOneOf(value, allowed, label) {
 }
 function validateCodexMcp(value, label) {
   for (const [name, raw] of Object.entries(assertObject(value, label))) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name))
+      throw new Error(`${label}.${name || "(empty)"} must use a safe server name`);
     const serverLabel = `${label}.${name}`;
     const server = assertObject(raw, serverLabel);
     assertKeys2(server, [...mcpStrings, ...mcpLists, ...mcpNumbers, "env", "env_vars", "http_headers", "env_http_headers", "enabled", "required", "tools", "oauth"], serverLabel);
@@ -1413,13 +1415,20 @@ ${normalizeInstruction(preferences).trimEnd()}`
 }
 var ANTIGRAVITY_RULE_BYTE_LIMIT = 24000;
 var antigravityTriggers = ["always_on", "model_decision", "glob", "manual"];
+var SECRET_KEYS = new Set(["apikey", "token", "secret", "password"]);
+var SECRET_KEY_PATTERN = /(api[-_]?key|token|secret|password|authorization)/i;
+var ENV_REFERENCE_KEYS = new Set(["bearer_token_env_var", "env_http_headers", "env_vars"]);
+var ENV_REFERENCE_VALUE = /^(?:\$\{[A-Za-z_][A-Za-z0-9_]*\}|\{env:[A-Za-z_][A-Za-z0-9_]*\})$/;
 function assertNoSecretKeys(entry, entryLabel) {
-  const secretKeys = new Set(["apikey", "token", "secret", "password"]);
   if (entry === null || typeof entry !== "object")
     return;
   for (const [key, nested] of Object.entries(entry)) {
-    if (secretKeys.has(key.toLowerCase()))
+    if (ENV_REFERENCE_KEYS.has(key))
+      continue;
+    if (SECRET_KEYS.has(key.toLowerCase()))
       throw new Error(`${entryLabel} contains a secret-like key: ${key}`);
+    if (SECRET_KEY_PATTERN.test(key) && typeof nested === "string" && !ENV_REFERENCE_VALUE.test(nested))
+      throw new Error(`${entryLabel} contains a secret-like key with a literal value: ${key}; use an environment reference`);
     assertNoSecretKeys(nested, `${entryLabel}.${key}`);
   }
 }
@@ -1579,10 +1588,9 @@ function composeCodexOwned(instructions, mcpServers) {
 }
 function managedCodexContent(config) {
   const instructions = managedCodexBlock(config);
-  const mcpServers = managedCodexMcpBlock(config);
-  if (instructions === undefined && mcpServers === undefined)
+  if (instructions === undefined)
     return;
-  return composeCodexOwned(instructions ?? "", mcpServers);
+  return composeCodexOwned(instructions, managedCodexMcpBlock(config));
 }
 function parseTomlKeyPath(value) {
   const keys = [];
@@ -1635,9 +1643,9 @@ function parseTomlKeyPath(value) {
   }
   return keys.length ? keys : undefined;
 }
-function codexMcpTableSpans(lines) {
-  const spans = [];
-  let current;
+var CODEX_MARKERS = new Set([CODEX_BEGIN, CODEX_END, CODEX_MCP_BEGIN, CODEX_MCP_END]);
+function structuralCodexLines(lines) {
+  const result = [];
   let multiline;
   for (let index = 0;index < lines.length; index += 1) {
     const line = lines[index];
@@ -1646,14 +1654,12 @@ function codexMcpTableSpans(lines) {
         multiline = undefined;
       continue;
     }
-    if (line.trim() === CODEX_MCP_END) {
-      if (current !== undefined) {
-        current.end = index - 1;
-        spans.push(current);
-        current = undefined;
-      }
+    if (CODEX_MARKERS.has(line.trim())) {
+      result.push({ index, line });
       continue;
     }
+    if (/^\s*#/.test(line))
+      continue;
     const doubleDelimiter = line.indexOf('"""');
     const singleDelimiter = line.indexOf("'''");
     if (doubleDelimiter !== -1 || singleDelimiter !== -1) {
@@ -1662,14 +1668,33 @@ function codexMcpTableSpans(lines) {
         multiline = delimiter;
       continue;
     }
-    const header = /^\s*\[\[?(.+?)\]\]?\s*(?:#.*)?$/.exec(line);
+    result.push({ index, line });
+  }
+  return result;
+}
+var TOML_TABLE_HEADER = /^\s*\[\[?(.+?)\]\]?\s*(?:#.*)?$/;
+function firstCodexTableIndex(lines) {
+  return structuralCodexLines(lines).find(({ line }) => line.trim() === CODEX_MCP_BEGIN || TOML_TABLE_HEADER.test(line))?.index;
+}
+function codexMcpTableSpans(lines) {
+  const spans = [];
+  let current;
+  const close = (index) => {
+    if (current === undefined)
+      return;
+    current.end = index - 1;
+    spans.push(current);
+    current = undefined;
+  };
+  for (const { index, line } of structuralCodexLines(lines)) {
+    if (CODEX_MARKERS.has(line.trim())) {
+      close(index);
+      continue;
+    }
+    const header = TOML_TABLE_HEADER.exec(line);
     if (!header)
       continue;
-    if (current !== undefined) {
-      current.end = index - 1;
-      spans.push(current);
-      current = undefined;
-    }
+    close(index);
     const keys = parseTomlKeyPath(header[1].trim());
     if (keys?.[0] === "mcp_servers")
       current = { name: keys[1] ?? "", start: index, end: index };
@@ -1730,9 +1755,22 @@ function renderCodexDeveloperRegion(existing, block, adoptUnmanaged) {
       throw new Error("Codex developer_instructions is unmanaged; run adopt explicitly before sync");
     return `${normalized.slice(0, bounds.start)}${block}${normalized.slice(bounds.end)}`;
   }
-  return `${normalized.trimEnd()}
+  const lines = normalized.replace(/\n$/, "").split(`
+`);
+  const boundary = firstCodexTableIndex(lines);
+  if (boundary === undefined)
+    return `${normalized.trimEnd()}
 
 ${block}`;
+  const head = lines.slice(0, boundary).join(`
+`).trimEnd();
+  const tail = lines.slice(boundary).join(`
+`);
+  return `${head === "" ? "" : `${head}
+
+`}${block}
+${tail}
+`;
 }
 function renderCodexConfig(existing, instructions, adoptUnmanaged = false, mcpServers) {
   const block = renderCodexBlock(instructions);

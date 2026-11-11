@@ -65,12 +65,26 @@ export interface AntigravityRuleFrontmatter {
   globs?: string;
 }
 
+const SECRET_KEYS = new Set(["apikey", "token", "secret", "password"]);
+const SECRET_KEY_PATTERN = /(api[-_]?key|token|secret|password|authorization)/i;
+// Codex fields that hold environment variable names, never secret values.
+const ENV_REFERENCE_KEYS = new Set(["bearer_token_env_var", "env_http_headers", "env_vars"]);
+const ENV_REFERENCE_VALUE = /^(?:\$\{[A-Za-z_][A-Za-z0-9_]*\}|\{env:[A-Za-z_][A-Za-z0-9_]*\})$/;
+
 function assertNoSecretKeys(entry: unknown, entryLabel: string): void {
-  const secretKeys = new Set(["apikey", "token", "secret", "password"]);
   if (entry === null || typeof entry !== "object") return;
   for (const [key, nested] of Object.entries(entry as Record<string, unknown>)) {
-    if (secretKeys.has(key.toLowerCase()))
+    if (ENV_REFERENCE_KEYS.has(key)) continue;
+    if (SECRET_KEYS.has(key.toLowerCase()))
       throw new Error(`${entryLabel} contains a secret-like key: ${key}`);
+    if (
+      SECRET_KEY_PATTERN.test(key) &&
+      typeof nested === "string" &&
+      !ENV_REFERENCE_VALUE.test(nested)
+    )
+      throw new Error(
+        `${entryLabel} contains a secret-like key with a literal value: ${key}; use an environment reference`,
+      );
     assertNoSecretKeys(nested, `${entryLabel}.${key}`);
   }
 }
@@ -234,9 +248,8 @@ function composeCodexOwned(instructions: string, mcpServers: string | undefined)
 
 export function managedCodexContent(config: string): string | undefined {
   const instructions = managedCodexBlock(config);
-  const mcpServers = managedCodexMcpBlock(config);
-  if (instructions === undefined && mcpServers === undefined) return undefined;
-  return composeCodexOwned(instructions ?? "", mcpServers);
+  if (instructions === undefined) return undefined;
+  return composeCodexOwned(instructions, managedCodexMcpBlock(config));
 }
 
 function parseTomlKeyPath(value: string): string[] | undefined {
@@ -294,9 +307,15 @@ interface CodexMcpTableSpan {
   end: number;
 }
 
-function codexMcpTableSpans(lines: string[]): CodexMcpTableSpan[] {
-  const spans: CodexMcpTableSpan[] = [];
-  let current: CodexMcpTableSpan | undefined;
+const CODEX_MARKERS = new Set([CODEX_BEGIN, CODEX_END, CODEX_MCP_BEGIN, CODEX_MCP_END]);
+
+/**
+ * Lines that carry TOML structure: managed-region markers and anything that is
+ * neither inside a multiline string nor a comment. Comments are skipped so a
+ * quoted delimiter inside one cannot desynchronize multiline tracking.
+ */
+function structuralCodexLines(lines: string[]): { index: number; line: string }[] {
+  const result: { index: number; line: string }[] = [];
   let multiline: '"""' | "'''" | undefined;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -304,14 +323,11 @@ function codexMcpTableSpans(lines: string[]): CodexMcpTableSpan[] {
       if (line.includes(multiline)) multiline = undefined;
       continue;
     }
-    if (line.trim() === CODEX_MCP_END) {
-      if (current !== undefined) {
-        current.end = index - 1;
-        spans.push(current);
-        current = undefined;
-      }
+    if (CODEX_MARKERS.has(line.trim())) {
+      result.push({ index, line });
       continue;
     }
+    if (/^\s*#/.test(line)) continue;
     const doubleDelimiter = line.indexOf('"""');
     const singleDelimiter = line.indexOf("'''");
     if (doubleDelimiter !== -1 || singleDelimiter !== -1) {
@@ -319,19 +335,42 @@ function codexMcpTableSpans(lines: string[]): CodexMcpTableSpan[] {
       if ((line.split(delimiter).length - 1) % 2 === 1) multiline = delimiter;
       continue;
     }
-    const header = /^\s*\[\[?(.+?)\]\]?\s*(?:#.*)?$/.exec(line);
-    if (!header) continue;
-    if (current !== undefined) {
-      current.end = index - 1;
-      spans.push(current);
-      current = undefined;
+    result.push({ index, line });
+  }
+  return result;
+}
+
+const TOML_TABLE_HEADER = /^\s*\[\[?(.+?)\]\]?\s*(?:#.*)?$/;
+
+function firstCodexTableIndex(lines: string[]): number | undefined {
+  return structuralCodexLines(lines).find(
+    ({ line }) => line.trim() === CODEX_MCP_BEGIN || TOML_TABLE_HEADER.test(line),
+  )?.index;
+}
+
+function codexMcpTableSpans(lines: string[]): CodexMcpTableSpan[] {
+  const spans: CodexMcpTableSpan[] = [];
+  let current: CodexMcpTableSpan | undefined;
+  const close = (index: number): void => {
+    if (current === undefined) return;
+    current.end = index - 1;
+    spans.push(current);
+    current = undefined;
+  };
+  for (const { index, line } of structuralCodexLines(lines)) {
+    if (CODEX_MARKERS.has(line.trim())) {
+      close(index);
+      continue;
     }
+    const header = TOML_TABLE_HEADER.exec(line);
+    if (!header) continue;
+    close(index);
     const keys = parseTomlKeyPath(header[1].trim());
     if (keys?.[0] === "mcp_servers")
       current = { name: keys[1] ?? "", start: index, end: index };
   }
   if (current !== undefined) {
-    current.end = lines.length - 1;
+    (current as CodexMcpTableSpan).end = lines.length - 1;
     spans.push(current);
   }
   return spans;
@@ -382,7 +421,14 @@ function renderCodexDeveloperRegion(
       throw new Error("Codex developer_instructions is unmanaged; run adopt explicitly before sync");
     return `${normalized.slice(0, bounds.start)}${block}${normalized.slice(bounds.end)}`;
   }
-  return `${normalized.trimEnd()}\n\n${block}`;
+  // developer_instructions must be a root key: appended after a [table] header it
+  // would be scoped to that table, so insert it before the first table instead.
+  const lines = normalized.replace(/\n$/, "").split("\n");
+  const boundary = firstCodexTableIndex(lines);
+  if (boundary === undefined) return `${normalized.trimEnd()}\n\n${block}`;
+  const head = lines.slice(0, boundary).join("\n").trimEnd();
+  const tail = lines.slice(boundary).join("\n");
+  return `${head === "" ? "" : `${head}\n\n`}${block}\n${tail}\n`;
 }
 
 export function renderCodexConfig(

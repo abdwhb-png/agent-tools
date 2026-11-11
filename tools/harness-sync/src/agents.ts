@@ -307,6 +307,8 @@ function assertOneOf(value: unknown, allowed: string[], label: string): void {
 
 export function validateCodexMcp(value: unknown, label: string): void {
   for (const [name, raw] of Object.entries(assertObject(value, label))) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name))
+      throw new Error(`${label}.${name || "(empty)"} must use a safe server name`);
     const serverLabel = `${label}.${name}`;
     const server = assertObject(raw, serverLabel);
     assertKeys(server, [...mcpStrings, ...mcpLists, ...mcpNumbers, "env", "env_vars", "http_headers", "env_http_headers", "enabled", "required", "tools", "oauth"], serverLabel);
